@@ -17,6 +17,8 @@ lerna-debug.log*
 *.njsproj
 *.sln
 *.sw?
+.roo/
+.cursor/
 
 # Environment variables
 .env
@@ -38,4 +40,10 @@ __pycache__/
 
 # Project-specific
 /database/warehouse.db
-/Docs,Prd,Task/ 
+/Docs,Prd,Task/
+
+# Test files
+*.spec
+
+# Database files
+*.db
