@@ -10,6 +10,9 @@ import { Item, Unit, Category } from '../types';
 import { ItemActions } from '../components/ItemActions';
 import { CategoryActions } from '../components/CategoryActions';
 import { MainCategoryCard } from '../components/MainCategoryCard';
+import { itemsService } from '../services/itemsService';
+import { categoryService } from '../services/categoryService';
+import { apiClient } from '../services/apiClient';
 
 type ViewLevel = 'mainCategories' | 'subCategories' | 'items';
 
@@ -37,7 +40,7 @@ export const ItemsManagement = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Modal State
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
@@ -49,11 +52,11 @@ export const ItemsManagement = () => {
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
   const [currentParentId, setCurrentParentId] = useState<number | null>(null);
 
-  const filteredItems = items.filter(item => 
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+  const filteredItems = items.filter(item =>
+    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     String(item.id).includes(searchTerm)
   );
-  
+
   // Effect to restore state from sessionStorage on initial mount
   useEffect(() => {
     const savedStateJSON = sessionStorage.getItem('itemsManagementState');
@@ -64,8 +67,10 @@ export const ItemsManagement = () => {
         setViewLevel(savedState.viewLevel || 'mainCategories');
         setSelectedMainCategory(savedState.selectedMainCategory || null);
         setSelectedSubCategory(savedState.selectedSubCategory || null);
-        setItemPage(savedState.itemPage || 1);
-        setSubCategoryPage(savedState.subCategoryPage || 1);
+        // Always restore to page 1 to avoid empty screen issues
+        // The actual page will be validated when data is fetched
+        setItemPage(1);
+        setSubCategoryPage(1);
       } catch (e) {
         console.error("Failed to parse saved state, starting fresh.", e);
         sessionStorage.removeItem('itemsManagementState');
@@ -78,13 +83,12 @@ export const ItemsManagement = () => {
     const fetchUnitsAndData = async () => {
       setLoading(true);
       setError(null);
-      
+
       // Fetch units once if they are not already loaded
       if (units.length === 0) {
         try {
-          const unitsResponse = await fetch('/api/units');
-          if (!unitsResponse.ok) throw new Error('Failed to fetch units');
-          setUnits(await unitsResponse.json());
+          const unitsData = await apiClient.get<Unit[]>('/units');
+          setUnits(unitsData);
         } catch (err: any) {
           setError(err.message);
           setLoading(false);
@@ -100,9 +104,8 @@ export const ItemsManagement = () => {
         } else if (viewLevel === 'subCategories' && selectedMainCategory) {
           await fetchSubCategories(selectedMainCategory, subCategoryPage);
         } else if (viewLevel === 'mainCategories') {
-          const response = await fetch('/api/categories?level=main');
-          if (!response.ok) throw new Error('Failed to fetch main categories');
-          setMainCategories(await response.json());
+          const data = await categoryService.fetchCategories({ level: 'main' });
+          setMainCategories(data as Category[]);
         }
       } catch (err: any) {
         setError(err.message);
@@ -110,7 +113,7 @@ export const ItemsManagement = () => {
         setLoading(false);
       }
     };
-    
+
     fetchUnitsAndData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [viewLevel, selectedMainCategory, selectedSubCategory]);
@@ -120,9 +123,7 @@ export const ItemsManagement = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/categories?parent_id=${mainCategory.id}&page=${page}&page_size=${PAGE_SIZE}`);
-      if (!response.ok) throw new Error(`Failed to fetch sub-categories for ${mainCategory.name}`);
-      const data = await response.json();
+      const data = await categoryService.fetchCategories({ parent_id: mainCategory.id, page, page_size: PAGE_SIZE }) as any;
       setSubCategories(data.categories);
       setTotalSubCategories(data.total_count);
       setSubCategoryPage(page);
@@ -135,23 +136,27 @@ export const ItemsManagement = () => {
 
   const handleSelectMainCategory = (category: Category) => {
     setSelectedMainCategory(category);
+    setSubCategoryPage(1); // Reset subcategory page when switching main categories
     setViewLevel('subCategories');
     fetchSubCategories(category, 1);
   };
 
   const handleSelectSubCategory = async (category: Category | null, page = 1) => {
     if (!category) return; // Do nothing if a row click somehow provides a null category
+    
+    // Reset to page 1 when switching to a different subcategory
+    const isNewSubCategory = selectedSubCategory?.id !== category.id;
+    const targetPage = isNewSubCategory ? 1 : page;
+    
     setSelectedSubCategory(category);
     setViewLevel('items');
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch(`/api/items?sub_category_id=${category.id}&page=${page}&page_size=${PAGE_SIZE}`);
-      if (!response.ok) throw new Error(`Failed to fetch items for ${category.name}`);
-      const data = await response.json();
+      const data = await itemsService.fetchItems({ sub_category_id: category.id, page: targetPage, page_size: PAGE_SIZE }) as any;
       setItems(data.items);
       setTotalItems(data.total_items);
-      setItemPage(page);
+      setItemPage(targetPage);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -175,32 +180,30 @@ export const ItemsManagement = () => {
     } else if (viewLevel === 'subCategories') {
       setSubCategories([]);
       setSelectedMainCategory(null);
-      
+
       setViewLevel('mainCategories');
     }
   };
-  
+
   const refreshItems = async () => {
     if (!selectedSubCategory) return;
     handleSelectSubCategory(selectedSubCategory, itemPage);
   };
-  
+
   const refreshSubCategories = () => {
     if (selectedMainCategory) {
       fetchSubCategories(selectedMainCategory, subCategoryPage);
     }
   }
-  
+
   const refreshCategories = async () => {
     // This function will now specifically re-fetch what's needed for the current view.
     setLoading(true);
     setError(null);
     try {
       if (viewLevel === 'mainCategories') {
-        const response = await fetch('/api/categories?level=main');
-        if (!response.ok) throw new Error('Failed to refresh main categories');
-        const data = await response.json();
-        setMainCategories(data);
+        const data = await categoryService.fetchCategories({ level: 'main' });
+        setMainCategories(data as Category[]);
       } else if (viewLevel === 'subCategories' && selectedMainCategory) {
         // Use the centralized function to refresh sub-categories
         fetchSubCategories(selectedMainCategory, subCategoryPage);
@@ -238,14 +241,10 @@ export const ItemsManagement = () => {
     if (!window.confirm(`هل أنت متأكد من رغبتك في حذف الفئة "${category.name}"؟ لا يمكن التراجع عن هذا الإجراء.`)) {
       return;
     }
-    
+
     setError(null);
     try {
-      const response = await fetch(`/api/categories/${category.id}`, { method: 'DELETE' });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to delete category.');
-      }
+      await categoryService.deleteCategory(category.id);
       // Refresh the list after successful deletion
       if (viewLevel === 'subCategories') {
         refreshSubCategories();
@@ -259,53 +258,46 @@ export const ItemsManagement = () => {
 
   const handleToggleStatus = async (item: Item) => {
     const newStatus = item.status === 'active' ? 'inactive' : 'active';
-    
+
     if (newStatus === 'inactive') {
       if (!window.confirm(`هل أنت متأكد من رغبتك في تعطيل الصنف "${item.name}"؟`)) {
         return; // User clicked 'Cancel'
       }
     }
-    
+
     try {
-      const response = await fetch(`/api/items/${item.id}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus, person_name: 'System' }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update status');
-      }
+      await itemsService.updateItemStatus(item.id, newStatus, 'System');
       refreshItems();
     } catch (err: any) {
       setError(err.message);
     }
   };
-  
+
   const columns = [
     { key: 'id', header: 'المعرف' },
     { key: 'name', header: 'اسم الصنف' },
-    { 
-      key: 'current_quantity', 
+    {
+      key: 'current_quantity',
       header: 'الكمية الحالية',
-      render: (_:any, row: Item) => `${row.current_quantity} ${row.unit_name}`
+      render: (_: any, row: Item) => `${row.current_quantity} ${row.unit_name}`
     },
-    { 
+    {
       key: 'status',
-      header: 'الحالة', 
-      render: (status: Item['status']) => <span className={`badge ${status === 'active' ? 'badge-success' : 'badge-error'}`}>{status}</span> 
+      header: 'الحالة',
+      render: (status: Item['status']) => <span className={`badge ${status === 'active' ? 'badge-success' : 'badge-error'}`}>{status}</span>
     },
-    { 
+    {
       key: 'actions',
-      header: 'إجراءات', 
+      header: 'إجراءات',
       render: (_: any, item: Item) => (
-      <ItemActions 
-        item={item} 
-        onAdjust={() => { setSelectedItem(item); setIsAdjustModalOpen(true); }}
-        onEdit={() => { setSelectedItem(item); setIsEditItemModalOpen(true); }}
-        onToggleStatus={handleToggleStatus}
-      />
-    )},
+        <ItemActions
+          item={item}
+          onAdjust={() => { setSelectedItem(item); setIsAdjustModalOpen(true); }}
+          onEdit={() => { setSelectedItem(item); setIsEditItemModalOpen(true); }}
+          onToggleStatus={handleToggleStatus}
+        />
+      )
+    },
   ];
 
   const subCategoryColumns = [
@@ -381,14 +373,14 @@ export const ItemsManagement = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {/* Add new main category card */}
               {mainCategories.length < 8 && (
-                <MainCategoryCard 
+                <MainCategoryCard
                   onClick={() => handleOpenCategoryModal(null, null)}
                   className="border-2 border-primary-500 h-28"
                 />
               )}
               {/* Main category cards */}
               {mainCategories.map(cat => (
-                <MainCategoryCard 
+                <MainCategoryCard
                   key={cat.id}
                   category={cat}
                   onSelect={handleSelectMainCategory}
@@ -401,33 +393,33 @@ export const ItemsManagement = () => {
           )}
 
           {viewLevel === 'subCategories' && (
-             <div className="space-y-4">
-                <div className="flex justify-between items-center">
-                  {renderBreadcrumbs()}
-                  <button 
-                    className="btn btn-primary btn-sm"
-                    onClick={() => handleOpenCategoryModal(null, selectedMainCategory?.id ?? null)}
-                  >
-                    <Plus size={20} /> إضافة فئة فرعية
-                  </button>
-                </div>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                {renderBreadcrumbs()}
+                <button
+                  className="btn btn-primary btn-sm"
+                  onClick={() => handleOpenCategoryModal(null, selectedMainCategory?.id ?? null)}
+                >
+                  <Plus size={20} /> إضافة فئة فرعية
+                </button>
+              </div>
 
-                <Table
-                  columns={subCategoryColumns}
-                  data={subCategories}
-                  keyField="id"
-                  onRowClick={handleSelectSubCategory}
-                  pagination={{
-                    currentPage: subCategoryPage,
-                    totalPages: Math.ceil(totalSubCategories / PAGE_SIZE),
-                    onPageChange: (page) => {
-                      if(selectedMainCategory) fetchSubCategories(selectedMainCategory, page);
-                    },
-                    totalItems: totalSubCategories,
-                    itemsPerPage: PAGE_SIZE,
-                  }}
-                  isLoading={loading}
-                />
+              <Table
+                columns={subCategoryColumns}
+                data={subCategories}
+                keyField="id"
+                onRowClick={handleSelectSubCategory}
+                pagination={{
+                  currentPage: subCategoryPage,
+                  totalPages: Math.ceil(totalSubCategories / PAGE_SIZE),
+                  onPageChange: (page) => {
+                    if (selectedMainCategory) fetchSubCategories(selectedMainCategory, page);
+                  },
+                  totalItems: totalSubCategories,
+                  itemsPerPage: PAGE_SIZE,
+                }}
+                isLoading={loading}
+              />
             </div>
           )}
 
@@ -440,11 +432,11 @@ export const ItemsManagement = () => {
               <div className="bg-base-100 p-4 rounded-box shadow-lg">
                 <div className="flex justify-between items-center mb-4">
                   <SearchBar onSearch={setSearchTerm} />
-                  <button onClick={() => setIsAddItemModalOpen(true)} className="btn btn-primary"><Plus size={18}/> إضافة صنف جديد</button>
+                  <button onClick={() => setIsAddItemModalOpen(true)} className="btn btn-primary"><Plus size={18} /> إضافة صنف جديد</button>
                 </div>
-                <Table 
-                  columns={columns} 
-                  data={filteredItems} 
+                <Table
+                  columns={columns}
+                  data={filteredItems}
                   keyField="id"
                   pagination={{
                     currentPage: itemPage,
@@ -502,5 +494,3 @@ export const ItemsManagement = () => {
     </div>
   );
 };
-
-// http://localhost:5173/
