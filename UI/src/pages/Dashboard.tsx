@@ -28,10 +28,22 @@ export const Dashboard = () => {
   // State for AddItemModal
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [dashboardUnits, setDashboardUnits] = useState<Unit[]>([]);
+  const [syncStatus, setSyncStatus] = useState<{ connected: boolean, mode: string }>({ connected: true, mode: 'cloud' });
+
+  const fetchSyncStatus = async () => {
+    try {
+      const status = await apiClient.get<any>('/sync-status');
+      setSyncStatus(status);
+    } catch (e) {
+      console.error("Failed to fetch sync status", e);
+      setSyncStatus({ connected: false, mode: 'cloud' });
+    }
+  };
 
   const fetchDashboardInitialData = async () => {
     setIsLoading(true);
     setError(null);
+    fetchSyncStatus(); // Fetch status on initial load
     try {
       const [itemsData, unitsData, summaryData] = await Promise.all([
         itemsService.fetchItems({ page_size: 1 }) as Promise<ItemsResponse>,
@@ -84,6 +96,10 @@ export const Dashboard = () => {
     };
 
     fetchRecentLogs();
+
+    // Poll sync status every 30 seconds
+    const statusInterval = setInterval(fetchSyncStatus, 30000);
+    return () => clearInterval(statusInterval);
   }, []);
 
   const handleItemAdded = () => {
@@ -174,6 +190,21 @@ export const Dashboard = () => {
     <div>
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold m-0">لوحة التحكم</h1>
+
+        {/* Status Indicator */}
+        <div className="flex items-center space-x-2 rtl:space-x-reverse">
+          <div className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${syncStatus.connected
+              ? 'bg-success-100 text-success-700'
+              : 'bg-error-100 text-error-700'
+            }`}>
+            <div className={`w-2 h-2 rounded-full mr-2 rtl:ml-2 rtl:mr-0 ${syncStatus.connected ? 'bg-success-500' : 'bg-error-500 animate-pulse'
+              }`} />
+            {syncStatus.connected ? 'متصل بالسحابة' : 'وضع عدم الاتصال'}
+          </div>
+          {syncStatus.mode === 'local' && (
+            <span className="text-[10px] text-gray-400 font-normal">(محلي فقط)</span>
+          )}
+        </div>
       </div>
 
       {/* Stats Cards */}
@@ -181,7 +212,7 @@ export const Dashboard = () => {
         {statsToDisplay.map((stat, index) => (
           <div key={index} className="card flex items-center p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className={`p-3 rounded-full ml-4 rtl:mr-4 rtl:ml-0 ${stat.label === 'إجمالي الأصناف' ? 'bg-primary-100' :
-                stat.label === 'إضافات اليوم' ? 'bg-success-100' : 'bg-accent-100'
+              stat.label === 'إضافات اليوم' ? 'bg-success-100' : 'bg-accent-100'
               }`}>
               {stat.icon}
             </div>

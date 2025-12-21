@@ -10,7 +10,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 # Import model utilities first to ensure DB can be initialized
-from app.models.db_utils import initialize_database, create_timestamped_backup
+from app.models.db_utils import initialize_database, create_timestamped_backup, get_sync_status
 
 # Import API route blueprints
 from app.routes.units_routes import bp as units_bp
@@ -52,6 +52,11 @@ app.register_blueprint(backup_bp)
 app.register_blueprint(category_bp)
 app.register_blueprint(destination_bp)
 app.register_blueprint(provider_bp)
+
+@app.route('/api/sync-status')
+def sync_status():
+    from flask import jsonify
+    return jsonify(get_sync_status())
 
 # --- Database Connection Management ---
 @app.teardown_appcontext
