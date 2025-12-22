@@ -1,10 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Filter, ArrowDown, ArrowUp, Package, User, Trash2 } from 'lucide-react';
 import { Table } from '../components/Table';
 import { AsyncPaginate, LoadOptions } from 'react-select-async-paginate';
 import type { GroupBase, OptionsOrGroups } from 'react-select';
-import { Item as SharedItem, MovementLogEntry, Unit as Destination, Provider } from '../types';
+import { Item as SharedItem, MovementLogEntry } from '../types';
 import { PrintReportButton } from '../components/PrintReportButton';
+import { useDestinations, useProviders } from '../hooks/useMetadata';
+import { useMovementLogs, FetchLogsParams, LogsResponse } from '../hooks/useMovementLogs';
+import { UseQueryResult } from '@tanstack/react-query';
 
 // Define ItemOption for react-select-async-paginate
 interface ItemOption {
@@ -45,42 +48,52 @@ const formatDate = (dateString: string) => {
 };
 
 export const MovementLog = () => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const [logs, setLogs] = useState<MovementLogEntry[]>([]);
   const [filtersApplied, setFiltersApplied] = useState(false);
-  const [filters, setFilters] = useState({
-    fromDate: '',
-    toDate: '',
-    itemId: '',
-    providerId: '',
-    destinationId: '',
+  const [filters, setFilters] = useState<FetchLogsParams>({
+    date_from: '',
+    date_to: '',
+    item_id: '',
+    provider_id: '',
+    destination_id: '',
   });
+  const [activeFilters, setActiveFilters] = useState<FetchLogsParams>({});
   const [selectedItemOption, setSelectedItemOption] = useState<ItemOption | null>(null);
 
-  const [destinations, setDestinations] = useState<Destination[]>([]);
-  const [destinationsLoading, setDestinationsLoading] = useState(false);
-  const [providers, setProviders] = useState<Provider[]>([]);
-  const [providersLoading, setProvidersLoading] = useState(false);
+  // Data Hooks
+  const { data: destinations = [] } = useDestinations();
+  const { data: providers = [] } = useProviders();
 
-  const [logsLoading, setLogsLoading] = useState(false);
-  const [logsError, setLogsError] = useState<string | null>(null);
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalLogs, setTotalLogs] = useState(0);
+  const {
+    data: logsData,
+    isLoading: logsLoading,
+    error: logsError
+  } = useMovementLogs(activeFilters, { enabled: filtersApplied }) as UseQueryResult<LogsResponse, Error>;
+
+  const logs = logsData?.logs || [];
+  const totalLogs = logsData?.total_records || 0;
+  const totalPages = logsData?.total_pages || 0;
+  const currentPage = activeFilters.page || 1;
   const logsPerPage = 15;
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
+    // Map input names to filter keys
+    const keyMap: Record<string, keyof FetchLogsParams> = {
+      fromDate: 'date_from',
+      toDate: 'date_to'
+    };
+    const key = keyMap[name] || name as keyof FetchLogsParams;
+    setFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const handleItemSelectChange = (selectedOption: ItemOption | null) => {
     setSelectedItemOption(selectedOption);
     setFilters(prev => ({
       ...prev,
-      itemId: selectedOption ? String(selectedOption.value) : '',
+      item_id: selectedOption ? String(selectedOption.value) : '',
     }));
   };
-  
+
   const loadItems: LoadOptions<ItemOption, GroupBase<ItemOption>, LoadAdditional | undefined> = async (
     searchQuery: string,
     _loadedOptions: OptionsOrGroups<ItemOption, GroupBase<ItemOption>>,
@@ -101,19 +114,19 @@ export const MovementLog = () => {
         return { options: [], hasMore: false, additional: { offset } };
       }
 
-      const apiResponse: { items: SharedItem[]; total_count: number } = await response.json(); // Expect items to be SharedItem[]
-      
+      const apiResponse: { items: SharedItem[]; total_count: number } = await response.json();
+
       const newOptions: ItemOption[] = apiResponse.items.map((item: SharedItem) => ({
         value: item.id,
-        label: `${item.name} (${item.unit_name || 'N/A'})`, 
-        data: item, // item is now SharedItem
+        label: `${item.name} (${item.unit_name || 'N/A'})`,
+        data: item,
       }));
 
       const currentTotalFetchedDirectlyInThisCall = newOptions.length;
       const newOffset = offset + currentTotalFetchedDirectlyInThisCall;
 
       const hasMore = newOffset < apiResponse.total_count;
-      
+
       return {
         options: newOptions,
         hasMore: hasMore,
@@ -127,63 +140,36 @@ export const MovementLog = () => {
     }
   };
 
-  const applyFilters = async (page = 1) => {
-    setLogsLoading(true);
-    setLogsError(null);
+  const applyFilters = (page = 1) => {
     setFiltersApplied(true);
-    setCurrentPage(page);
-
-    const params = new URLSearchParams();
-    if (filters.fromDate) params.append('date_from', filters.fromDate);
-    if (filters.toDate) params.append('date_to', filters.toDate);
-    if (filters.itemId) params.append('item_id', filters.itemId);
-    if (filters.providerId) params.append('provider_id', filters.providerId);
-    if (filters.destinationId) params.append('destination_id', filters.destinationId);
-    params.append('page', page.toString());
-    params.append('page_size', logsPerPage.toString());
-
-    try {
-      const response = await fetch(`/api/movement-logs?${params.toString()}`);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.error || 'Failed to fetch movement logs');
-      }
-      const data = await response.json();
-      setLogs(data.logs || []);
-      setTotalPages(data.total_pages || 0);
-      setTotalLogs(data.total_records || 0);
-    } catch (err: any) {
-      console.error("Error fetching movement logs:", err);
-      setLogsError(err.message || "فشل في تحميل سجل الحركات");
-      setLogs([]);
-      setTotalPages(0);
-      setTotalLogs(0);
-    } finally {
-      setLogsLoading(false);
-    }
+    setActiveFilters({
+      ...filters,
+      page,
+      page_size: logsPerPage
+    });
   };
 
   const resetFilters = () => {
     setFilters({
-      fromDate: '',
-      toDate: '',
-      itemId: '',
-      providerId: '',
-      destinationId: '',
+      date_from: '',
+      date_to: '',
+      item_id: '',
+      provider_id: '',
+      destination_id: '',
     });
     setSelectedItemOption(null);
-    setLogs([]);
     setFiltersApplied(false);
+    setActiveFilters({});
   };
 
   const columns = [
-    { 
-      key: 'timestamp', 
+    {
+      key: 'timestamp',
       header: 'التاريخ والوقت',
       render: (value: string) => formatDate(value),
       width: 'w-1/12 md:w-1/6'
     },
-    { 
+    {
       key: 'item_name',
       header: 'الصنف',
       render: (value: string, row: MovementLogEntry) => (
@@ -199,7 +185,7 @@ export const MovementLog = () => {
       ),
       width: 'w-2/12 md:w-1/4'
     },
-    { 
+    {
       key: 'action_type',
       header: 'نوع الحركة',
       render: (value: string) => {
@@ -218,15 +204,15 @@ export const MovementLog = () => {
             </div>
           );
         } else {
-          return <span className="text-gray-700">{value}</span>; 
+          return <span className="text-gray-700">{value}</span>;
         }
       },
       width: 'w-1/12 md:w-1/12'
     },
-    { 
+    {
       key: 'person_name',
       header: 'بواسطة',
-      render: (value: string | null | undefined) => 
+      render: (value: string | null | undefined) =>
         value ? (
           <div className="flex items-center text-sm text-gray-600">
             <User size={14} className="mr-1 rtl:ml-1 rtl:mr-0 text-gray-400" />
@@ -237,7 +223,7 @@ export const MovementLog = () => {
         ),
       width: 'w-1/12 md:w-1/6'
     },
-    { 
+    {
       key: 'quantity_changed',
       header: 'الكمية',
       render: (value?: number | null) => value ?? '-',
@@ -249,8 +235,8 @@ export const MovementLog = () => {
       render: (value?: string | null) => value || '-',
       width: 'w-1/12 md:w-1/6'
     },
-    { 
-      key: 'provider', 
+    {
+      key: 'provider',
       header: 'المورد',
       render: (value?: string | null) => value || '-',
       width: 'w-1/12 md:w-1/6'
@@ -269,54 +255,13 @@ export const MovementLog = () => {
     }
   ];
 
-  // Fetch destinations on component mount
-  useEffect(() => {
-    const fetchDestinations = async () => {
-      setDestinationsLoading(true);
-      try {
-        const response = await fetch('/api/destinations');
-        if (!response.ok) {
-          throw new Error('Failed to fetch destinations');
-        }
-        const data: Destination[] = await response.json();
-        setDestinations(data);
-      } catch (error) {
-        console.error("Failed to load destinations for filter", error);
-        // Optionally set an error state here to show in the UI
-      } finally {
-        setDestinationsLoading(false);
-      }
-    };
-    fetchDestinations();
-  }, []);
-
-  // Fetch providers on component mount
-  useEffect(() => {
-    const fetchProviders = async () => {
-      setProvidersLoading(true);
-      try {
-        const response = await fetch('/api/providers');
-        if (!response.ok) {
-          throw new Error('Failed to fetch providers');
-        }
-        const data: Provider[] = await response.json();
-        setProviders(data);
-      } catch (error) {
-        console.error("Failed to load providers for filter", error);
-      } finally {
-        setProvidersLoading(false);
-      }
-    };
-    fetchProviders();
-  }, []);
-
   return (
     <div>
       <h1 className="text-2xl font-bold mb-8">سجل الحركات</h1>
-      
+
       <div className="card mb-6">
         <h2 className="text-lg font-medium mb-4">تصفية النتائج</h2>
-        
+
         <div className="flex flex-wrap items-center gap-4 p-4 bg-white rounded-lg shadow">
           {/* Date Filters */}
           <div className="flex-grow md:flex-grow-0">
@@ -325,7 +270,7 @@ export const MovementLog = () => {
               type="date"
               id="fromDate"
               name="fromDate"
-              value={filters.fromDate}
+              value={filters.date_from}
               onChange={handleInputChange}
               className="input input-bordered w-full"
             />
@@ -336,12 +281,12 @@ export const MovementLog = () => {
               type="date"
               id="toDate"
               name="toDate"
-              value={filters.toDate}
+              value={filters.date_to}
               onChange={handleInputChange}
               className="input input-bordered w-full"
             />
           </div>
-          
+
           {/* Item Select */}
           <div className="flex-grow" style={{ minWidth: '250px' }}>
             <label htmlFor="item-select" className="text-sm font-medium text-gray-600 mb-1 block">
@@ -365,13 +310,13 @@ export const MovementLog = () => {
             <select
               id="destinationId"
               name="destinationId"
-              value={filters.destinationId}
-              onChange={(e) => setFilters(prev => ({ ...prev, destinationId: e.target.value }))}
+              value={filters.destination_id}
+              onChange={(e) => setFilters(prev => ({ ...prev, destination_id: e.target.value }))}
               className="input input-bordered w-full"
-              disabled={destinationsLoading}
+              disabled={false}
             >
               <option value="">الكل</option>
-              {destinations.map(dest => (
+              {destinations.map((dest: any) => (
                 <option key={dest.id} value={dest.id}>{dest.name}</option>
               ))}
             </select>
@@ -383,13 +328,13 @@ export const MovementLog = () => {
             <select
               id="providerId"
               name="providerId"
-              value={filters.providerId}
-              onChange={(e) => setFilters(prev => ({ ...prev, providerId: e.target.value }))}
+              value={filters.provider_id}
+              onChange={(e) => setFilters(prev => ({ ...prev, provider_id: e.target.value }))}
               className="input input-bordered w-full"
-              disabled={providersLoading}
+              disabled={false}
             >
               <option value="">الكل</option>
-              {providers.map(prov => (
+              {providers.map((prov: any) => (
                 <option key={prov.id} value={prov.id}>{prov.name}</option>
               ))}
             </select>
@@ -406,13 +351,19 @@ export const MovementLog = () => {
               مسح
             </button>
             <PrintReportButton
-              filters={filters}
+              filters={{
+                fromDate: filters.date_from || '',
+                toDate: filters.date_to || '',
+                itemId: filters.item_id || '',
+                providerId: filters.provider_id || '',
+                destinationId: filters.destination_id || ''
+              }}
               disabled={!filtersApplied || logs.length === 0}
             />
           </div>
         </div>
       </div>
-      
+
       {/* Log Display Area */}
       {logsLoading && (
         <div className="text-center p-8">
@@ -422,8 +373,8 @@ export const MovementLog = () => {
 
       {!logsLoading && logsError && (
         <div className="text-center p-8 text-error-500">
-          <p>خطأ في تحميل السجل: {logsError}</p>
-          <button onClick={() => applyFilters(1)} className="btn btn-sm btn-link mt-2">
+          <p>خطأ في تحميل السجل: {(logsError as Error).message}</p>
+          <button onClick={() => applyFilters(currentPage as number)} className="btn btn-sm btn-link mt-2">
             حاول مرة أخرى
           </button>
         </div>
@@ -464,7 +415,7 @@ export const MovementLog = () => {
               عرض {logs.length} من إجمالي {totalLogs} سجلات (صفحة {currentPage} من {totalPages})
             </p>
           </div>
-          <Table 
+          <Table
             columns={columns}
             data={logs}
             keyField="id"

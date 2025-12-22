@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useProviders } from '../hooks/useMetadata';
+import { apiClient } from '../services/apiClient';
 import { Plus } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import { Provider } from '../types';
@@ -17,7 +20,7 @@ type ProviderModalProps = {
 const ProviderModal: React.FC<ProviderModalProps> = ({ isOpen, onClose, provider, onSave, isSaving, apiError }) => {
   const [name, setName] = useState(provider?.name || '');
   const [error, setError] = useState('');
-  
+
   useEffect(() => {
     setName(provider?.name || '');
     setError('');
@@ -32,7 +35,7 @@ const ProviderModal: React.FC<ProviderModalProps> = ({ isOpen, onClose, provider
     setError('');
     await onSave({ id: provider?.id, name });
   };
-  
+
   const footer = (
     <>
       <button type="button" className="btn btn-outline ml-2" onClick={onClose} disabled={isSaving}>
@@ -43,7 +46,7 @@ const ProviderModal: React.FC<ProviderModalProps> = ({ isOpen, onClose, provider
       </button>
     </>
   );
-  
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={provider ? 'تعديل مورد' : 'إضافة مورد جديد'} footer={footer}>
       <form id="provider-form" onSubmit={handleSubmit}>
@@ -83,7 +86,7 @@ type DeleteConfirmModalProps = {
 
 const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ isOpen, onClose, provider, onConfirm, isDeleting, apiError }) => {
   if (!provider) return null;
-  
+
   const footer = (
     <>
       <button type="button" className="btn btn-outline ml-2" onClick={onClose} disabled={isDeleting}>
@@ -94,7 +97,7 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ isOpen, onClose
       </button>
     </>
   );
-  
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="تأكيد الحذف" footer={footer} size="sm">
       <p className="mb-4">
@@ -117,56 +120,30 @@ const DeleteConfirmModal: React.FC<DeleteConfirmModalProps> = ({ isOpen, onClose
 };
 
 export const ProviderManagement: React.FC = () => {
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const queryClient = useQueryClient();
+  const { data: providers = [], isLoading: loading, error } = useProviders();
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentEditingProvider, setCurrentEditingProvider] = useState<Provider | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [providerToDelete, setProviderToDelete] = useState<Provider | null>(null);
-  
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
   const [modalApiError, setModalApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchProviders = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/providers');
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to fetch providers. Status: ${response.status}`);
-      }
-      const data = await response.json();
-      setProviders(data);
-    } catch (err: any) {
-      setError(err.message || "فشل في تحميل الموردين");
-      setProviders([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const invalidateData = () => {
+    queryClient.invalidateQueries({ queryKey: ['providers'] });
+    queryClient.invalidateQueries({ queryKey: ['movement-logs'] });
+  };
 
-  useEffect(() => {
-    fetchProviders();
-  }, [fetchProviders]);
-  
   const handleAddProvider = async (providerData: { name: string }) => {
     setIsSaving(true);
     setModalApiError(null);
     try {
-      const response = await fetch('/api/providers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(providerData),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to add provider. Status: ${response.status}`);
-      }
-      await fetchProviders();
+      await apiClient.post('/providers', providerData);
+      invalidateData();
       setIsAddModalOpen(false);
     } catch (err: any) {
       setModalApiError(err.message || "فشل في إضافة المورد. قد يكون الاسم مستخدماً.");
@@ -174,28 +151,20 @@ export const ProviderManagement: React.FC = () => {
       setIsSaving(false);
     }
   };
-  
+
   const openEditModal = (provider: Provider) => {
     setCurrentEditingProvider(provider);
     setModalApiError(null);
     setIsEditModalOpen(true);
   };
-  
+
   const handleEditProvider = async (providerData: { id?: number; name: string }) => {
     if (providerData.id === undefined) return;
     setIsSaving(true);
     setModalApiError(null);
     try {
-      const response = await fetch(`/api/providers/${providerData.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: providerData.name }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to update provider. Status: ${response.status}`);
-      }
-      await fetchProviders();
+      await apiClient.put(`/providers/${providerData.id}`, { name: providerData.name });
+      invalidateData();
       setIsEditModalOpen(false);
       setCurrentEditingProvider(null);
     } catch (err: any) {
@@ -204,26 +173,20 @@ export const ProviderManagement: React.FC = () => {
       setIsSaving(false);
     }
   };
-  
+
   const openDeleteModal = (provider: Provider) => {
     setProviderToDelete(provider);
     setModalApiError(null);
     setIsDeleteModalOpen(true);
   };
-  
+
   const handleDeleteProvider = async () => {
     if (!providerToDelete) return;
     setIsDeleting(true);
     setModalApiError(null);
     try {
-      const response = await fetch(`/api/providers/${providerToDelete.id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to delete provider. Status: ${response.status}`);
-      }
-      await fetchProviders();
+      await apiClient.delete(`/providers/${providerToDelete.id}`);
+      invalidateData();
       setIsDeleteModalOpen(false);
       setProviderToDelete(null);
     } catch (err: any) {
@@ -238,14 +201,14 @@ export const ProviderManagement: React.FC = () => {
   }
 
   if (error && providers.length === 0) {
-    return <div className="text-center p-8 text-error-500">خطأ: {error} <button onClick={fetchProviders} className="btn btn-sm btn-link">حاول مرة أخرى</button></div>;
+    return <div className="text-center p-8 text-error-500">خطأ: {(error as Error).message} <button onClick={() => invalidateData()} className="btn btn-sm btn-link">حاول مرة أخرى</button></div>;
   }
-  
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold m-0">إدارة الموردين</h1>
-        <button 
+        <button
           className="btn btn-primary flex items-center"
           onClick={() => {
             setModalApiError(null);
@@ -256,13 +219,13 @@ export const ProviderManagement: React.FC = () => {
           إضافة مورد جديد
         </button>
       </div>
-      
+
       {error && providers.length > 0 && (
-         <div className="bg-error-100 border border-error-400 text-error-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <strong className="font-bold">خطأ!</strong>
-            <span className="block sm:inline"> {error}</span>
-            <button onClick={fetchProviders} className="ml-4 text-sm underline">حاول مرة أخرى</button>
-            </div>
+        <div className="bg-error-100 border border-error-400 text-error-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">خطأ!</strong>
+          <span className="block sm:inline"> {(error as Error).message}</span>
+          <button onClick={() => invalidateData()} className="ml-4 text-sm underline">حاول مرة أخرى</button>
+        </div>
       )}
 
       {providers.length === 0 && !loading && !error && (
@@ -287,7 +250,7 @@ export const ProviderManagement: React.FC = () => {
           ))}
         </div>
       )}
-      
+
       <ProviderModal
         isOpen={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
@@ -295,33 +258,33 @@ export const ProviderManagement: React.FC = () => {
         isSaving={isSaving}
         apiError={modalApiError}
       />
-      
+
       {currentEditingProvider && (
-          <ProviderModal
-            isOpen={isEditModalOpen}
-            onClose={() => {
-              setIsEditModalOpen(false);
-              setCurrentEditingProvider(null);
-            }}
-            provider={currentEditingProvider}
-            onSave={handleEditProvider}
-            isSaving={isSaving}
-            apiError={modalApiError}
-          />
+        <ProviderModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setCurrentEditingProvider(null);
+          }}
+          provider={currentEditingProvider}
+          onSave={handleEditProvider}
+          isSaving={isSaving}
+          apiError={modalApiError}
+        />
       )}
-          
+
       {providerToDelete && (
-          <DeleteConfirmModal
-            isOpen={isDeleteModalOpen}
-            onClose={() => {
-              setIsDeleteModalOpen(false);
-              setProviderToDelete(null);
-            }}
-            provider={providerToDelete}
-            onConfirm={handleDeleteProvider}
-            isDeleting={isDeleting}
-            apiError={modalApiError}
-          />
+        <DeleteConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setProviderToDelete(null);
+          }}
+          provider={providerToDelete}
+          onConfirm={handleDeleteProvider}
+          isDeleting={isDeleting}
+          apiError={modalApiError}
+        />
       )}
     </div>
   );

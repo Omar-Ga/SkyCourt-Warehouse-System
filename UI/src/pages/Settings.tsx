@@ -1,25 +1,23 @@
 import { useState } from 'react';
 import { Save, RefreshCw, Database, Monitor, FileText, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
+import { apiClient } from '../services/apiClient';
 
 export const Settings = () => {
   const [backupInProgress, setBackupInProgress] = useState(false);
   const [backupSuccessMessage, setBackupSuccessMessage] = useState<string | null>(null);
   const [backupErrorMessage, setBackupErrorMessage] = useState<string | null>(null);
-  
+
   const handleBackup = async () => {
     setBackupInProgress(true);
     setBackupSuccessMessage(null);
     setBackupErrorMessage(null);
-    
+
     try {
       // The backend now handles the path, so we just need to trigger the endpoint.
-      const response = await fetch('/api/backup', { method: 'POST' });
-      const data = await response.json(); 
+      const data = await apiClient.post<{ message: string }>('/backup', {});
 
-      if (!response.ok) {
-        throw new Error(data.message || data.error || 'فشل في إنشاء النسخة الاحتياطية');
-      }
-      
+
+
       // The backend now returns a detailed success message with the path.
       setBackupSuccessMessage(data.message || 'تم إنشاء النسخة الاحتياطية بنجاح!');
       setTimeout(() => setBackupSuccessMessage(null), 7000);
@@ -32,11 +30,11 @@ export const Settings = () => {
       setBackupInProgress(false);
     }
   };
-  
+
   return (
     <div>
       <h1 className="text-2xl font-bold mb-8">الإعدادات</h1>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Backup Section */}
         <div className="card">
@@ -49,12 +47,12 @@ export const Settings = () => {
               <p className="text-gray-500">إنشاء نسخة احتياطية للبيانات</p>
             </div>
           </div>
-          
+
           <p className="mb-4 text-sm">
             سيقوم هذا الخيار بإنشاء نسخة احتياطية تلقائية من قاعدة البيانات في مجلد آمن.
           </p>
-          
-          <button 
+
+          <button
             className={`btn btn-primary w-full flex items-center justify-center ${backupInProgress ? 'opacity-75 cursor-not-allowed' : ''}`}
             onClick={handleBackup}
             disabled={backupInProgress}
@@ -71,7 +69,7 @@ export const Settings = () => {
               </>
             )}
           </button>
-          
+
           {/* Feedback Messages */}
           {backupSuccessMessage && (
             <div className="mt-4 p-3 bg-success-50 rounded-md border border-success-200 text-success-700 flex items-center">
@@ -85,14 +83,14 @@ export const Settings = () => {
               {backupErrorMessage}
             </div>
           )}
-          
+
           <div className="mt-4 p-3 bg-primary-50 rounded-md border border-primary-100">
             <p className="text-sm text-primary-800">
               <span className="font-medium">تذكير:</span> يُنصح بإنشاء نسخة احتياطية بشكل دوري للحفاظ على البيانات من الفقدان.
             </p>
           </div>
         </div>
-        
+
         {/* Application Info Section */}
         <div className="card">
           <div className="flex items-start mb-4">
@@ -104,7 +102,7 @@ export const Settings = () => {
               <p className="text-gray-500">معلومات عن إصدار النظام</p>
             </div>
           </div>
-          
+
           <ul className="space-y-3">
             <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
               <span className="text-gray-500">الإصدار:</span>
@@ -124,7 +122,7 @@ export const Settings = () => {
             </li>
           </ul>
         </div>
-        
+
         {/* Help Section */}
         <div className="card">
           <div className="flex items-start mb-4">
@@ -136,17 +134,17 @@ export const Settings = () => {
               <p className="text-gray-500">دليل الاستخدام</p>
             </div>
           </div>
-          
+
           <p className="mb-4 text-sm">
             يمكنك الاطلاع على دليل الاستخدام الكامل لمعرفة كيفية استخدام جميع ميزات النظام.
           </p>
-          
+
           <button className="btn btn-outline w-full flex items-center justify-center">
             <FileText size={18} className="ml-2" />
             عرض دليل الاستخدام
           </button>
         </div>
-        
+
         {/* Support Section */}
         <div className="card">
           <div className="flex items-start mb-4">
@@ -158,18 +156,18 @@ export const Settings = () => {
               <p className="text-gray-500">الحصول على المساعدة</p>
             </div>
           </div>
-          
+
           <p className="mb-4 text-sm">
             إذا واجهتك أي مشكلة أثناء استخدام النظام، يرجى التواصل.
           </p>
-          
+
           <div className="bg-gray-50 p-3 rounded-md mb-4">
             <p className="font-medium text-gray-700 mb-1">معلومات الاتصال:</p>
             <p className="text-sm">البريد الإلكتروني: oomarolayan.gamal@gmail.com</p>
             <p className="text-sm">الهاتف: <span dir="ltr">+20 1068194494</span></p>
           </div>
-          
-          <button className="btn btn-secondary w-full"> 
+
+          <button className="btn btn-secondary w-full">
             طلب المساعدة
           </button>
         </div>

@@ -1,4 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useUnits } from '../hooks/useMetadata';
+import { apiClient } from '../services/apiClient';
 import { Plus } from 'lucide-react';
 import { Modal } from '../components/Modal';
 import { Unit } from '../types'; // Import shared Unit type
@@ -20,7 +23,7 @@ type UnitModalProps = {
 const UnitModal = ({ isOpen, onClose, unit, onSave, initialName, isSaving, apiError }: UnitModalProps) => {
   const [name, setName] = useState(initialName || unit?.name || '');
   const [error, setError] = useState('');
-  
+
   useEffect(() => {
     // Update name if initialName or unit changes (for edit)
     setName(initialName || unit?.name || '');
@@ -36,19 +39,19 @@ const UnitModal = ({ isOpen, onClose, unit, onSave, initialName, isSaving, apiEr
     setError('');
     await onSave({ id: unit?.id, name }); // unit.id is number
   };
-  
+
   const footer = (
     <>
-      <button 
-        type="button" 
-        className="btn btn-outline ml-2" 
+      <button
+        type="button"
+        className="btn btn-outline ml-2"
         onClick={onClose}
         disabled={isSaving}
       >
         إلغاء
       </button>
-      <button 
-        type="submit" 
+      <button
+        type="submit"
         className="btn btn-primary"
         form="unit-form"
         disabled={isSaving}
@@ -57,7 +60,7 @@ const UnitModal = ({ isOpen, onClose, unit, onSave, initialName, isSaving, apiEr
       </button>
     </>
   );
-  
+
   return (
     <Modal
       isOpen={isOpen}
@@ -100,19 +103,19 @@ type DeleteConfirmModalProps = {
 
 const DeleteConfirmModal = ({ isOpen, onClose, unit, onConfirm, isDeleting }: DeleteConfirmModalProps) => {
   if (!unit) return null;
-  
+
   const footer = (
     <>
-      <button 
-        type="button" 
-        className="btn btn-outline ml-2" 
+      <button
+        type="button"
+        className="btn btn-outline ml-2"
         onClick={onClose}
         disabled={isDeleting}
       >
         إلغاء
       </button>
-      <button 
-        type="button" 
+      <button
+        type="button"
         className="btn btn-danger"
         onClick={onConfirm}
         disabled={isDeleting}
@@ -121,7 +124,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, unit, onConfirm, isDeleting }: De
       </button>
     </>
   );
-  
+
   return (
     <Modal
       isOpen={isOpen}
@@ -143,88 +146,54 @@ const DeleteConfirmModal = ({ isOpen, onClose, unit, onConfirm, isDeleting }: De
 };
 
 export const UnitManagement = () => {
-  const [units, setUnits] = useState<Unit[]>([]);
+  const queryClient = useQueryClient();
+  const { data: units = [], isLoading: loading, error } = useUnits();
+
+  // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentEditingUnit, setCurrentEditingUnit] = useState<Unit | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null);
-  
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null); 
+
+  // Action States
   const [modalApiError, setModalApiError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const fetchUnits = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch('/api/units'); 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to fetch units. Status: ${response.status}`);
-      }
-      const data = await response.json();
-      setUnits(data.map((u: any) => ({ id: Number(u.id), name: u.name })));
-    } catch (err: any) {
-      console.error(err);
-      setError(err.message || "فشل في تحميل الوحدات");
-      setUnits([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const invalidateData = () => {
+    queryClient.invalidateQueries({ queryKey: ['units'] });
+    queryClient.invalidateQueries({ queryKey: ['items'] });
+  };
 
-  useEffect(() => {
-    fetchUnits();
-  }, [fetchUnits]);
-  
   const handleAddUnit = async (unitData: { name: string }) => {
     setIsSaving(true);
     setModalApiError(null);
     try {
-      const response = await fetch('/api/units', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(unitData),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to add unit. Status: ${response.status}`);
-      }
-      await fetchUnits();
-      setIsAddModalOpen(false); 
+      await apiClient.post('/units', unitData);
+      invalidateData();
+      setIsAddModalOpen(false);
     } catch (err: any) {
       console.error("Failed to add unit:", err);
       setModalApiError(err.message || "فشل في إضافة الوحدة. قد يكون الاسم مستخدماً.");
-      // Keep modal open by not calling setIsAddModalOpen(false)
     } finally {
       setIsSaving(false);
     }
   };
-  
+
   const openEditModal = (unit: Unit) => {
     setCurrentEditingUnit(unit);
     setModalApiError(null);
     setIsEditModalOpen(true);
   };
-  
+
   const handleEditUnit = async (unitData: { id?: number; name: string }) => {
     if (unitData.id === undefined) return;
     setIsSaving(true);
     setModalApiError(null);
     try {
-      const response = await fetch(`/api/units/${unitData.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: unitData.name }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to update unit. Status: ${response.status}`);
-      }
-      await fetchUnits(); // Re-fetch to reflect changes
+      await apiClient.put(`/units/${unitData.id}`, { name: unitData.name });
+      invalidateData();
       setIsEditModalOpen(false);
       setCurrentEditingUnit(null);
     } catch (err: any) {
@@ -234,27 +203,21 @@ export const UnitManagement = () => {
       setIsSaving(false);
     }
   };
-  
+
   const openDeleteModal = (unit: Unit) => {
     setUnitToDelete(unit);
     setModalApiError(null); // Clear previous errors
     setIsDeleteModalOpen(true);
   };
-  
+
   const handleDeleteUnit = async () => {
     if (!unitToDelete) return;
     setIsDeleting(true);
     setModalApiError(null);
     try {
-      const response = await fetch(`/api/units/${unitToDelete.id}`, {
-        method: 'DELETE',
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || `Failed to delete unit. Status: ${response.status}`);
-      }
-      await fetchUnits(); // Re-fetch
-    setIsDeleteModalOpen(false);
+      await apiClient.delete(`/units/${unitToDelete.id}`);
+      invalidateData();
+      setIsDeleteModalOpen(false);
       setUnitToDelete(null);
     } catch (err: any) {
       console.error("Failed to delete unit:", err);
@@ -269,14 +232,14 @@ export const UnitManagement = () => {
   }
 
   if (error && units.length === 0) { // Show general error only if no units are displayed
-    return <div className="text-center p-8 text-error-500">خطأ: {error} <button onClick={fetchUnits} className="btn btn-sm btn-link">حاول مرة أخرى</button></div>;
+    return <div className="text-center p-8 text-error-500">خطأ: {(error as Error).message} <button onClick={() => invalidateData()} className="btn btn-sm btn-link">حاول مرة أخرى</button></div>;
   }
-  
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6"> {/* Adjusted margin */}
         <h1 className="text-2xl font-bold m-0">إدارة وحدات القياس</h1>
-        <button 
+        <button
           className="btn btn-primary flex items-center"
           onClick={() => {
             setModalApiError(null);
@@ -287,13 +250,13 @@ export const UnitManagement = () => {
           إضافة وحدة جديدة
         </button>
       </div>
-      
+
       {error && units.length > 0 && (
-         <div className="bg-error-100 border border-error-400 text-error-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <strong className="font-bold">خطأ!</strong>
-            <span className="block sm:inline"> {error}</span>
-            <button onClick={fetchUnits} className="ml-4 text-sm underline">حاول مرة أخرى</button>
-            </div>
+        <div className="bg-error-100 border border-error-400 text-error-700 px-4 py-3 rounded relative mb-4" role="alert">
+          <strong className="font-bold">خطأ!</strong>
+          <span className="block sm:inline"> {(error as Error).message}</span>
+          <button onClick={() => invalidateData()} className="ml-4 text-sm underline">حاول مرة أخرى</button>
+        </div>
       )}
 
       {units.length === 0 && !loading && !error && (
@@ -304,11 +267,11 @@ export const UnitManagement = () => {
           <p className="text-gray-500 mb-4">
             أضف وحدات القياس التي ستستخدمها في النظام
           </p>
-          <button 
+          <button
             className="btn btn-primary"
             onClick={() => {
-                setModalApiError(null);
-                setIsAddModalOpen(true);
+              setModalApiError(null);
+              setIsAddModalOpen(true);
             }}
           >
             إضافة وحدة جديدة
@@ -318,17 +281,17 @@ export const UnitManagement = () => {
 
       {units.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"> {/* Responsive grid */}
-            {units.map(unit => (
-              <ManagementItemCard
-                key={unit.id}
-                item={unit}
-                onEdit={openEditModal}
-                onDelete={openDeleteModal}
-              />
-            ))}
+          {units.map(unit => (
+            <ManagementItemCard
+              key={unit.id}
+              item={unit}
+              onEdit={openEditModal}
+              onDelete={openDeleteModal}
+            />
+          ))}
         </div>
       )}
-      
+
       {/* Modals */}
       <UnitModal
         isOpen={isAddModalOpen}
@@ -337,33 +300,33 @@ export const UnitManagement = () => {
         isSaving={isSaving}
         apiError={modalApiError}
       />
-      
+
       {currentEditingUnit && (
-          <UnitModal
-            isOpen={isEditModalOpen}
-            onClose={() => {
-              setIsEditModalOpen(false);
+        <UnitModal
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
             setCurrentEditingUnit(null);
-            }}
+          }}
           unit={currentEditingUnit}
           initialName={currentEditingUnit.name} // Pass initial name for controlled input
-            onSave={handleEditUnit}
+          onSave={handleEditUnit}
           isSaving={isSaving}
           apiError={modalApiError}
-          />
+        />
       )}
-          
+
       {unitToDelete && (
-          <DeleteConfirmModal
-            isOpen={isDeleteModalOpen}
-            onClose={() => {
-              setIsDeleteModalOpen(false);
-              setUnitToDelete(null);
-            }}
-            unit={unitToDelete}
-            onConfirm={handleDeleteUnit}
-            isDeleting={isDeleting}
-          />
+        <DeleteConfirmModal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setUnitToDelete(null);
+          }}
+          unit={unitToDelete}
+          onConfirm={handleDeleteUnit}
+          isDeleting={isDeleting}
+        />
       )}
     </div>
   );

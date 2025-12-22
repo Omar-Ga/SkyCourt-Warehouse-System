@@ -1,116 +1,49 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Archive, ArrowUpCircle, ArrowDownCircle, Activity, Edit3, Info, AlertTriangle,
   PlusCircle, BarChart3, ScanLine
 } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '../context/AppContext';
-import { Unit, MovementLogEntry } from '../types';
+import { MovementLogEntry } from '../types';
 import { AddItemModal } from '../components/AddItemModal';
-import { itemsService, ItemsResponse } from '../services/itemsService';
-import { statsService } from '../services/statsService';
-import { apiClient } from '../services/apiClient';
+import { useDashboardStats, useRecentLogs } from '../hooks/useDashboardStats';
+import { useUnits } from '../hooks/useMetadata';
+import { useSyncStatus } from '../hooks/useSyncStatus';
 
 export const Dashboard = () => {
   const { setActivePage, openScanner } = useAppContext();
+  const queryClient = useQueryClient();
 
-  const [dashboardStats, setDashboardStats] = useState<any>({
-    totalItems: 0,
-    additionsToday: 0,
-    withdrawalsToday: 0,
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Hooks
+  const { data: syncStatus = { connected: true, mode: 'cloud' } } = useSyncStatus();
+  const { data: dashboardUnits = [] } = useUnits();
 
-  const [recentLogs, setRecentLogs] = useState<MovementLogEntry[]>([]);
-  const [isLoadingRecentLogs, setIsLoadingRecentLogs] = useState(true);
-  const [recentLogsError, setRecentLogsError] = useState<string | null>(null);
+  const {
+    data: stats = { totalItems: 0, additionsToday: 0, withdrawalsToday: 0 },
+    isLoading: isLoadingStats,
+    error: statsError
+  } = useDashboardStats();
 
-  // State for AddItemModal
+  const {
+    data: recentLogs = [],
+    isLoading: isLoadingRecentLogs,
+    error: recentLogsError
+  } = useRecentLogs();
+
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
-  const [dashboardUnits, setDashboardUnits] = useState<Unit[]>([]);
-  const [syncStatus, setSyncStatus] = useState<{ connected: boolean, mode: string }>({ connected: true, mode: 'cloud' });
-
-  const fetchSyncStatus = async () => {
-    try {
-      const status = await apiClient.get<any>('/sync-status');
-      setSyncStatus(status);
-    } catch (e) {
-      console.error("Failed to fetch sync status", e);
-      setSyncStatus({ connected: false, mode: 'cloud' });
-    }
-  };
-
-  const fetchDashboardInitialData = async () => {
-    setIsLoading(true);
-    setError(null);
-    fetchSyncStatus(); // Fetch status on initial load
-    try {
-      const [itemsData, unitsData, summaryData] = await Promise.all([
-        itemsService.fetchItems({ page_size: 1 }) as Promise<ItemsResponse>,
-        apiClient.get<Unit[]>('/units').catch(err => {
-          console.warn("Failed to fetch units:", err);
-          return [] as Unit[];
-        }),
-        statsService.fetchDailySummary().catch(err => {
-          console.warn("Failed to fetch daily summary:", err);
-          return { additions_today: 0, withdrawals_today: 0 };
-        })
-      ]);
-
-      setDashboardUnits(unitsData);
-
-      setDashboardStats({
-        totalItems: itemsData.total_count || 0,
-        additionsToday: summaryData.additions_today || 0,
-        withdrawalsToday: summaryData.withdrawals_today || 0,
-      });
-
-    } catch (e: any) {
-      console.error("Failed to fetch dashboard data", e);
-      setError(e.message || "An unexpected error occurred while fetching data.");
-      setDashboardStats({
-        totalItems: 0,
-        additionsToday: 0,
-        withdrawalsToday: 0,
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboardInitialData();
-
-    const fetchRecentLogs = async () => {
-      setIsLoadingRecentLogs(true);
-      setRecentLogsError(null);
-      try {
-        const logs = await statsService.fetchRecentLogs(5);
-        setRecentLogs(logs);
-      } catch (e: any) {
-        console.error("Failed to fetch recent logs", e);
-        setRecentLogsError(e.message || "An unexpected error occurred while fetching recent logs.");
-      } finally {
-        setIsLoadingRecentLogs(false);
-      }
-    };
-
-    fetchRecentLogs();
-
-    // Poll sync status every 30 seconds
-    const statusInterval = setInterval(fetchSyncStatus, 30000);
-    return () => clearInterval(statusInterval);
-  }, []);
 
   const handleItemAdded = () => {
     setIsAddItemModalOpen(false);
-    fetchDashboardInitialData();
+    queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['recent-logs'] });
+    queryClient.invalidateQueries({ queryKey: ['items'] });
   };
 
   const statsToDisplay = [
-    { label: 'إجمالي الأصناف', value: dashboardStats.totalItems.toString(), icon: <Archive className="text-primary-500" size={24} /> },
-    { label: 'إضافات اليوم', value: dashboardStats.additionsToday.toString(), icon: <ArrowUpCircle className="text-success-500" size={24} /> },
-    { label: 'مسحوبات اليوم', value: dashboardStats.withdrawalsToday.toString(), icon: <ArrowDownCircle className="text-accent-500" size={24} /> },
+    { label: 'إجمالي الأصناف', value: stats.totalItems.toString(), icon: <Archive className="text-primary-500" size={24} /> },
+    { label: 'إضافات اليوم', value: stats.additionsToday.toString(), icon: <ArrowUpCircle className="text-success-500" size={24} /> },
+    { label: 'مسحوبات اليوم', value: stats.withdrawalsToday.toString(), icon: <ArrowDownCircle className="text-accent-500" size={24} /> },
   ];
 
   // Helper function to format timestamp
@@ -169,7 +102,7 @@ export const Dashboard = () => {
     return { icon, text };
   };
 
-  if (isLoading) {
+  if (isLoadingStats) {
     return (
       <div className="flex justify-center items-center h-full">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
@@ -178,10 +111,10 @@ export const Dashboard = () => {
     );
   }
 
-  if (error) {
+  if (statsError) {
     return (
       <div className="p-4 my-4 text-sm text-red-700 bg-red-100 rounded-lg" role="alert">
-        <span className="font-medium">خطأ!</span> {error}
+        <span className="font-medium">خطأ!</span> {(statsError as Error).message || "An error occurred"}
       </div>
     );
   }
@@ -194,8 +127,8 @@ export const Dashboard = () => {
         {/* Status Indicator */}
         <div className="flex items-center space-x-2 rtl:space-x-reverse">
           <div className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${syncStatus.connected
-              ? 'bg-success-100 text-success-700'
-              : 'bg-error-100 text-error-700'
+            ? 'bg-success-100 text-success-700'
+            : 'bg-error-100 text-error-700'
             }`}>
             <div className={`w-2 h-2 rounded-full mr-2 rtl:ml-2 rtl:mr-0 ${syncStatus.connected ? 'bg-success-500' : 'bg-error-500 animate-pulse'
               }`} />
@@ -258,7 +191,7 @@ export const Dashboard = () => {
           )}
           {recentLogsError && (
             <div className="p-4 my-2 text-sm text-red-700 bg-red-100 rounded-lg text-center" role="alert">
-              <span className="font-medium">خطأ في تحميل النشاطات!</span> {recentLogsError}
+              <span className="font-medium">خطأ في تحميل النشاطات!</span> {(recentLogsError as Error).message}
             </div>
           )}
           {!isLoadingRecentLogs && !recentLogsError && recentLogs.length === 0 && (

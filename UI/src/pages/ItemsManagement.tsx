@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Plus, Home } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { SearchBar } from '../components/SearchBar';
 import { Table } from '../components/Table';
 import { AddItemModal } from '../components/AddItemModal';
@@ -10,226 +11,194 @@ import { Item, Unit, Category } from '../types';
 import { ItemActions } from '../components/ItemActions';
 import { CategoryActions } from '../components/CategoryActions';
 import { MainCategoryCard } from '../components/MainCategoryCard';
-import { itemsService } from '../services/itemsService';
-import { categoryService } from '../services/categoryService';
-import { apiClient } from '../services/apiClient';
+import { itemsService, ItemsResponse } from '../services/itemsService';
+import { categoryService, CategoriesResponse } from '../services/categoryService';
+import { useUnits, useCategories } from '../hooks/useMetadata';
+import { useItems } from '../hooks/useItems';
 
 type ViewLevel = 'mainCategories' | 'subCategories' | 'items';
 
 export const ItemsManagement = () => {
-  // Navigation and data state
-  const [viewLevel, setViewLevel] = useState<ViewLevel>('mainCategories');
-  const [mainCategories, setMainCategories] = useState<Category[]>([]);
-  const [subCategories, setSubCategories] = useState<Category[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
-  const [units, setUnits] = useState<Unit[]>([]);
-  const [selectedMainCategory, setSelectedMainCategory] = useState<Category | null>(null);
-  const [selectedSubCategory, setSelectedSubCategory] = useState<Category | null>(null);
+  const queryClient = useQueryClient();
 
-  // Pagination State for Sub-categories
-  const [subCategoryPage, setSubCategoryPage] = useState(1);
-  const [totalSubCategories, setTotalSubCategories] = useState(0);
+  // Helper to get initial state from sessionStorage
+  const getInitialState = () => {
+    const saved = sessionStorage.getItem('itemsManagementState');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error("Failed to parse saved state", e);
+      }
+    }
+    return null;
+  };
 
-  // Pagination State for Items
-  const [itemPage, setItemPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
+  const initialState = getInitialState();
 
+  // Navigation state
+  const [viewLevel, setViewLevel] = useState<ViewLevel>(initialState?.viewLevel || 'mainCategories');
+  const [selectedMainCategory, setSelectedMainCategory] = useState<Category | null>(initialState?.selectedMainCategory || null);
+  const [selectedSubCategory, setSelectedSubCategory] = useState<Category | null>(initialState?.selectedSubCategory || null);
+
+  // Pagination
+  const [subCategoryPage, setSubCategoryPage] = useState(initialState?.subCategoryPage || 1);
+  const [itemPage, setItemPage] = useState(initialState?.itemPage || 1);
   const PAGE_SIZE = 10;
 
+  // Helper to update session storage
+  const updateSessionState = (updates: any) => {
+    const currentState = {
+      viewLevel,
+      selectedMainCategory,
+      selectedSubCategory,
+      itemPage,
+      subCategoryPage,
+      ...updates
+    };
+    
+    if (currentState.viewLevel === 'mainCategories') {
+      sessionStorage.removeItem('itemsManagementState');
+    } else {
+      sessionStorage.setItem('itemsManagementState', JSON.stringify(currentState));
+    }
+  };
+
   // UI State
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Modal State
+  // Modals
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
-
-  // Category Modals State
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
   const [currentParentId, setCurrentParentId] = useState<number | null>(null);
 
-  const filteredItems = items.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    String(item.id).includes(searchTerm)
+  // Hooks
+  const { data: units = [] } = useUnits();
+
+  // 1. Main Categories
+  const {
+    data: mainCategoriesData,
+    isLoading: loadingMain,
+    error: errorMain
+  } = useCategories(
+    { level: 'main' },
+    { enabled: viewLevel === 'mainCategories' }
+  );
+  // Type assertion or safe access
+  const mainCategories = Array.isArray(mainCategoriesData) ? mainCategoriesData : (mainCategoriesData as any)?.categories || [];
+
+  // 2. Sub Categories
+  const {
+    data: subCategoriesData,
+    isLoading: loadingSub,
+    error: errorSub
+  } = useCategories(
+    { parent_id: selectedMainCategory?.id, page: subCategoryPage, page_size: PAGE_SIZE },
+    { enabled: !!selectedMainCategory && viewLevel === 'subCategories' }
   );
 
-  // Effect to restore state from sessionStorage on initial mount
-  useEffect(() => {
-    const savedStateJSON = sessionStorage.getItem('itemsManagementState');
-    if (savedStateJSON) {
-      try {
-        const savedState = JSON.parse(savedStateJSON);
-        // Set state without triggering fetches yet
-        setViewLevel(savedState.viewLevel || 'mainCategories');
-        setSelectedMainCategory(savedState.selectedMainCategory || null);
-        setSelectedSubCategory(savedState.selectedSubCategory || null);
-        // Always restore to page 1 to avoid empty screen issues
-        // The actual page will be validated when data is fetched
-        setItemPage(1);
-        setSubCategoryPage(1);
-      } catch (e) {
-        console.error("Failed to parse saved state, starting fresh.", e);
-        sessionStorage.removeItem('itemsManagementState');
-      }
-    }
-  }, []); // <-- Runs only once on mount
+  const subCategories = (subCategoriesData as CategoriesResponse)?.categories || [];
+  const totalSubCategories = (subCategoriesData as CategoriesResponse)?.total_count || 0;
 
-  // Effect to fetch data when view level or selections change
-  useEffect(() => {
-    const fetchUnitsAndData = async () => {
-      setLoading(true);
-      setError(null);
+  // 3. Items
+  const {
+    data: itemsData,
+    isLoading: loadingItems,
+    error: errorItems
+  } = useItems(
+    {
+      sub_category_id: selectedSubCategory?.id,
+      page: itemPage,
+      page_size: PAGE_SIZE,
+      search: searchTerm
+    },
+    { enabled: !!selectedSubCategory && viewLevel === 'items' }
+  );
 
-      // Fetch units once if they are not already loaded
-      if (units.length === 0) {
-        try {
-          const unitsData = await apiClient.get<Unit[]>('/units');
-          setUnits(unitsData);
-        } catch (err: any) {
-          setError(err.message);
-          setLoading(false);
-          return;
-        }
-      }
+  const items = (itemsData as ItemsResponse)?.items || [];
+  const totalItems = (itemsData as ItemsResponse)?.total_count || 0;
 
-      // Fetch data based on the current view level
-      try {
-        if (viewLevel === 'items' && selectedSubCategory) {
-          // No need to fetch sub-categories, just the items for the current view.
-          await handleSelectSubCategory(selectedSubCategory, itemPage);
-        } else if (viewLevel === 'subCategories' && selectedMainCategory) {
-          await fetchSubCategories(selectedMainCategory, subCategoryPage);
-        } else if (viewLevel === 'mainCategories') {
-          const data = await categoryService.fetchCategories({ level: 'main' });
-          setMainCategories(data as Category[]);
-        }
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
+  // Combined Loading/Error
+  const loading = loadingMain || loadingSub || loadingItems;
+  const errorObj = errorMain || errorSub || errorItems;
+  const error = errorObj ? (errorObj as Error).message : null;
 
-    fetchUnitsAndData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewLevel, selectedMainCategory, selectedSubCategory]);
-
-
-  const fetchSubCategories = async (mainCategory: Category, page = 1) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await categoryService.fetchCategories({ parent_id: mainCategory.id, page, page_size: PAGE_SIZE }) as any;
-      setSubCategories(data.categories);
-      setTotalSubCategories(data.total_count);
-      setSubCategoryPage(page);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Handlers
   const handleSelectMainCategory = (category: Category) => {
     setSelectedMainCategory(category);
-    setSubCategoryPage(1); // Reset subcategory page when switching main categories
+    setSubCategoryPage(1);
     setViewLevel('subCategories');
-    fetchSubCategories(category, 1);
+    updateSessionState({
+      viewLevel: 'subCategories',
+      selectedMainCategory: category,
+      subCategoryPage: 1
+    });
   };
 
-  const handleSelectSubCategory = async (category: Category | null, page = 1) => {
-    if (!category) return; // Do nothing if a row click somehow provides a null category
-    
-    // Reset to page 1 when switching to a different subcategory
+  const handleSelectSubCategory = (category: Category | null, page = 1) => {
+    if (!category) return;
+
     const isNewSubCategory = selectedSubCategory?.id !== category.id;
-    const targetPage = isNewSubCategory ? 1 : page;
-    
-    setSelectedSubCategory(category);
-    setViewLevel('items');
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await itemsService.fetchItems({ sub_category_id: category.id, page: targetPage, page_size: PAGE_SIZE }) as any;
-      setItems(data.items);
-      setTotalItems(data.total_items);
-      setItemPage(targetPage);
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
+
+    if (isNewSubCategory) {
+      setSelectedSubCategory(category);
+      setItemPage(1);
+      setViewLevel('items');
+      updateSessionState({
+        viewLevel: 'items',
+        selectedSubCategory: category,
+        itemPage: 1
+      });
+    } else {
+      setItemPage(page);
+      updateSessionState({ itemPage: page });
     }
   };
 
-  // Handles navigation back to the previous view level (items -> subCategories, subCategories -> mainCategories)
   const handleBack = () => {
-    setError(null);
     setSearchTerm('');
     if (viewLevel === 'items') {
-      setItems([]);
       setSelectedSubCategory(null);
-      setItemPage(1); // Reset to the first page when returning to the sub-category list
+      setItemPage(1);
       setViewLevel('subCategories');
-      // If we are going back to sub-cat view, re-fetch the list for that level
-      if (selectedMainCategory) {
-        fetchSubCategories(selectedMainCategory, subCategoryPage);
-      }
+      updateSessionState({
+        viewLevel: 'subCategories',
+        selectedSubCategory: null,
+        itemPage: 1
+      });
     } else if (viewLevel === 'subCategories') {
-      setSubCategories([]);
       setSelectedMainCategory(null);
-
       setViewLevel('mainCategories');
+      updateSessionState({
+        viewLevel: 'mainCategories',
+        selectedMainCategory: null
+      });
     }
   };
 
-  const refreshItems = async () => {
-    if (!selectedSubCategory) return;
-    handleSelectSubCategory(selectedSubCategory, itemPage);
+  const invalidateData = (keys: string[]) => {
+    keys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
+    // Always invalidate dashboard stats when something changes
+    queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
   };
 
-  const refreshSubCategories = () => {
-    if (selectedMainCategory) {
-      fetchSubCategories(selectedMainCategory, subCategoryPage);
-    }
-  }
-
-  const refreshCategories = async () => {
-    // This function will now specifically re-fetch what's needed for the current view.
-    setLoading(true);
-    setError(null);
-    try {
-      if (viewLevel === 'mainCategories') {
-        const data = await categoryService.fetchCategories({ level: 'main' });
-        setMainCategories(data as Category[]);
-      } else if (viewLevel === 'subCategories' && selectedMainCategory) {
-        // Use the centralized function to refresh sub-categories
-        fetchSubCategories(selectedMainCategory, subCategoryPage);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+  const handleItemAdded = () => {
+    setIsAddItemModalOpen(false);
+    invalidateData(['items']);
   };
 
-  // Save navigation state to session storage
-  useEffect(() => {
-    if (viewLevel === 'mainCategories') {
-      sessionStorage.removeItem('itemsManagementState');
-    } else {
-      const stateToSave = {
-        viewLevel,
-        selectedMainCategory,
-        selectedSubCategory,
-        itemPage,
-        subCategoryPage,
-      };
-      sessionStorage.setItem('itemsManagementState', JSON.stringify(stateToSave));
-    }
-  }, [viewLevel, selectedMainCategory, selectedSubCategory, itemPage, subCategoryPage]);
+  const handleItemUpdated = () => {
+    invalidateData(['items']);
+  };
+
+  const handleCategorySaved = () => {
+    // Invalidate both because it could be main or sub
+    invalidateData(['categories']);
+  };
 
   const handleOpenCategoryModal = (category: Category | null, parentId: number | null = null) => {
     setCategoryToEdit(category);
@@ -242,17 +211,12 @@ export const ItemsManagement = () => {
       return;
     }
 
-    setError(null);
     try {
       await categoryService.deleteCategory(category.id);
-      // Refresh the list after successful deletion
-      if (viewLevel === 'subCategories') {
-        refreshSubCategories();
-      } else {
-        refreshCategories(); // For main categories
-      }
+      invalidateData(['categories']);
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
+      // Maybe set an error state if we want to show alert, but for now log it
     }
   };
 
@@ -261,18 +225,19 @@ export const ItemsManagement = () => {
 
     if (newStatus === 'inactive') {
       if (!window.confirm(`هل أنت متأكد من رغبتك في تعطيل الصنف "${item.name}"؟`)) {
-        return; // User clicked 'Cancel'
+        return;
       }
     }
 
     try {
       await itemsService.updateItemStatus(item.id, newStatus, 'System');
-      refreshItems();
+      invalidateData(['items']);
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
     }
   };
 
+  // Columns Definitions
   const columns = [
     { key: 'id', header: 'المعرف' },
     { key: 'name', header: 'اسم الصنف' },
@@ -323,8 +288,7 @@ export const ItemsManagement = () => {
           setViewLevel('mainCategories');
           setSelectedMainCategory(null);
           setSelectedSubCategory(null);
-          // Also clear the session storage on manual home navigation
-          sessionStorage.removeItem('itemsManagementState');
+          updateSessionState({ viewLevel: 'mainCategories' });
         }}
         className="flex items-center gap-2"
       >
@@ -379,7 +343,7 @@ export const ItemsManagement = () => {
                 />
               )}
               {/* Main category cards */}
-              {mainCategories.map(cat => (
+              {mainCategories.map((cat: Category) => (
                 <MainCategoryCard
                   key={cat.id}
                   category={cat}
@@ -408,12 +372,13 @@ export const ItemsManagement = () => {
                 columns={subCategoryColumns}
                 data={subCategories}
                 keyField="id"
-                onRowClick={handleSelectSubCategory}
+                onRowClick={(row) => handleSelectSubCategory(row)}
                 pagination={{
                   currentPage: subCategoryPage,
                   totalPages: Math.ceil(totalSubCategories / PAGE_SIZE),
                   onPageChange: (page) => {
-                    if (selectedMainCategory) fetchSubCategories(selectedMainCategory, page);
+                    setSubCategoryPage(page);
+                    updateSessionState({ subCategoryPage: page });
                   },
                   totalItems: totalSubCategories,
                   itemsPerPage: PAGE_SIZE,
@@ -436,13 +401,14 @@ export const ItemsManagement = () => {
                 </div>
                 <Table
                   columns={columns}
-                  data={filteredItems}
+                  data={items} // filteredItems is just items now
                   keyField="id"
                   pagination={{
                     currentPage: itemPage,
                     totalPages: Math.ceil(totalItems / PAGE_SIZE),
                     onPageChange: (page) => {
-                      handleSelectSubCategory(selectedSubCategory, page);
+                      setItemPage(page);
+                      updateSessionState({ itemPage: page });
                     },
                     totalItems: totalItems,
                     itemsPerPage: PAGE_SIZE,
@@ -459,9 +425,9 @@ export const ItemsManagement = () => {
         <AddItemModal
           isOpen={isAddItemModalOpen}
           onClose={() => setIsAddItemModalOpen(false)}
-          onItemAdded={refreshItems}
+          onItemAdded={handleItemAdded}
           units={units}
-          subCategoryId={selectedSubCategory?.id} // Pass sub-category ID
+          subCategoryId={selectedSubCategory?.id}
         />
       )}
 
@@ -469,7 +435,7 @@ export const ItemsManagement = () => {
         <EditItemModal
           isOpen={isEditItemModalOpen}
           onClose={() => setIsEditItemModalOpen(false)}
-          onItemUpdated={refreshItems}
+          onItemUpdated={handleItemUpdated}
           item={selectedItem}
           units={units}
         />
@@ -479,7 +445,7 @@ export const ItemsManagement = () => {
         <AdjustQuantityModal
           isOpen={isAdjustModalOpen}
           onClose={() => setIsAdjustModalOpen(false)}
-          onItemAdjusted={refreshItems}
+          onItemAdjusted={handleItemUpdated}
           item={selectedItem}
         />
       )}
@@ -487,7 +453,7 @@ export const ItemsManagement = () => {
       <CategoryModal
         isOpen={isCategoryModalOpen}
         onClose={() => setIsCategoryModalOpen(false)}
-        onSave={refreshCategories}
+        onSave={handleCategorySaved}
         categoryToEdit={categoryToEdit}
         parentId={currentParentId}
       />
