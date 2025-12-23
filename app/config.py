@@ -23,11 +23,18 @@ except ImportError:
 
 # Path to the database file
 if getattr(sys, 'frozen', False):
+    # When frozen, sys._MEIPASS is a temporary folder.
+    # We want the database to persist in the same directory as the executable.
     bundle_root = sys._MEIPASS
-    DATABASE_NAME = os.path.join(bundle_root, 'database', 'warehouse.db')
+    exe_dir = os.path.dirname(sys.executable)
+    
+    # Database stays outside in the exe directory to persist data
+    DATABASE_NAME = os.path.join(exe_dir, 'database', 'warehouse.db')
+    # Schema is read-only, so it can stay in the bundle
     SCHEMA_PATH = os.path.join(bundle_root, 'database', 'schema.sql')
 else:
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Walk up from app/ to root
-    DATABASE_NAME = os.path.abspath(os.path.join(script_dir, '..', '..', 'database', 'warehouse.db'))
-    SCHEMA_PATH = os.path.abspath(os.path.join(script_dir, '..', '..', 'database', 'schema.sql'))
+    # Root is one level up from app/config.py
+    root_dir = os.path.abspath(os.path.join(script_dir, '..'))
+    DATABASE_NAME = os.path.join(root_dir, 'database', 'warehouse.db')
+    SCHEMA_PATH = os.path.join(root_dir, 'database', 'schema.sql')
