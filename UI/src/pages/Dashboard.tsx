@@ -20,7 +20,7 @@ export const Dashboard = () => {
   const { data: dashboardUnits = [] } = useUnits();
 
   const {
-    data: stats = { totalItems: 0, additionsToday: 0, withdrawalsToday: 0 },
+    data: stats = { additionsToday: 0, withdrawalsToday: 0 },
     isLoading: isLoadingStats,
     error: statsError
   } = useDashboardStats();
@@ -41,7 +41,6 @@ export const Dashboard = () => {
   };
 
   const statsToDisplay = [
-    { label: 'إجمالي الأصناف', value: stats.totalItems.toString(), icon: <Archive className="text-primary-500" size={24} /> },
     { label: 'إضافات اليوم', value: stats.additionsToday.toString(), icon: <ArrowUpCircle className="text-success-500" size={24} /> },
     { label: 'مسحوبات اليوم', value: stats.withdrawalsToday.toString(), icon: <ArrowDownCircle className="text-accent-500" size={24} /> },
   ];
@@ -132,7 +131,7 @@ export const Dashboard = () => {
             }`}>
             <div className={`w-2 h-2 rounded-full mr-2 rtl:ml-2 rtl:mr-0 ${syncStatus.connected ? 'bg-success-500' : 'bg-error-500 animate-pulse'
               }`} />
-            {syncStatus.connected ? 'متصل بالسحابة' : 'وضع عدم الاتصال'}
+            {syncStatus.connected ? 'متصل' : 'غير متصل'}
           </div>
           {syncStatus.mode === 'local' && (
             <span className="text-[10px] text-gray-400 font-normal">(محلي فقط)</span>
@@ -141,11 +140,10 @@ export const Dashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
         {statsToDisplay.map((stat, index) => (
           <div key={index} className="card flex items-center p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className={`p-3 rounded-full ml-4 rtl:mr-4 rtl:ml-0 ${stat.label === 'إجمالي الأصناف' ? 'bg-primary-100' :
-              stat.label === 'إضافات اليوم' ? 'bg-success-100' : 'bg-accent-100'
+            <div className={`p-3 rounded-full ml-4 rtl:mr-4 rtl:ml-0 ${stat.label === 'إضافات اليوم' ? 'bg-success-100' : 'bg-accent-100'
               }`}>
               {stat.icon}
             </div>

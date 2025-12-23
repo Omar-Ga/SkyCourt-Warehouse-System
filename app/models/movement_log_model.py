@@ -12,7 +12,8 @@ def add_log_entry(item_id, item_name, action_type, quantity_changed=None, result
         raise ValueError("A database connection must be provided to add_log_entry.")
 
     cursor = db.cursor()
-    local_timestamp = datetime.now()
+    # Convert to string for LibSQL compatibility
+    local_timestamp = datetime.now().isoformat()
     try:
         cursor.execute("""
             INSERT INTO movement_logs (

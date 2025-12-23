@@ -18,8 +18,8 @@ export const useSyncStatus = () => {
                 return { connected: false, mode: 'cloud' } as SyncStatus;
             }
         },
-        refetchInterval: 30000,
-        staleTime: 1000 * 25, // Slightly less than refetch interval
-        initialData: { connected: true, mode: 'cloud' },
+        refetchInterval: 5000,
+        staleTime: 4000,
+        initialData: { connected: false, mode: 'cloud' },
     });
 };

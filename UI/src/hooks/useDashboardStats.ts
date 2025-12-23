@@ -1,24 +1,16 @@
 import { useQuery } from '@tanstack/react-query';
-import { itemsService } from '../services/itemsService';
 import { statsService } from '../services/statsService';
 
 export const useDashboardStats = () => {
     return useQuery({
         queryKey: ['dashboard-stats'],
         queryFn: async () => {
-            const [itemsData, summaryData] = await Promise.all([
-                itemsService.fetchItems({ page_size: 1 }),
-                statsService.fetchDailySummary(),
-            ]);
+            const summaryData = await statsService.fetchDailySummary();
 
-            // Handle potential different response structures if needed, 
-            // but assuming services return what we expect based on Dashboard.tsx
-            const totalItems = 'total_count' in itemsData ? itemsData.total_count : 0;
             const additionsToday = summaryData.additions_today || 0;
             const withdrawalsToday = summaryData.withdrawals_today || 0;
 
             return {
-                totalItems,
                 additionsToday,
                 withdrawalsToday,
             };

@@ -1,13 +1,15 @@
 import sqlite3
 from .db_utils import get_db
+from .sync_worker import run_background_sync
 
 def add_destination(name: str) -> dict | None:
     """Adds a new destination to the database."""
-    db = get_db()
+    db = get_db(type='write')
     cursor = db.cursor()
     try:
         cursor.execute("INSERT INTO destinations (name) VALUES (?)", (name,))
         db.commit()
+        run_background_sync()
         new_id = cursor.lastrowid
         if new_id:
             return {"id": new_id, "name": name}
@@ -36,11 +38,12 @@ def get_destination_by_id(destination_id: int) -> dict | None:
 
 def update_destination(destination_id: int, name: str) -> dict | None:
     """Updates an existing destination's name."""
-    db = get_db()
+    db = get_db(type='write')
     cursor = db.cursor()
     try:
         cursor.execute("UPDATE destinations SET name = ? WHERE id = ?", (name, destination_id))
         db.commit()
+        run_background_sync()
         if cursor.rowcount > 0:
             return {"id": destination_id, "name": name}
         return None
@@ -58,11 +61,12 @@ def is_destination_in_use(destination_id: int) -> bool:
 
 def delete_destination(destination_id: int) -> bool:
     """Deletes a destination by its ID."""
-    db = get_db()
+    db = get_db(type='write')
     cursor = db.cursor()
     try:
         cursor.execute("DELETE FROM destinations WHERE id = ?", (destination_id,))
         db.commit()
+        run_background_sync()
         return cursor.rowcount > 0
     except sqlite3.Error as e:
         db.rollback()

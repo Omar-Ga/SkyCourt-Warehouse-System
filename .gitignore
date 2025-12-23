@@ -27,19 +27,29 @@ lerna-debug.log*
 
 # Node modules
 node_modules/
+UI/node_modules/
 
 # Python artifacts
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
+.venv/
+venv/
+ENV/
+env/
 
 # Build artifacts
 /build/
 /dist/
+UI/dist/
+UI/dist-ssr/
 
 # Project-specific
 /database/warehouse.db
+/database/warehouse.db-shm
+/database/warehouse.db-wal
+/database/warehouse.db-info
 /Docs,Prd,Task/
 
 # Test files
@@ -47,3 +57,8 @@ __pycache__/
 
 # Database files
 *.db
+
+# Vite/Next.js/Other web caches
+.vite/
+.next/
+.cache/

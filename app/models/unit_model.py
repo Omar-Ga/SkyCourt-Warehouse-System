@@ -1,14 +1,16 @@
 import sqlite3
 from .db_utils import get_db
+from .sync_worker import run_background_sync
 
 def add_unit(name: str) -> dict | None:
     """Adds a new unit to the database.
     Returns the newly added unit as a dictionary (id, name) or None if error."""
-    db = get_db()
+    db = get_db(type='write')
     cursor = db.cursor()
     try:
         cursor.execute("INSERT INTO units (name) VALUES (?)", (name,))
         db.commit()
+        run_background_sync()
         new_unit_id = cursor.lastrowid
         if new_unit_id:
             return {"id": new_unit_id, "name": name}
@@ -43,11 +45,12 @@ def get_unit_by_id(unit_id: int) -> dict | None:
 def update_unit(unit_id: int, name: str) -> dict | None:
     """Updates an existing unit's name.
     Returns the updated unit as a dictionary or None if not found or error."""
-    db = get_db()
+    db = get_db(type='write')
     cursor = db.cursor()
     try:
         cursor.execute("UPDATE units SET name = ? WHERE id = ?", (name, unit_id))
         db.commit()
+        run_background_sync()
         if cursor.rowcount > 0:
             return {"id": unit_id, "name": name}
         return None
@@ -72,11 +75,12 @@ def delete_unit(unit_id: int) -> bool:
     """Deletes a unit by its ID.
     Returns True if deletion was successful, False otherwise (e.g., not found or DB error).
     Does not delete if the unit is in use (caller should check is_unit_in_use first)."""
-    db = get_db()
+    db = get_db(type='write')
     cursor = db.cursor()
     try:
         cursor.execute("DELETE FROM units WHERE id = ?", (unit_id,))
         db.commit()
+        run_background_sync()
         return cursor.rowcount > 0
     except sqlite3.Error as e:
         

@@ -20,7 +20,7 @@ export const PrintableBarcode = ({ barcodeValue, isOpen, onClose }: PrintableBar
       printStarted.current = true;
 
       // Fetch the barcode data first
-      fetch(`/api/backup/barcode/${barcodeValue}`)
+      fetch(`/api/items/generate-barcode/${barcodeValue}`)
         .then(response => {
           if (!response.ok) {
             throw new Error('Failed to fetch barcode data');
@@ -88,7 +88,7 @@ export const PrintableBarcode = ({ barcodeValue, isOpen, onClose }: PrintableBar
                 };
               }
             } else {
-               printAndCleanup();
+              printAndCleanup();
             }
           }
         })

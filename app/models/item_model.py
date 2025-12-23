@@ -1,7 +1,7 @@
 import sqlite3
-from .movement_log_model import add_log_entry
 from .db_utils import get_db
-from .category_model import get_category_by_id
+
+# Read Methods (Mostly Unchanged, but ensure they don't do business logic)
 
 def get_items_paginated(page=1, page_size=10, search_term=None, sub_category_id=None):
     """
@@ -36,7 +36,6 @@ def get_items_paginated(page=1, page_size=10, search_term=None, sub_category_id=
     
     cursor.execute(query, params)
     items = [dict(row) for row in cursor.fetchall()]
-    
     
     return {"items": items, "total_items": total_items}
 
@@ -78,138 +77,37 @@ def get_item_by_barcode(barcode: str, db=None):
     item = cursor.fetchone()
     return dict(item) if item else None
 
-def add_item(name: str, unit_id: int, sub_category_id: int, quantity: int, provider_id: int | None, cost: float | None, person_name: str | None, barcode: str | None):
-    """Adds a new item and logs the creation within a single transaction."""
-    db = get_db()
-    
-    
-    existing_item = get_item_by_name(name, db=db)
-    if existing_item:
-        if existing_item['status'] in ('inactive', 'archived'):
-            raise ValueError(f"Item '{name}' exists but is {existing_item['status']}. Restore it instead.")
-        else:
-            
-            sub_category_id = existing_item.get('sub_category_id')
-            if sub_category_id:
-                category = get_category_by_id(sub_category_id)
-                if category:
-                    category_name = category.get('name', 'غير محددة')
-                    raise sqlite3.IntegrityError(f"الصنف '{name}' موجود بالفعل في الفئة الفرعية '{category_name}'.")
-            
-            
-            raise sqlite3.IntegrityError(f"An active item named '{name}' already exists.")
+# Write Methods (DAO only)
 
-    cursor = db.cursor()
-    
-    try:
-        cursor.execute("INSERT INTO items (name, current_quantity, unit_id, sub_category_id, provider_id, cost, status, barcode) VALUES (?, ?, ?, ?, ?, ?, 'active', ?)",
-                       (name, quantity, unit_id, sub_category_id, provider_id, cost, barcode))
-        item_id = cursor.lastrowid
-        
-        
-        add_log_entry(item_id=item_id, item_name=name, action_type='Creation', quantity_changed=quantity, 
-                      resulting_quantity=quantity, details="Item created.", person_name=person_name, 
-                      provider_id=provider_id, db=db)
-        
-        db.commit()
-        return get_item_by_id(item_id, db=db)
-    except sqlite3.Error as e:
-        db.rollback()
-        raise e
+def insert_item(cursor, name, unit_id, sub_category_id, quantity, provider_id, cost, barcode):
+    """Inserts a new item record. Expects an open cursor."""
+    cursor.execute("INSERT INTO items (name, current_quantity, unit_id, sub_category_id, provider_id, cost, status, barcode) VALUES (?, ?, ?, ?, ?, ?, 'active', ?)",
+                   (name, quantity, unit_id, sub_category_id, provider_id, cost, barcode))
+    return cursor.lastrowid
 
-def restore_item(item_id: int, sub_category_id: int, person_name: str | None):
-    """Restores an item within a single transaction."""
-    db = get_db()
-    item = get_item_by_id(item_id, db=db)
-    if not item: return None
+def update_status_and_category(cursor, item_id, status, sub_category_id):
+    """Updates status and category. Expects cursor."""
+    cursor.execute("UPDATE items SET status = ?, sub_category_id = ? WHERE id = ?", (status, sub_category_id, item_id))
 
-    cursor = db.cursor()
-    try:
-        cursor.execute("UPDATE items SET status = 'active', sub_category_id = ? WHERE id = ?", (sub_category_id, item_id))
-        add_log_entry(item_id=item_id, item_name=item['name'], action_type='Restored',
-                      details=f"Item restored to category ID {sub_category_id}.", person_name=person_name, db=db)
-        db.commit()
-        return get_item_by_id(item_id, db=db)
-    except sqlite3.Error as e:
-        db.rollback()
-        raise e
-    # No conn.close()
+def update_status(cursor, item_id, status):
+    """Updates only status. Expects cursor."""
+    cursor.execute("UPDATE items SET status = ? WHERE id = ?", (status, item_id))
 
-def update_item_status(item_id: int, new_status: str, person_name: str | None):
-    """Updates an item's status within a single transaction."""
-    db = get_db()
-    if new_status not in ('active', 'inactive'):
-        raise ValueError("Invalid status provided.")
-    
-    item = get_item_by_id(item_id, db=db)
-    if not item or item['status'] == new_status: return item
+def check_barcode_exists(cursor, barcode, exclude_item_id):
+    """Checks if a barcode exists for another item."""
+    cursor.execute("SELECT id FROM items WHERE barcode = ? AND id != ?", (barcode, exclude_item_id))
+    return cursor.fetchone() is not None
 
-    cursor = db.cursor()
-    try:
-        cursor.execute("UPDATE items SET status = ? WHERE id = ?", (new_status, item_id))
-        add_log_entry(item_id=item_id, item_name=item['name'], action_type='Status Change',
-                      details=f"Status changed from '{item['status']}' to '{new_status}'.", person_name=person_name, db=db)
-        db.commit()
-        return get_item_by_id(item_id, db=db)
-    except sqlite3.Error as e:
-        db.rollback()
-        raise e
-    # No conn.close()
+def has_movement_logs(cursor, item_id):
+    """Checks if there are any movement logs for this item."""
+    cursor.execute("SELECT 1 FROM movement_logs WHERE item_id = ? LIMIT 1", (item_id,))
+    return cursor.fetchone() is not None
 
-def update_item(item_id: int, name: str, unit_id: int, sub_category_id: int | None, barcode: str | None, person_name: str | None = None, force_unit_change: bool = False):
-    """Updates item details within a single transaction."""
-    db = get_db()
-    cursor = db.cursor()
-    try:
-        current_item = get_item_by_id(item_id, db=db)
-        if not current_item: return None
+def update_item_details(cursor, item_id, name, unit_id, sub_category_id, barcode):
+    """Updates basic item details."""
+    cursor.execute("UPDATE items SET name = ?, unit_id = ?, sub_category_id = ?, barcode = ? WHERE id = ?",
+                   (name, unit_id, sub_category_id, barcode, item_id))
 
-        if barcode and barcode != current_item.get('barcode'):
-            cursor.execute("SELECT id FROM items WHERE barcode = ? AND id != ?", (barcode, item_id))
-            if cursor.fetchone():
-                raise sqlite3.IntegrityError(f"Barcode '{barcode}' is already in use by another item.")
-
-        if unit_id != current_item['unit_id'] and not force_unit_change:
-            cursor.execute("SELECT 1 FROM movement_logs WHERE item_id = ? LIMIT 1", (item_id,))
-            if cursor.fetchone():
-                return {"confirmation_required": True, "message": "Changing unit might affect logs."}
-
-        cursor.execute("UPDATE items SET name = ?, unit_id = ?, sub_category_id = ?, barcode = ? WHERE id = ?",
-                       (name, unit_id, sub_category_id, barcode, item_id))
-        
-        log_details = "Item details updated."
-        add_log_entry(item_id=item_id, item_name=name, action_type='Update', details=log_details, person_name=person_name, db=db)
-
-        db.commit()
-        return get_item_by_id(item_id, db=db)
-    except sqlite3.Error as e:
-        db.rollback()
-        raise e
-    # No conn.close()
-
-def record_quantity_adjustment(item_id, change_amount, adjustment_type, person_name, provider_id=None, cost=None, destination_id=None):
-    """Records a quantity adjustment within a single transaction."""
-    db = get_db()
-    cursor = db.cursor()
-            
-    try:
-        cursor.execute("SELECT current_quantity, name FROM items WHERE id = ?", (item_id,))
-        item = cursor.fetchone()
-        if not item: raise ValueError("Item not found.")
-
-        current_quantity = item['current_quantity']
-        new_quantity = current_quantity + change_amount if adjustment_type == 'addition' else current_quantity - change_amount
-        
-        if new_quantity < 0: raise ValueError("Resulting quantity cannot be negative.")
-
-        cursor.execute("UPDATE items SET current_quantity = ? WHERE id = ?", (new_quantity, item_id))
-
-        add_log_entry(item_id=item_id, item_name=item['name'], action_type=adjustment_type.capitalize(),
-                      quantity_changed=change_amount, resulting_quantity=new_quantity, provider_id=provider_id,
-                      cost_per_item=cost, destination_id=destination_id, person_name=person_name, db=db)
-        db.commit()
-        return get_item_by_id(item_id, db=db)
-    except sqlite3.Error as e:
-        db.rollback()
-        raise e
-    # No conn.close()
+def update_quantity(cursor, item_id, new_quantity):
+    """Updates item quantity directly."""
+    cursor.execute("UPDATE items SET current_quantity = ? WHERE id = ?", (new_quantity, item_id))

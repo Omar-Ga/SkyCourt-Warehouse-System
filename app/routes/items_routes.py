@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, send_file
 import sqlite3
-from app.models import item_model
+from app.services import item_service, barcode_service
 import barcode
 from barcode.writer import ImageWriter
 from io import BytesIO
@@ -31,7 +31,7 @@ def get_items_route():
     sub_category_id = request.args.get('sub_category_id', None, type=int)
     
     try:
-        data = item_model.get_items_paginated(page, page_size, search_term, sub_category_id)
+        data = item_service.get_items_paginated(page, page_size, search_term, sub_category_id)
         
         
         if is_ranged_request:
@@ -53,7 +53,7 @@ def add_item_route():
         return jsonify({"error": "Missing required fields"}), 400
 
     try:
-        new_item = item_model.add_item(
+        new_item = item_service.add_item(
             name=data['name'].strip(),
             unit_id=data['unit_id'],
             sub_category_id=data['sub_category_id'],
@@ -66,7 +66,7 @@ def add_item_route():
         return jsonify(new_item), 201
     except ValueError as e:
         
-        item = item_model.get_item_by_name(data['name'].strip())
+        item = item_service.get_item_by_name(data['name'].strip())
         return jsonify({"error": str(e), "type": "item_conflict", "item_id": item['id']}), 409
     except sqlite3.IntegrityError as e:
         return jsonify({"error": f"Database integrity error: {e}"}), 409
@@ -81,7 +81,7 @@ def restore_item_route(item_id):
         return jsonify({"error": "sub_category_id is required"}), 400
 
     try:
-        restored_item = item_model.restore_item(
+        restored_item = item_service.restore_item(
             item_id=item_id,
             sub_category_id=data['sub_category_id'],
             person_name=data.get('person_name')
@@ -98,7 +98,7 @@ def update_item_status_route(item_id):
     if 'status' not in data: return jsonify({'error': 'Missing status field'}), 400
     
     try:
-        updated_item = item_model.update_item_status(
+        updated_item = item_service.update_item_status(
             item_id=item_id, new_status=data['status'], person_name=data.get('person_name'))
         return jsonify(updated_item), 200
     except ValueError as e:
@@ -114,7 +114,7 @@ def update_item_route(item_id):
         return jsonify({"error": "Missing required fields: name, unit_id"}), 400
 
     try:
-        updated_item = item_model.update_item(
+        updated_item = item_service.update_item(
             item_id=item_id,
             name=data['name'],
             unit_id=data['unit_id'],
@@ -141,7 +141,7 @@ def update_item_route(item_id):
 def get_item_by_barcode_route(barcode):
     """Gets a single active item by its barcode."""
     try:
-        item = item_model.get_item_by_barcode(barcode)
+        item = item_service.get_item_by_barcode(barcode)
         if item:
             return jsonify(item), 200
         else:
@@ -154,7 +154,7 @@ def adjust_item_quantity_route(item_id):
     """Adjusts an item's quantity."""
     data = request.get_json()
     try:
-        result = item_model.record_quantity_adjustment(item_id=item_id, **data)
+        result = item_service.record_quantity_adjustment(item_id=item_id, **data)
         return jsonify(result), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
@@ -165,7 +165,7 @@ def adjust_item_quantity_route(item_id):
 def get_barcode_route(item_id):
     """Generates and returns a barcode image for a given item."""
     try:
-        item = item_model.get_item_by_id(item_id)
+        item = item_service.get_item_by_id(item_id)
         if not item:
             return jsonify({'error': 'Item not found'}), 404
 
@@ -194,7 +194,19 @@ def get_barcode_route(item_id):
 @items_bp.route('/<int:item_id>', methods=['GET'])
 def get_item_by_id_route(item_id):
     """Gets a single item by its ID."""
-    item = item_model.get_item_by_id(item_id)
+    item = item_service.get_item_by_id(item_id)
     if item: return jsonify(item), 200
     return jsonify({'error': 'Item not found'}), 404
- 
+
+@items_bp.route('/generate-barcode/<string:barcode_value>', methods=['GET'])
+def generate_barcode_base64_route(barcode_value):
+    """
+    Generates a barcode image for the given value and returns it as a Base64 encoded string.
+    Intended for the frontend printable barcode component.
+    """
+    try:
+        data = barcode_service.generate_barcode_base64(barcode_value)
+        return jsonify(data), 200
+    except Exception as e:
+        print(f"Error generating barcode: {e}")
+        return jsonify({"error": "Failed to generate barcode"}), 500
