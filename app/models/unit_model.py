@@ -1,6 +1,7 @@
-import sqlite3
 from .db_utils import get_db
 from .sync_worker import run_background_sync
+import logging
+logger = logging.getLogger(__name__)
 
 def add_unit(name: str) -> dict | None:
     """Adds a new unit to the database.
@@ -15,12 +16,12 @@ def add_unit(name: str) -> dict | None:
         if new_unit_id:
             return {"id": new_unit_id, "name": name}
         return None
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         db.rollback()
         raise ValueError(f"A unit with the name '{name}' already exists.")
-    except sqlite3.Error as e:
+    except Error as e:
         db.rollback()
-        print(f"Database error in add_unit: {e}")
+        logger.error(f"Database error in add_unit: {e}")
         
         raise e
 
@@ -54,12 +55,12 @@ def update_unit(unit_id: int, name: str) -> dict | None:
         if cursor.rowcount > 0:
             return {"id": unit_id, "name": name}
         return None
-    except sqlite3.IntegrityError:
-        print(f"Error: Cannot update unit ID {unit_id}, name '{name}' already exists.")
+    except IntegrityError:
+        logger.error(f"Error: Cannot update unit ID {unit_id}, name '{name}' already exists.")
         return None
-    except sqlite3.Error as e:
+    except Error as e:
         db.rollback()
-        print(f"Database error in update_unit: {e}")
+        logger.error(f"Database error in update_unit: {e}")
         raise e
 
 def is_unit_in_use(unit_id: int) -> bool:
@@ -82,8 +83,8 @@ def delete_unit(unit_id: int) -> bool:
         db.commit()
         run_background_sync()
         return cursor.rowcount > 0
-    except sqlite3.Error as e:
+    except Error as e:
         
         db.rollback()
-        print(f"Database error in delete_unit for ID {unit_id}: {e}")
+        logger.error(f"Database error in delete_unit for ID {unit_id}: {e}")
         return False 

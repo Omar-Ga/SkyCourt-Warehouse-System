@@ -19,9 +19,10 @@ type TableProps = {
     itemsPerPage?: number;
   };
   isLoading?: boolean;
+  rowClassName?: (row: any) => string;
 };
 
-export const Table = ({ columns, data, keyField, onRowClick, pagination, isLoading }: TableProps) => {
+export const Table = ({ columns, data, keyField, onRowClick, pagination, isLoading, rowClassName }: TableProps) => {
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="overflow-x-auto">
@@ -29,8 +30,8 @@ export const Table = ({ columns, data, keyField, onRowClick, pagination, isLoadi
           <thead>
             <tr>
               {columns.map((column) => (
-                <th 
-                  key={column.key} 
+                <th
+                  key={column.key}
                   className={column.width ? `w-${column.width}` : ''}
                 >
                   {column.header}
@@ -60,24 +61,24 @@ export const Table = ({ columns, data, keyField, onRowClick, pagination, isLoadi
               </tr>
             )}
             {!isLoading && data.map((row) => (
-                <tr 
-                  key={row[keyField]} 
-                  onClick={() => onRowClick && onRowClick(row)}
-                  className={onRowClick ? 'cursor-pointer' : ''}
-                >
-                  {columns.map((column) => (
-                    <td key={`${row[keyField]}-${column.key}`}>
-                      {column.render 
-                        ? column.render(row[column.key], row) 
-                        : row[column.key]}
-                    </td>
-                  ))}
-                </tr>
-              ))}
+              <tr
+                key={row[keyField]}
+                onClick={() => onRowClick && onRowClick(row)}
+                className={`${onRowClick ? 'cursor-pointer' : ''} ${rowClassName ? rowClassName(row) : ''} hover:bg-base-200 transition-colors`}
+              >
+                {columns.map((column) => (
+                  <td key={`${row[keyField]}-${column.key}`}>
+                    {column.render
+                      ? column.render(row[column.key], row)
+                      : row[column.key]}
+                  </td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
       </div>
-      
+
       {pagination && pagination.totalPages > 1 && (
         <div className="py-3 px-4 border-t flex justify-start items-center gap-4">
           <div className="text-sm text-black">

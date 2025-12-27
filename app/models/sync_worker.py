@@ -20,10 +20,10 @@ def run_background_sync():
                 conn.sync()
                 conn.close()
                 # print("Background sync finished successfully.") # Optional: toggle for debugging
-        except Exception as e:
+        except Exception:
             # Failure is silent in background mode to avoid user disruption; 
             # sync will retry on next trigger anyway.
-            print(f"Background sync failed: {e}")
+            pass
 
     # Use daemon=True so the thread doesn't prevent the app from shutting down
     thread = threading.Thread(target=_sync_task, daemon=True)

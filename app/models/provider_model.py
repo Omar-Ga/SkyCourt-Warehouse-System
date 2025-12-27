@@ -1,4 +1,4 @@
-import sqlite3
+from sqlite3 import IntegrityError
 from .db_utils import get_db
 from .sync_worker import run_background_sync
 
@@ -19,7 +19,7 @@ def add_provider(name: str):
         db.commit()
         run_background_sync()
         return {"id": cursor.lastrowid, "name": name}
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         db.rollback()
         raise ValueError(f"Provider '{name}' already exists.")
     except Exception as e:
@@ -37,7 +37,7 @@ def update_provider(provider_id: int, name: str):
         db.commit()
         run_background_sync()
         return {"id": provider_id, "name": name}
-    except sqlite3.IntegrityError:
+    except IntegrityError:
         db.rollback()
         raise ValueError(f"Provider name '{name}' is already in use by another provider.")
     except Exception as e:

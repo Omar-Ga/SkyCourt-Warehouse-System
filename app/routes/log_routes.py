@@ -1,12 +1,15 @@
 from flask import Blueprint, request, jsonify
 from app.models import movement_log_model
-from datetime import datetime # For date validation if needed here, though model handles it
+from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('logs', __name__, url_prefix='/api/movement-logs')
 
 @bp.route('', methods=['GET'])
 def get_movement_logs_route():
-    try:
+
         page = request.args.get('page', 1, type=int)
         page_size = request.args.get('page_size', 50, type=int)
         
@@ -18,10 +21,7 @@ def get_movement_logs_route():
         filters = {}
         item_id = request.args.get('item_id')
         if item_id:
-            try:
-                filters['item_id'] = int(item_id)
-            except ValueError:
-                return jsonify({"error": "Invalid item_id format. Must be an integer."}), 400
+            filters['item_id'] = int(item_id)
         
         action_type = request.args.get('action_type')
         if action_type: # Model handles comma-separated list
@@ -29,17 +29,11 @@ def get_movement_logs_route():
         
         provider_id = request.args.get('provider_id')
         if provider_id:
-            try:
-                filters['provider_id'] = int(provider_id)
-            except ValueError:
-                return jsonify({"error": "Invalid provider_id format. Must be an integer."}), 400
+            filters['provider_id'] = int(provider_id)
             
         destination_id = request.args.get('destination_id')
         if destination_id:
-            try:
-                filters['destination_id'] = int(destination_id)
-            except ValueError:
-                return jsonify({"error": "Invalid destination_id format. Must be an integer."}), 400
+            filters['destination_id'] = int(destination_id)
         
         date_from = request.args.get('date_from')
         if date_from:
@@ -64,13 +58,11 @@ def get_movement_logs_route():
         else:
             return jsonify({'error': 'Failed to retrieve movement logs'}), 500
             
-    except Exception as e:
-        print(f"Error in /api/movement-logs endpoint: {e}")
-        return jsonify({'error': 'An unexpected error occurred.'}), 500 
+ 
 
 @bp.route('/all_filtered', methods=['GET'])
 def get_all_filtered_movement_logs():
-    try:
+
         filters = {}
         item_id = request.args.get('item_id')
         if item_id:
@@ -122,9 +114,7 @@ def get_all_filtered_movement_logs():
             # Handle case where result might be an error dictionary
             return jsonify({'error': 'Failed to retrieve movement logs', 'details': all_logs.get('error', '')}), 500
             
-    except Exception as e:
-        print(f"Error in /api/movement-logs/all_filtered endpoint: {e}")
-        return jsonify({'error': 'An unexpected error occurred.'}), 500
+
 
 @bp.route('/summary/today', methods=['GET'])
 def get_daily_summary_route():

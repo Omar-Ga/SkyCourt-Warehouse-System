@@ -1,25 +1,20 @@
-import sqlite3
+from sqlite3 import IntegrityError
 from app.models.db_utils import get_db
 from app.models import item_model
 from app.models.movement_log_model import add_log_entry
 from app.models.sync_worker import run_background_sync
 from app.models.category_model import get_category_by_id
 
-def get_items_paginated(page=1, page_size=10, search_term=None, sub_category_id=None):
-    """Pass-through to DAO for fetching items."""
-    return item_model.get_items_paginated(page, page_size, search_term, sub_category_id)
 
-def get_item_by_id(item_id):
-    """Pass-through to DAO."""
-    return item_model.get_item_by_id(item_id)
 
-def get_item_by_barcode(barcode):
-    """Pass-through to DAO."""
-    return item_model.get_item_by_barcode(barcode)
 
-def get_item_by_name(name):
-    """Pass-through to DAO."""
-    return item_model.get_item_by_name(name)
+
+
+
+
+
+
+
 
 def add_item(name: str, unit_id: int, sub_category_id: int, quantity: int, provider_id: int | None, cost: float | None, person_name: str | None, barcode: str | None):
     """Orchestrates adding a new item."""
@@ -38,9 +33,9 @@ def add_item(name: str, unit_id: int, sub_category_id: int, quantity: int, provi
                     category = get_category_by_id(existing_sub_id)
                     if category:
                         category_name = category.get('name', 'غير محددة')
-                        raise sqlite3.IntegrityError(f"الصنف '{name}' موجود بالفعل في الفئة الفرعية '{category_name}'.")
+                        raise IntegrityError(f"الصنف '{name}' موجود بالفعل في الفئة الفرعية '{category_name}'.")
                 
-                raise sqlite3.IntegrityError(f"An active item named '{name}' already exists.")
+                raise IntegrityError(f"An active item named '{name}' already exists.")
 
         # DAO: Insert Item
         cursor = db.cursor()
@@ -133,7 +128,7 @@ def update_item(item_id: int, name: str, unit_id: int, sub_category_id: int | No
         # Business Logic: Barcode uniqueness
         if barcode and barcode != current_item.get('barcode'):
             if item_model.check_barcode_exists(cursor, barcode, exclude_item_id=item_id):
-                 raise sqlite3.IntegrityError(f"Barcode '{barcode}' is already in use by another item.")
+                 raise IntegrityError(f"Barcode '{barcode}' is already in use by another item.")
 
         # Business Logic: Unit change check
         if unit_id != current_item['unit_id'] and not force_unit_change:

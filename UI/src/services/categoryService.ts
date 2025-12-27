@@ -28,6 +28,9 @@ export const categoryService = {
         return apiClient.get<CategoriesResponse | Category[]>(endpoint);
     },
 
+    getCategoryById: (id: number) =>
+        apiClient.get<Category>(`/categories/${id}`),
+
     createCategory: (data: { name: string, parent_id?: number | null }) =>
         apiClient.post<Category>('/categories/', data),
 

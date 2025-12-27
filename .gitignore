@@ -53,7 +53,7 @@ UI/dist-ssr/
 /Docs,Prd,Task/
 
 # Test files
-*.spec
+
 
 # Database files
 *.db

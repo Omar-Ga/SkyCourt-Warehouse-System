@@ -6,6 +6,7 @@ export type Item = {
   unit_name: string; // Often joined from backend or looked up
   sub_category_id?: number | null;
   sub_category_name?: string | null;
+  main_category_id?: number | null;
   provider?: string | null;
   cost?: number | null;
   status?: 'active' | 'inactive' | 'archived';

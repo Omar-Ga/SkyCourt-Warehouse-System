@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Modal } from './Modal';
-import { ArrowUp, ArrowDown, User } from 'lucide-react';
+import { ArrowUp, ArrowDown, User, Loader2 } from 'lucide-react';
 import { Item, Destination, Provider } from '../types'; // Import shared types
 
 type AdjustQuantityModalProps = {
@@ -18,27 +18,28 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
   const [action, setAction] = useState<'add' | 'remove' | null>(null);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  
+  const [isSaving, setIsSaving] = useState(false);
+
   const [destinations, setDestinations] = useState<Destination[]>([]);
   const [selectedDestinationId, setSelectedDestinationId] = useState<string>('');
   const [destinationsLoading, setDestinationsLoading] = useState(false);
   const [destinationsError, setDestinationsError] = useState<string | null>(null);
 
-  
+
   const [providers, setProviders] = useState<Provider[]>([]);
   const [selectedProviderId, setSelectedProviderId] = useState<string>('');
   const [providersLoading, setProvidersLoading] = useState(false);
   const [providersError, setProvidersError] = useState<string | null>(null);
 
   useEffect(() => {
-    
+
     if (isOpen) {
       resetForm();
     }
-  }, [isOpen]); 
+  }, [isOpen]);
 
   useEffect(() => {
-    
+
     if (isOpen) {
       if (action === 'add') {
         fetchProviders();
@@ -86,21 +87,21 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
 
   const validate = (actionToValidate: 'add' | 'remove') => {
     const newErrors: { [key: string]: string } = {};
-    
+
     if (!quantity) {
       newErrors.quantity = 'الكمية مطلوبة';
     } else if (Number(quantity) <= 0) {
       newErrors.quantity = 'الكمية يجب أن تكون أكبر من 0';
     }
-    
+
     if (actionToValidate === 'remove' && Number(quantity) > item.current_quantity) {
       newErrors.quantity = 'الكمية المطلوب سحبها أكبر من الرصيد المتاح';
     }
-    
+
     if (actionToValidate === 'remove' && !selectedDestinationId) {
       newErrors.destination = 'يجب تحديد الوجهة للسحب';
     }
-    
+
     if (actionToValidate === 'add') {
       if (!selectedProviderId) {
         newErrors.provider = 'يجب تحديد المورد';
@@ -109,7 +110,7 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
         newErrors.cost = 'التكلفة يجب أن تكون 0 أو أكثر';
       }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -118,49 +119,51 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
     if (!validate(currentAction)) {
       return;
     }
-    
+
+    setIsSaving(true);
     const apiAdjustmentType = currentAction === 'add' ? 'addition' : 'removal';
 
     const basePayload = {
-        change_amount: Number(quantity),
-        adjustment_type: apiAdjustmentType,
-        person_name: personName.trim() || null,
+      change_amount: Number(quantity),
+      adjustment_type: apiAdjustmentType,
+      person_name: personName.trim() || null,
     };
 
     let finalPayload: any = basePayload;
 
     if (currentAction === 'add') {
-        finalPayload = {
-            ...basePayload,
-            provider_id: selectedProviderId ? Number(selectedProviderId) : null,
-            cost: cost ? Number(cost) : null,
-        };
+      finalPayload = {
+        ...basePayload,
+        provider_id: selectedProviderId ? Number(selectedProviderId) : null,
+        cost: cost ? Number(cost) : null,
+      };
     } else if (currentAction === 'remove') {
-        finalPayload = {
-            ...basePayload,
-            destination_id: Number(selectedDestinationId),
-        };
+      finalPayload = {
+        ...basePayload,
+        destination_id: Number(selectedDestinationId),
+      };
     }
 
     console.log(`API CALL (${apiAdjustmentType} Stock):`, `/api/items/${item.id}/adjust`, finalPayload);
 
-    fetch(`/api/items/${item.id}/adjust`, { 
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(finalPayload),
+    fetch(`/api/items/${item.id}/adjust`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(finalPayload),
     })
-    .then(async response => {
+      .then(async response => {
         if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
-            throw new Error(errorData.message || errorData.error || `Failed to ${apiAdjustmentType} stock`);
+          const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
+          throw new Error(errorData.message || errorData.error || `Failed to ${apiAdjustmentType} stock`);
         }
         onItemAdjusted();
         onClose();
-    })
-    .catch(apiError => {
+      })
+      .catch(apiError => {
         console.error(`Failed to ${apiAdjustmentType} stock:`, apiError);
         setErrors(prevErrors => ({ ...prevErrors, api: apiError.message }));
-    });
+        setIsSaving(false);
+      });
   };
 
   const handleActionClick = (newAction: 'add' | 'remove') => {
@@ -181,6 +184,7 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
     setSelectedProviderId('');
     setProviders([]);
     setDestinations([]);
+    setIsSaving(false);
   };
 
   const footer = (
@@ -191,27 +195,30 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
         onClick={() => {
           onClose();
         }}
+        disabled={isSaving}
       >
         إلغاء
       </button>
       {action === 'remove' && (
         <button
           type="button"
-          className="btn bg-error-500 text-white hover:bg-error-600 ml-2"
+          className="btn bg-error-500 text-white hover:bg-error-600 ml-2 disabled:opacity-70 disabled:cursor-not-allowed"
           onClick={() => handleSubmit('remove')}
+          disabled={isSaving}
         >
-          <ArrowDown size={16} className="ml-1" />
-          تأكيد السحب
+          {isSaving ? <Loader2 size={16} className="ml-1 animate-spin" /> : <ArrowDown size={16} className="ml-1" />}
+          {isSaving ? 'جاري السحب...' : 'تأكيد السحب'}
         </button>
       )}
       {action === 'add' && (
         <button
           type="button"
-          className="btn bg-success-500 text-white hover:bg-success-600"
+          className="btn bg-success-500 text-white hover:bg-success-600 disabled:opacity-70 disabled:cursor-not-allowed"
           onClick={() => handleSubmit('add')}
+          disabled={isSaving}
         >
-          <ArrowUp size={16} className="ml-1" />
-          تأكيد الإضافة
+          {isSaving ? <Loader2 size={16} className="ml-1 animate-spin" /> : <ArrowUp size={16} className="ml-1" />}
+          {isSaving ? 'جاري الإضافة...' : 'تأكيد الإضافة'}
         </button>
       )}
     </>

@@ -1,6 +1,8 @@
-import sqlite3
 from datetime import datetime, date
 from .db_utils import get_db
+import logging
+
+logger = logging.getLogger(__name__)
 
 def add_log_entry(item_id, item_name, action_type, quantity_changed=None, resulting_quantity=None, provider_id=None, cost_per_item=None, details=None, person_name=None, destination_id=None, db=None):
     """
@@ -28,7 +30,7 @@ def add_log_entry(item_id, item_name, action_type, quantity_changed=None, result
               provider_id, cost_per_item, details, person_name, destination_id, local_timestamp))
         return True
     except Exception as e:
-        print(f"Database error adding log entry for item {item_id}: {e}")
+        logger.error(f"Database error adding log entry for item {item_id}: {e}")
         
         raise e
 
@@ -71,14 +73,14 @@ def get_movement_logs(filters=None, page=1, page_size=50):
                 where_clauses.append("date(ml.timestamp) >= date(?)")
                 params.append(filters['date_from'])
             except ValueError:
-                print(f"Invalid date_from format: {filters['date_from']}. Should be YYYY-MM-DD.")
+                logger.warning(f"Invalid date_from format: {filters['date_from']}. Should be YYYY-MM-DD.")
         if filters.get('date_to'):
             try:
                 datetime.strptime(filters['date_to'], '%Y-%m-%d')
                 where_clauses.append("date(ml.timestamp) <= date(?)")
                 params.append(filters['date_to'])
             except ValueError:
-                print(f"Invalid date_to format: {filters['date_to']}. Should be YYYY-MM-DD.")
+                logger.warning(f"Invalid date_to format: {filters['date_to']}. Should be YYYY-MM-DD.")
         if filters.get('destination_id'):
             where_clauses.append("ml.destination_id = ?")
             params.append(filters['destination_id'])
@@ -97,7 +99,7 @@ def get_movement_logs(filters=None, page=1, page_size=50):
             query_params = params + [page_size, offset]
             
             cursor.execute(count_query, params)
-            total_records = cursor.fetchone()[0]
+            total_count = cursor.fetchone()[0]
             
             cursor.execute(paginated_query, query_params)
             logs = cursor.fetchall()
@@ -106,10 +108,10 @@ def get_movement_logs(filters=None, page=1, page_size=50):
             
             return {
                 "logs": logs_list,
-                "total_records": total_records,
+                "total_count": total_count,
                 "page": page,
                 "page_size": page_size,
-                "total_pages": (total_records + page_size - 1) // page_size
+                "total_pages": (total_count + page_size - 1) // page_size
             }
         else:
             
@@ -121,9 +123,9 @@ def get_movement_logs(filters=None, page=1, page_size=50):
             return {"logs": logs_list}
 
     except Exception as e:
-        print(f"Database error retrieving movement logs: {e}")
+        logger.error(f"Database error retrieving movement logs: {e}")
         
-        return {"logs": [], "error": str(e), "total_records": 0, "page": page, "total_pages": 0}
+        return {"logs": [], "error": str(e), "total_count": 0, "page": page, "total_pages": 0}
 
 def get_daily_movement_summary():
     """
@@ -156,8 +158,8 @@ def get_daily_movement_summary():
         }
 
     except sqlite3.Error as e:
-        print(f"Database error in get_daily_movement_summary: {e}")
+        logger.error(f"Database error in get_daily_movement_summary: {e}")
         return {"additions_today": 0, "withdrawals_today": 0, "error": str(e)}
     except Exception as e:
-        print(f"Unexpected error in get_daily_movement_summary: {e}")
+        logger.error(f"Unexpected error in get_daily_movement_summary: {e}")
         return {"additions_today": 0, "withdrawals_today": 0, "error": "An unexpected error occurred"} 

@@ -70,7 +70,7 @@ export const MovementLog = () => {
   } = useMovementLogs(activeFilters, { enabled: filtersApplied }) as UseQueryResult<LogsResponse, Error>;
 
   const logs = logsData?.logs || [];
-  const totalLogs = logsData?.total_records || 0;
+  const totalLogs = logsData?.total_count || 0;
   const totalPages = logsData?.total_pages || 0;
   const currentPage = activeFilters.page || 1;
   const logsPerPage = 15;

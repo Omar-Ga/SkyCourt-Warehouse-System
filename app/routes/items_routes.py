@@ -1,9 +1,12 @@
 from flask import Blueprint, request, jsonify, send_file
-import sqlite3
+from sqlite3 import IntegrityError
 from app.services import item_service, barcode_service
+from app.models import item_model
 import barcode
 from barcode.writer import ImageWriter
 from io import BytesIO
+import logging
+logger = logging.getLogger(__name__)
 
 items_bp = Blueprint('items_bp', __name__, url_prefix='/api/items')
 
@@ -30,19 +33,16 @@ def get_items_route():
 
     sub_category_id = request.args.get('sub_category_id', None, type=int)
     
-    try:
-        data = item_service.get_items_paginated(page, page_size, search_term, sub_category_id)
-        
-        
-        if is_ranged_request:
-            return jsonify({
-                "items": data.get("items", []),
-                "total_count": data.get("total_items", 0)
-            })
-        
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": "Failed to retrieve items", "details": str(e)}), 500
+    data = item_model.get_items_paginated(page, page_size, search_term, sub_category_id)
+    
+    if is_ranged_request:
+        return jsonify({
+            "items": data.get("items", []),
+            "total_count": data.get("total_count", 0)
+        })
+    
+    return jsonify(data), 200
+
 
 @items_bp.route('/', methods=['POST'])
 def add_item_route():
@@ -65,13 +65,8 @@ def add_item_route():
         )
         return jsonify(new_item), 201
     except ValueError as e:
-        
-        item = item_service.get_item_by_name(data['name'].strip())
+        item = item_model.get_item_by_name(data['name'].strip())
         return jsonify({"error": str(e), "type": "item_conflict", "item_id": item['id']}), 409
-    except sqlite3.IntegrityError as e:
-        return jsonify({"error": f"Database integrity error: {e}"}), 409
-    except Exception as e:
-        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
 
 @items_bp.route('/<int:item_id>/restore', methods=['PATCH'])
 def restore_item_route(item_id):
@@ -80,16 +75,13 @@ def restore_item_route(item_id):
     if 'sub_category_id' not in data:
         return jsonify({"error": "sub_category_id is required"}), 400
 
-    try:
-        restored_item = item_service.restore_item(
-            item_id=item_id,
-            sub_category_id=data['sub_category_id'],
-            person_name=data.get('person_name')
-        )
-        if restored_item: return jsonify(restored_item), 200
-        return jsonify({"error": "Item not found"}), 404
-    except Exception as e:
-        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
+    restored_item = item_service.restore_item(
+        item_id=item_id,
+        sub_category_id=data['sub_category_id'],
+        person_name=data.get('person_name')
+    )
+    if restored_item: return jsonify(restored_item), 200
+    return jsonify({"error": "Item not found"}), 404
 
 @items_bp.route('/<int:item_id>/status', methods=['PATCH'])
 def update_item_status_route(item_id):
@@ -103,8 +95,7 @@ def update_item_status_route(item_id):
         return jsonify(updated_item), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
+
 
 @items_bp.route('/<int:item_id>', methods=['PUT'])
 def update_item_route(item_id):
@@ -131,23 +122,21 @@ def update_item_route(item_id):
             }), 409
             
         return jsonify(updated_item), 200
-    except sqlite3.IntegrityError as e:
+    except IntegrityError as e:
         
         return jsonify({"error": str(e)}), 409
-    except Exception as e:
-        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
+
 
 @items_bp.route('/by-barcode/<string:barcode>', methods=['GET'])
 def get_item_by_barcode_route(barcode):
     """Gets a single active item by its barcode."""
-    try:
-        item = item_service.get_item_by_barcode(barcode)
-        if item:
-            return jsonify(item), 200
-        else:
-            return jsonify({'error': 'Item not found or is not active'}), 404
-    except Exception as e:
-        return jsonify({"error": "Failed to retrieve item by barcode", "details": str(e)}), 500
+    item = item_model.get_item_by_barcode(barcode)
+    if item:
+        return jsonify(item), 200
+    else:
+        return jsonify({'error': 'Item not found or is not active'}), 404
+
+
 
 @items_bp.route('/<int:item_id>/adjust', methods=['POST'])
 def adjust_item_quantity_route(item_id):
@@ -158,43 +147,40 @@ def adjust_item_quantity_route(item_id):
         return jsonify(result), 200
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
-    except Exception as e:
-        return jsonify({"error": f"An unexpected error occurred: {e}"}), 500
+
 
 @items_bp.route('/<int:item_id>/barcode', methods=['GET'])
 def get_barcode_route(item_id):
     """Generates and returns a barcode image for a given item."""
-    try:
-        item = item_service.get_item_by_id(item_id)
-        if not item:
-            return jsonify({'error': 'Item not found'}), 404
+    item = item_model.get_item_by_id(item_id)
+    if not item:
+        return jsonify({'error': 'Item not found'}), 404
 
-        barcode_value = item.get('barcode')
-        if not barcode_value:
-            return jsonify({'error': 'Item does not have a barcode'}), 404
+    barcode_value = item.get('barcode')
+    if not barcode_value:
+        return jsonify({'error': 'Item does not have a barcode'}), 404
 
-        # Generate barcode
-        code128 = barcode.get_barcode_class('code128')
-        barcode_instance = code128(barcode_value, writer=ImageWriter())
+    # Generate barcode
+    code128 = barcode.get_barcode_class('code128')
+    barcode_instance = code128(barcode_value, writer=ImageWriter())
 
-        # Save barcode to a memory buffer
-        buffer = BytesIO()
-        barcode_instance.write(buffer)
-        buffer.seek(0)
+    # Save barcode to a memory buffer
+    buffer = BytesIO()
+    barcode_instance.write(buffer)
+    buffer.seek(0)
 
-        return send_file(
-            buffer,
-            mimetype='image/png',
-            as_attachment=False,
-            download_name=f'{barcode_value}.png'
-        )
-    except Exception as e:
-        return jsonify({"error": "Failed to generate barcode", "details": str(e)}), 500
+    return send_file(
+        buffer,
+        mimetype='image/png',
+        as_attachment=False,
+        download_name=f'{barcode_value}.png'
+    )
+
 
 @items_bp.route('/<int:item_id>', methods=['GET'])
 def get_item_by_id_route(item_id):
     """Gets a single item by its ID."""
-    item = item_service.get_item_by_id(item_id)
+    item = item_model.get_item_by_id(item_id)
     if item: return jsonify(item), 200
     return jsonify({'error': 'Item not found'}), 404
 
@@ -204,9 +190,31 @@ def generate_barcode_base64_route(barcode_value):
     Generates a barcode image for the given value and returns it as a Base64 encoded string.
     Intended for the frontend printable barcode component.
     """
-    try:
-        data = barcode_service.generate_barcode_base64(barcode_value)
-        return jsonify(data), 200
-    except Exception as e:
-        print(f"Error generating barcode: {e}")
-        return jsonify({"error": "Failed to generate barcode"}), 500
+    data = barcode_service.generate_barcode_base64(barcode_value)
+    return jsonify(data), 200
+
+
+@items_bp.route('/<int:item_id>/location', methods=['GET'])
+def get_item_location_route(item_id):
+    """
+    Calculates the page number and position of an item within its sub-category.
+    Requires sub_category_id and page_size parameters.
+    """
+    sub_category_id = request.args.get('sub_category_id', type=int)
+    page_size = request.args.get('page_size', 10, type=int)
+    
+    if not sub_category_id:
+        return jsonify({"error": "sub_category_id is required"}), 400
+        
+    position = item_model.get_item_position(item_id, sub_category_id)
+    # Calculate 1-based page number: ceil(position / page_size)
+    page = (position + page_size - 1) // page_size
+    
+    return jsonify({
+        "item_id": item_id,
+        "sub_category_id": sub_category_id,
+        "position": position,
+        "page": page,
+        "page_size": page_size
+    }), 200
+

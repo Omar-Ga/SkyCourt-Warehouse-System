@@ -1,5 +1,8 @@
 from flask import Blueprint, request, jsonify
 from app.models import unit_model
+import logging
+
+logger = logging.getLogger(__name__)
 
 bp = Blueprint('units_routes', __name__, url_prefix='/api/units')
 
@@ -13,24 +16,15 @@ def create_unit():
     if not name:
         return jsonify({'error': 'Unit name cannot be empty.'}), 400
 
-    try:
-        new_unit = unit_model.add_unit(name)
-        return jsonify(new_unit), 201
-    except ValueError as e:
-        return jsonify({'error': str(e)}), 409 # Conflict
-    except Exception as e:
-        return jsonify({'error': f"An unexpected error occurred: {e}"}), 500
+    new_unit = unit_model.add_unit(name)
+    return jsonify(new_unit), 201
 
 @bp.route('/', methods=['GET'])
 def get_units():
-    print("--- GET /api/units/ RECEIVED ---")
-    try:
-        units = unit_model.get_all_units()
-        print(f"--- GET /api/units/ RETURNING {len(units)} UNITS ---")
-        return jsonify(units), 200
-    except Exception as e:
-        print(f"--- GET /api/units/ FAILED WITH EXCEPTION: {e} ---")
-        return jsonify({"error": "Failed to retrieve units", "details": str(e)}), 500
+    logger.debug("GET /api/units/ received")
+    units = unit_model.get_all_units()
+    logger.debug(f"Returning {len(units)} units")
+    return jsonify(units), 200
 
 @bp.route('/<int:unit_id>', methods=['GET'])
 def get_unit(unit_id):

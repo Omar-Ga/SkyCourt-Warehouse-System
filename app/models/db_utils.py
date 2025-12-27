@@ -162,10 +162,6 @@ def initialize_database():
     except ImportError:
         pass
 
-    print(f"DEBUG: LibSQL Available: {LIBSQL_AVAILABLE}")
-    print(f"DEBUG: Turso URL Present: {bool(turso_url)}")
-    print(f"DEBUG: Turso Token Present: {bool(turso_token)}")
-
     db_dir = os.path.dirname(DATABASE_NAME)
     if not os.path.exists(db_dir):
         os.makedirs(db_dir, exist_ok=True)
@@ -173,22 +169,17 @@ def initialize_database():
     # 1. Try LibSQL Restore/Sync (Startup Only - Blocking is fine)
     if LIBSQL_AVAILABLE and turso_url and turso_token:
         try:
-            print(f"Attempting to connect to Turso...")
-            print(f"URL: {turso_url}")
             # Connect to local file, configured to sync
             conn = libsql.connect(DATABASE_NAME, sync_url=turso_url, auth_token=turso_token)
-            print("Connection object created. Starting initial sync...")
             conn.sync()
-            print("Initial sync call finished.")
             conn.close()
             
             DB_INITIALIZED = True
-            print(">> Database restored/synced from Turso.")
             return
-        except Exception as e:
-            print(f"Warning: Turso Sync initialization failed: {e}")
+        except Exception:
             # If offline and no local DB, we must create schema. 
             # If offline and local DB exists, we are fine.
+            pass
 
     if os.path.exists(DATABASE_NAME):
         # Database exists (either from previous run or sync attempt partially worked)
@@ -196,9 +187,7 @@ def initialize_database():
         return
 
     # 2. Fallback: Create from Schema (Fresh Local DB)
-    print(f"Creating fresh local database from schema: {SCHEMA_PATH}")
     if not os.path.exists(SCHEMA_PATH):
-        print(f"Error: Schema file not found at {SCHEMA_PATH}")
         return
 
     conn = None
@@ -210,9 +199,8 @@ def initialize_database():
         cursor.executescript(schema_script)
         conn.commit()
         DB_INITIALIZED = True
-        print("Fresh database created successfully.")
-    except Exception as e:
-        print(f"Database initialization error: {e}")
+    except Exception:
+        pass
     finally:
         if conn:
             conn.close()
@@ -268,9 +256,9 @@ def get_db_connection(type='read'):
             conn.execute("PRAGMA foreign_keys = ON;")
             return conn
             
-        except Exception as e:
-            print(f"LibSQL Write Connection Error: {e}. Fallback to standard SQLite.")
+        except Exception:
             # Fallback to local SQLite means no sync, but app keeps working.
+            pass
 
     # Standard SQLite (Read-Only optimization, or Fallback)
     conn = sqlite3.connect(DATABASE_NAME)
@@ -278,11 +266,7 @@ def get_db_connection(type='read'):
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn
 
-    # Standard SQLite
-    conn = sqlite3.connect(DATABASE_NAME)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON;")
-    return conn
+
 
 def get_sync_status():
     """

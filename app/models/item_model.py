@@ -28,23 +28,23 @@ def get_items_paginated(page=1, page_size=10, search_term=None, sub_category_id=
     
     count_query = "SELECT COUNT(i.id) " + base_query + full_where_clause
     cursor.execute(count_query, params)
-    total_items = cursor.fetchone()[0]
+    total_count = cursor.fetchone()[0]
 
-    select_clause = "SELECT i.id, i.name, i.current_quantity, i.unit_id, u.name as unit_name, i.sub_category_id, c.name as sub_category_name, i.provider_id, p.name as provider_name, i.cost, i.status, i.barcode"
+    select_clause = "SELECT i.id, i.name, i.current_quantity, i.unit_id, u.name as unit_name, i.sub_category_id, c.name as sub_category_name, c.parent_id as main_category_id, i.provider_id, p.name as provider_name, i.cost, i.status, i.barcode"
     query = select_clause + " " + base_query + full_where_clause + " ORDER BY i.id DESC LIMIT ? OFFSET ?"
     params.extend([page_size, (page - 1) * page_size])
     
     cursor.execute(query, params)
     items = [dict(row) for row in cursor.fetchall()]
     
-    return {"items": items, "total_items": total_items}
+    return {"items": items, "total_count": total_count}
 
 def get_item_by_id(item_id: int, db=None):
     """Retrieves a single item by ID. Can use an existing DB connection."""
     if db is None:
         db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT i.*, u.name as unit_name, c.name as sub_category_name FROM items i JOIN units u ON i.unit_id = u.id LEFT JOIN categories c ON i.sub_category_id = c.id WHERE i.id = ?", (item_id,))
+    cursor.execute("SELECT i.*, u.name as unit_name, c.name as sub_category_name, c.parent_id as main_category_id FROM items i JOIN units u ON i.unit_id = u.id LEFT JOIN categories c ON i.sub_category_id = c.id WHERE i.id = ?", (item_id,))
     item = cursor.fetchone()
     
     return dict(item) if item else None
@@ -66,7 +66,7 @@ def get_item_by_barcode(barcode: str, db=None):
     cursor = db.cursor()
     cursor.execute(
         """
-        SELECT i.*, u.name as unit_name, c.name as sub_category_name 
+        SELECT i.*, u.name as unit_name, c.name as sub_category_name, c.parent_id as main_category_id 
         FROM items i 
         JOIN units u ON i.unit_id = u.id 
         LEFT JOIN categories c ON i.sub_category_id = c.id 
@@ -76,6 +76,24 @@ def get_item_by_barcode(barcode: str, db=None):
     )
     item = cursor.fetchone()
     return dict(item) if item else None
+
+
+def get_item_position(item_id: int, sub_category_id: int, db=None) -> int:
+    """
+    Calculates the 1-based position of an item within its sub-category, 
+    based on the default sorting (ID DESC).
+    Returns the count of items with ID > item_id in the same sub-category + 1.
+    """
+    if db is None:
+        db = get_db()
+    cursor = db.cursor()
+    
+    cursor.execute(
+        "SELECT COUNT(*) FROM items WHERE sub_category_id = ? AND status = 'active' AND id > ?", 
+        (sub_category_id, item_id)
+    )
+    count_before = cursor.fetchone()[0]
+    return count_before + 1
 
 # Write Methods (DAO only)
 

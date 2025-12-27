@@ -21,11 +21,8 @@ def create_destination():
 
 @bp.route('/', methods=['GET'])
 def get_destinations():
-    try:
-        destinations = destination_model.get_all_destinations()
-        return jsonify(destinations), 200
-    except Exception as e:
-        return jsonify({"error": "Failed to retrieve destinations", "details": str(e)}), 500
+    destinations = destination_model.get_all_destinations()
+    return jsonify(destinations), 200
 
 @bp.route('/<int:destination_id>', methods=['PUT'])
 def update_destination_route(destination_id):

@@ -37,6 +37,9 @@ export const itemsService = {
     getItemByBarcode: (barcode: string) =>
         apiClient.get<Item>(`/items/by-barcode/${barcode}`),
 
+    getItemLocation: (id: number, sub_category_id: number, page_size: number) =>
+        apiClient.get<{ page: number, position: number }>(`/items/${id}/location?sub_category_id=${sub_category_id}&page_size=${page_size}`),
+
     createItem: (data: Omit<Item, 'id'> & { initial_quantity: number, provider_id?: number, person_name?: string }) =>
         apiClient.post<Item>('/items/', data),
 

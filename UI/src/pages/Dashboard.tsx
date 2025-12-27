@@ -1,15 +1,34 @@
 import { useState } from 'react';
 import {
   Archive, ArrowUpCircle, ArrowDownCircle, Activity, Edit3, Info, AlertTriangle,
-  PlusCircle, BarChart3, ScanLine
+  PlusCircle, BarChart3, ScanLine, Search
 } from 'lucide-react';
+import { AsyncPaginate, LoadOptions } from 'react-select-async-paginate';
+import type { GroupBase, OptionsOrGroups } from 'react-select';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '../context/AppContext';
-import { MovementLogEntry } from '../types';
+import { MovementLogEntry, Item } from '../types';
 import { AddItemModal } from '../components/AddItemModal';
 import { useDashboardStats, useRecentLogs } from '../hooks/useDashboardStats';
 import { useUnits } from '../hooks/useMetadata';
 import { useSyncStatus } from '../hooks/useSyncStatus';
+import { SoftRefreshButton } from '../components/SoftRefreshButton';
+
+// Define ItemOption for react-select-async-paginate
+interface ItemOption {
+  value: number; // Item ID
+  label: string; // Display string
+  data: Item; // Full item object
+}
+
+// Define LoadAdditional for pagination state
+interface LoadAdditional {
+  offset: number;
+}
+
+const ITEMS_PER_PAGE = 20;
+
+const AsyncPaginateComponent = AsyncPaginate as any; // Workaround for TS2786
 
 export const Dashboard = () => {
   const { setActivePage, openScanner } = useAppContext();
@@ -38,6 +57,71 @@ export const Dashboard = () => {
     queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     queryClient.invalidateQueries({ queryKey: ['recent-logs'] });
     queryClient.invalidateQueries({ queryKey: ['items'] });
+  };
+
+  // Search Logic
+  const loadItems: LoadOptions<ItemOption, GroupBase<ItemOption>, LoadAdditional | undefined> = async (
+    searchQuery: string,
+    _loadedOptions: OptionsOrGroups<ItemOption, GroupBase<ItemOption>>,
+    additional?: LoadAdditional
+  ): Promise<{ options: ItemOption[]; hasMore: boolean; additional?: LoadAdditional }> => {
+    const offset = additional?.offset || 0;
+    try {
+      const params = new URLSearchParams();
+      params.append('offset', String(offset));
+      params.append('limit', String(ITEMS_PER_PAGE));
+      if (searchQuery) {
+        params.append('q', searchQuery);
+      }
+
+      const response = await fetch(`/api/items?${params.toString()}`);
+      if (!response.ok) {
+        console.error('Failed to fetch items:', response.statusText);
+        return { options: [], hasMore: false, additional: { offset } };
+      }
+
+      const apiResponse: { items: Item[]; total_count: number } = await response.json();
+
+      const newOptions: ItemOption[] = apiResponse.items.map((item: Item) => ({
+        value: item.id,
+        label: `${item.name} (${item.unit_name || 'N/A'}) - ${item.barcode || 'No Barcode'}`,
+        data: item,
+      }));
+
+      const currentTotalFetchedDirectlyInThisCall = newOptions.length;
+      const newOffset = offset + currentTotalFetchedDirectlyInThisCall;
+      const hasMore = newOffset < apiResponse.total_count;
+
+      return {
+        options: newOptions,
+        hasMore: hasMore,
+        additional: {
+          offset: newOffset,
+        },
+      };
+    } catch (error) {
+      console.error('Error loading items:', error);
+      return { options: [], hasMore: false, additional: { offset } };
+    }
+  };
+
+  const handleSearchSelect = (selectedOption: ItemOption | null) => {
+    if (!selectedOption) return;
+
+    const item = selectedOption.data;
+
+    // Store navigation data in sessionStorage
+    const navigationData = {
+      mainCategoryId: item.main_category_id,
+      subCategoryId: item.sub_category_id,
+      itemId: item.id,
+      timestamp: Date.now()
+    };
+
+    sessionStorage.setItem('dashboardSearchNavigation', JSON.stringify(navigationData));
+
+    // Navigate to Items Management
+    setActivePage('Items');
   };
 
   const statsToDisplay = [
@@ -123,24 +207,49 @@ export const Dashboard = () => {
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-2xl font-bold m-0">لوحة التحكم</h1>
 
-        {/* Status Indicator */}
-        <div className="flex items-center space-x-2 rtl:space-x-reverse">
-          <div className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${syncStatus.connected
-            ? 'bg-success-100 text-success-700'
-            : 'bg-error-100 text-error-700'
-            }`}>
-            <div className={`w-2 h-2 rounded-full mr-2 rtl:ml-2 rtl:mr-0 ${syncStatus.connected ? 'bg-success-500' : 'bg-error-500 animate-pulse'
-              }`} />
-            {syncStatus.connected ? 'متصل' : 'غير متصل'}
+        <div className="flex items-center space-x-4 rtl:space-x-reverse">
+          {/* Soft Refresh Button */}
+          <SoftRefreshButton />
+
+          {/* Status Indicator */}
+          <div className="flex items-center space-x-2 rtl:space-x-reverse">
+            <div className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${syncStatus.connected
+              ? 'bg-success-100 text-success-700'
+              : 'bg-error-100 text-error-700'
+              }`}>
+              <div className={`w-2 h-2 rounded-full mr-2 rtl:ml-2 rtl:mr-0 ${syncStatus.connected ? 'bg-success-500' : 'bg-error-500 animate-pulse'
+                }`} />
+              {syncStatus.connected ? 'متصل' : 'غير متصل'}
+            </div>
+            {syncStatus.mode === 'local' && (
+              <span className="text-[10px] text-gray-400 font-normal">(محلي فقط)</span>
+            )}
           </div>
-          {syncStatus.mode === 'local' && (
-            <span className="text-[10px] text-gray-400 font-normal">(محلي فقط)</span>
-          )}
         </div>
       </div>
 
-      {/* Stats Cards */}
+
+
+      {/* Stats Cards & Search */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+        {/* Search Bar - Takes up 2 columns on desktop */}
+        <div className="md:col-span-2 card p-5 flex flex-col justify-center shadow-sm">
+          <label className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-2">
+            <Search size={16} />
+            بحث سريع عن صنف
+          </label>
+          <AsyncPaginateComponent
+            loadOptions={loadItems}
+            onChange={handleSearchSelect}
+            placeholder="ابحث باسم الصنف أو الباركود..."
+            debounceTimeout={300}
+            classNamePrefix="react-select"
+            isClearable
+            noOptionsMessage={() => "لا توجد نتائج"}
+            additional={{ offset: 0 }}
+          />
+        </div>
+
         {statsToDisplay.map((stat, index) => (
           <div key={index} className="card flex items-center p-5 shadow-sm hover:shadow-md transition-shadow">
             <div className={`p-3 rounded-full ml-4 rtl:mr-4 rtl:ml-0 ${stat.label === 'إضافات اليوم' ? 'bg-success-100' : 'bg-accent-100'
@@ -236,6 +345,6 @@ export const Dashboard = () => {
         units={dashboardUnits}
         onItemAdded={handleItemAdded}
       />
-    </div>
+    </div >
   );
 };

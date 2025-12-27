@@ -15,7 +15,7 @@ export interface FetchLogsParams {
 export interface LogsResponse {
     logs: MovementLogEntry[];
     total_pages: number;
-    total_records: number;
+    total_count: number;
 }
 
 export const useMovementLogs = (params: FetchLogsParams = {}, options: any = {}) => {

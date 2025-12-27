@@ -1,5 +1,7 @@
 import os
 import sys
+import logging
+logger = logging.getLogger(__name__)
 
 # --- HARDCODED CREDENTIALS ---
 # These are baked into the app for seamless company-wide connection.
@@ -19,7 +21,7 @@ try:
     LIBSQL_AVAILABLE = True
 except ImportError:
     LIBSQL_AVAILABLE = False
-    print("Warning: 'libsql' package not found. Cloud sync disabled.")
+    logger.warning(" 'libsql' package not found. Cloud sync disabled.")
 
 # Path to the database file
 if getattr(sys, 'frozen', False):
@@ -28,6 +30,6 @@ if getattr(sys, 'frozen', False):
     SCHEMA_PATH = os.path.join(bundle_root, 'database', 'schema.sql')
 else:
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Walk up from app/ to root
-    DATABASE_NAME = os.path.abspath(os.path.join(script_dir, '..', '..', 'database', 'warehouse.db'))
-    SCHEMA_PATH = os.path.abspath(os.path.join(script_dir, '..', '..', 'database', 'schema.sql'))
+    # Walk up from app/ to project root (Warehouse-Pr)
+    DATABASE_NAME = os.path.abspath(os.path.join(script_dir, '..', 'database', 'warehouse.db'))
+    SCHEMA_PATH = os.path.abspath(os.path.join(script_dir, '..', 'database', 'schema.sql'))

@@ -7,7 +7,7 @@ import { AddItemModal } from '../components/AddItemModal';
 import { AdjustQuantityModal } from '../components/AdjustQuantityModal';
 import { EditItemModal } from '../components/EditItemModal';
 import { CategoryModal } from '../components/CategoryModal';
-import { Item, Unit, Category } from '../types';
+import { Item, Category } from '../types';
 import { ItemActions } from '../components/ItemActions';
 import { CategoryActions } from '../components/CategoryActions';
 import { MainCategoryCard } from '../components/MainCategoryCard';
@@ -56,7 +56,7 @@ export const ItemsManagement = () => {
       subCategoryPage,
       ...updates
     };
-    
+
     if (currentState.viewLevel === 'mainCategories') {
       sessionStorage.removeItem('itemsManagementState');
     } else {
@@ -71,10 +71,76 @@ export const ItemsManagement = () => {
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
+
   const [selectedItem, setSelectedItem] = useState<Item | null>(null);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
   const [currentParentId, setCurrentParentId] = useState<number | null>(null);
+  const [highlightedItemId, setHighlightedItemId] = useState<number | null>(null);
+
+  // Auto-Navigation Logic
+  useEffect(() => {
+    const checkNavigation = async () => {
+      const stored = sessionStorage.getItem('dashboardSearchNavigation');
+      if (!stored) return;
+
+      try {
+        const navData = JSON.parse(stored);
+        // 5 seconds expiry
+        if (Date.now() - navData.timestamp > 5000) {
+          sessionStorage.removeItem('dashboardSearchNavigation');
+          return;
+        }
+
+        // Fetch categories needed for the view
+        // We fetch them freshly to ensure we have valid objects
+        const [mainCat, subCat] = await Promise.all([
+          categoryService.getCategoryById(navData.mainCategoryId),
+          categoryService.getCategoryById(navData.subCategoryId)
+        ]);
+
+        if (mainCat && subCat) {
+          // Map response data if wrapped
+          const mainCatData = (mainCat as any).data || mainCat;
+          const subCatData = (subCat as any).data || subCat;
+
+          // Calculate Page Number
+          let targetPage = 1;
+          try {
+            const locationData = await itemsService.getItemLocation(navData.itemId, navData.subCategoryId, PAGE_SIZE);
+            targetPage = locationData.page;
+          } catch (err) {
+            console.error("Failed to calculate item page:", err);
+          }
+
+          // Update Session State
+          updateSessionState({
+            viewLevel: 'items',
+            selectedMainCategory: mainCatData,
+            selectedSubCategory: subCatData,
+            itemPage: targetPage
+          });
+
+          // Update Local State
+          setViewLevel('items');
+          setSelectedMainCategory(mainCatData);
+          setSelectedSubCategory(subCatData);
+          setItemPage(targetPage);
+          setHighlightedItemId(navData.itemId);
+          setSearchTerm(''); // Clear search to show context
+
+          // Clear highlight after 3 seconds
+          setTimeout(() => setHighlightedItemId(null), 3000);
+        }
+
+        sessionStorage.removeItem('dashboardSearchNavigation');
+      } catch (e) {
+        console.error("Navigation error:", e);
+      }
+    };
+
+    checkNavigation();
+  }, []);
 
   // Hooks
   const { data: units = [] } = useUnits();
@@ -414,6 +480,7 @@ export const ItemsManagement = () => {
                     itemsPerPage: PAGE_SIZE,
                   }}
                   isLoading={loading}
+                  rowClassName={(row) => row.id === highlightedItemId ? 'bg-yellow-100 font-medium border-l-4 border-l-primary-500' : ''}
                 />
               </div>
             </div>

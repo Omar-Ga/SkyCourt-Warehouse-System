@@ -1,6 +1,8 @@
-import sqlite3
 from .db_utils import get_db
 from .sync_worker import run_background_sync
+import logging
+
+logger = logging.getLogger(__name__)
 
 def add_category(name: str, parent_id: int | None = None) -> dict | None:
     """Adds a new category to the database.
@@ -133,6 +135,6 @@ def delete_category(category_id: int) -> bool:
         run_background_sync()
         return cursor.rowcount > 0
     except sqlite3.Error as e:
-        print(f"Database error in delete_category for ID {category_id}: {e}")
+        logger.error(f"Database error in delete_category for ID {category_id}: {e}")
         db.rollback()
         return False 
