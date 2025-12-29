@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 # Import model utilities
 from app.models.db_utils import get_sync_status, initialize_database
+from app.models.sync_worker import start_periodic_sync
 from app.routes.category_routes import bp as category_bp
 from app.routes.destination_routes import bp as destination_bp
 from app.routes.items_routes import items_bp
@@ -124,6 +125,9 @@ def run_flask():
 def start_app():
     # 1. Initialize Database
     initialize_database()
+
+    # Start periodic sync heartbeat (every 20s)
+    start_periodic_sync(interval=20)
 
     # 2. Start Flask in a background thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)

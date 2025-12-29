@@ -25,8 +25,19 @@ except ImportError:
 
 # Path to the database file
 if getattr(sys, 'frozen', False):
+    # Use a persistent user directory for data storage
+    if sys.platform == 'win32':
+        data_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'WarehouseApp')
+    else:
+        data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'WarehouseApp')
+        
+    if not os.path.exists(data_dir):
+        os.makedirs(data_dir, exist_ok=True)
+        
+    DATABASE_NAME = os.path.join(data_dir, 'warehouse.db')
+    
+    # Schema still lives in the bundle
     bundle_root = sys._MEIPASS
-    DATABASE_NAME = os.path.join(bundle_root, 'database', 'warehouse.db')
     SCHEMA_PATH = os.path.join(bundle_root, 'database', 'schema.sql')
 else:
     script_dir = os.path.dirname(os.path.abspath(__file__))

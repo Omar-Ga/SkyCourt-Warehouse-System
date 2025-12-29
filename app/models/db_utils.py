@@ -12,7 +12,8 @@ from ..config import (
     TURSO_AUTH_TOKEN, 
     LIBSQL_AVAILABLE
 )
-from .sync_worker import run_background_sync
+import time
+from .sync_worker import run_background_sync, get_latest_sync_status, SYNC_STATUS
 
 # Global initialization flag
 DB_INITIALIZED = False
@@ -167,43 +168,55 @@ def initialize_database():
         os.makedirs(db_dir, exist_ok=True)
 
     # 1. Try LibSQL Restore/Sync (Startup Only - Blocking is fine)
+    # This might create an empty file even if sync fails
     if LIBSQL_AVAILABLE and turso_url and turso_token:
         try:
             # Connect to local file, configured to sync
             conn = libsql.connect(DATABASE_NAME, sync_url=turso_url, auth_token=turso_token)
             conn.sync()
             conn.close()
-            
-            DB_INITIALIZED = True
-            return
+            # Update global status on success
+            SYNC_STATUS["connected"] = True
+            SYNC_STATUS["mode"] = "cloud"
+            SYNC_STATUS["last_check"] = time.time()
         except Exception:
-            # If offline and no local DB, we must create schema. 
-            # If offline and local DB exists, we are fine.
+            # Offline or error, we proceed to check structure
+            SYNC_STATUS["connected"] = False
+            SYNC_STATUS["mode"] = "cloud"
             pass
 
-    if os.path.exists(DATABASE_NAME):
-        # Database exists (either from previous run or sync attempt partially worked)
-        DB_INITIALIZED = True
-        return
-
-    # 2. Fallback: Create from Schema (Fresh Local DB)
-    if not os.path.exists(SCHEMA_PATH):
-        return
-
-    conn = None
-    try:
-        conn = sqlite3.connect(DATABASE_NAME)
-        cursor = conn.cursor()
-        with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
-            schema_script = f.read()
-        cursor.executescript(schema_script)
-        conn.commit()
-        DB_INITIALIZED = True
-    except Exception:
-        pass
-    finally:
-        if conn:
+    # 2. Verify Database Structure (Fallback: Create from Schema)
+    # Even if the file exists, it might be empty (0 bytes) or missing tables if sync failed.
+    needs_schema = False
+    if not os.path.exists(DATABASE_NAME):
+        needs_schema = True
+    else:
+        # Check if it has tables (e.g., categories)
+        try:
+            conn = sqlite3.connect(DATABASE_NAME)
+            cursor = conn.cursor()
+            cursor.execute("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='categories'")
+            if cursor.fetchone()[0] == 0:
+                needs_schema = True
             conn.close()
+        except Exception:
+             # Corrupt or empty file
+             needs_schema = True
+
+    if needs_schema and os.path.exists(SCHEMA_PATH):
+        try:
+            conn = sqlite3.connect(DATABASE_NAME)
+            cursor = conn.cursor()
+            with open(SCHEMA_PATH, 'r', encoding='utf-8') as f:
+                schema_script = f.read()
+            cursor.executescript(schema_script)
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            # If this fails, we are in trouble, but let the app try to run
+            print(f"Schema creation failed: {e}")
+
+    DB_INITIALIZED = True
 
 def get_db(type='read'):
     """
@@ -273,23 +286,6 @@ def get_sync_status():
     Checks if Turso sync is possible.
     Returns: {"connected": bool, "mode": "cloud" | "local"}
     """
-    turso_url = TURSO_DATABASE_URL
-    turso_token = TURSO_AUTH_TOKEN
-    
-    if not LIBSQL_AVAILABLE or not turso_url or not turso_token:
-        return {"connected": False, "mode": "local"}
-    
-    try:
-        import libsql
-        # Try a quick sync with a temporary connection to verify
-        # (Using DATABASE_NAME ensures we use the same replica)
-        # Note: This is an explicit status check, so blocking here is arguably okay,
-        # but for a status pill it might be slow. 
-        # For now, we keep it as a 'verify' action.
-        test_conn = libsql.connect(DATABASE_NAME, sync_url=turso_url, auth_token=turso_token)
-        test_conn.sync()
-        test_conn.close()
-        return {"connected": True, "mode": "cloud"}
-    except Exception:
-        return {"connected": False, "mode": "cloud"}
+    # Non-blocking check using the status from the background worker
+    return get_latest_sync_status()
 
