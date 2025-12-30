@@ -5,3 +5,4 @@ Flask-Cors==4.0.1
 python-barcode==0.15.1
 python-dotenv
 libsql
+certifi
