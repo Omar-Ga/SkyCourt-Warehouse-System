@@ -2,23 +2,12 @@ from sqlite3 import IntegrityError
 from app.models.db_utils import get_db
 from app.models import item_model
 from app.models.movement_log_model import add_log_entry
-from app.models.sync_worker import run_background_sync
 from app.models.category_model import get_category_by_id
-
-
-
-
-
-
-
-
-
-
 
 
 def add_item(name: str, unit_id: int, sub_category_id: int, quantity: int, provider_id: int | None, cost: float | None, person_name: str | None, barcode: str | None):
     """Orchestrates adding a new item."""
-    db = get_db(type='write')
+    db = get_db()
     
     try:
         # Business Logic: Check duplicates
@@ -55,7 +44,6 @@ def add_item(name: str, unit_id: int, sub_category_id: int, quantity: int, provi
         )
         
         db.commit()
-        run_background_sync()
         return item_model.get_item_by_id(item_id, db=db)
         
     except Exception as e:
@@ -64,7 +52,7 @@ def add_item(name: str, unit_id: int, sub_category_id: int, quantity: int, provi
 
 def restore_item(item_id: int, sub_category_id: int, person_name: str | None):
     """Orchestrates restoring an item."""
-    db = get_db(type='write')
+    db = get_db()
     try:
         item = item_model.get_item_by_id(item_id, db=db)
         if not item: return None
@@ -82,7 +70,6 @@ def restore_item(item_id: int, sub_category_id: int, person_name: str | None):
         )
         
         db.commit()
-        run_background_sync()
         return item_model.get_item_by_id(item_id, db=db)
     except Exception as e:
         db.rollback()
@@ -90,7 +77,7 @@ def restore_item(item_id: int, sub_category_id: int, person_name: str | None):
 
 def update_item_status(item_id: int, new_status: str, person_name: str | None):
     """Orchestrates updating item status."""
-    db = get_db(type='write')
+    db = get_db()
     try:
         if new_status not in ('active', 'inactive'):
             raise ValueError("Invalid status provided.")
@@ -111,7 +98,6 @@ def update_item_status(item_id: int, new_status: str, person_name: str | None):
         )
         
         db.commit()
-        run_background_sync()
         return item_model.get_item_by_id(item_id, db=db)
     except Exception as e:
         db.rollback()
@@ -119,7 +105,7 @@ def update_item_status(item_id: int, new_status: str, person_name: str | None):
 
 def update_item(item_id: int, name: str, unit_id: int, sub_category_id: int | None, barcode: str | None, person_name: str | None = None, force_unit_change: bool = False):
     """Orchestrates updating item details."""
-    db = get_db(type='write')
+    db = get_db()
     cursor = db.cursor()
     try:
         current_item = item_model.get_item_by_id(item_id, db=db)
@@ -148,7 +134,6 @@ def update_item(item_id: int, name: str, unit_id: int, sub_category_id: int | No
         )
 
         db.commit()
-        run_background_sync()
         return item_model.get_item_by_id(item_id, db=db)
     except Exception as e:
         db.rollback()
@@ -156,13 +141,9 @@ def update_item(item_id: int, name: str, unit_id: int, sub_category_id: int | No
 
 def record_quantity_adjustment(item_id, change_amount, adjustment_type, person_name, provider_id=None, cost=None, destination_id=None):
     """Orchestrates quantity adjustment."""
-    db = get_db(type='write')
+    db = get_db()
     cursor = db.cursor()
     try:
-        # We need to lock or at least fetch fresh data
-        # In SQLite default transaction mode, a write transaction starts lazily or we can force it.
-        # get_db(type='write') usually implies we want to write.
-        
         item = item_model.get_item_by_id(item_id, db=db)
         if not item: raise ValueError("Item not found.")
 
@@ -187,7 +168,6 @@ def record_quantity_adjustment(item_id, change_amount, adjustment_type, person_n
         )
         
         db.commit()
-        run_background_sync()
         return item_model.get_item_by_id(item_id, db=db)
     except Exception as e:
         db.rollback()

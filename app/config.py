@@ -1,6 +1,7 @@
 import os
 import sys
 import logging
+
 logger = logging.getLogger(__name__)
 
 # --- HARDCODED CREDENTIALS ---
@@ -21,26 +22,12 @@ try:
     LIBSQL_AVAILABLE = True
 except ImportError:
     LIBSQL_AVAILABLE = False
-    logger.warning(" 'libsql' package not found. Cloud sync disabled.")
+    logger.warning(" 'libsql' package not found. Cloud connection disabled.")
 
-# Path to the database file
+# Schema path (kept for reference, schema already exists on Turso)
 if getattr(sys, 'frozen', False):
-    # Use a persistent user directory for data storage
-    if sys.platform == 'win32':
-        data_dir = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'WarehouseApp')
-    else:
-        data_dir = os.path.join(os.path.expanduser('~'), '.local', 'share', 'WarehouseApp')
-        
-    if not os.path.exists(data_dir):
-        os.makedirs(data_dir, exist_ok=True)
-        
-    DATABASE_NAME = os.path.join(data_dir, 'warehouse.db')
-    
-    # Schema still lives in the bundle
     bundle_root = sys._MEIPASS
     SCHEMA_PATH = os.path.join(bundle_root, 'database', 'schema.sql')
 else:
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    # Walk up from app/ to project root (Warehouse-Pr)
-    DATABASE_NAME = os.path.abspath(os.path.join(script_dir, '..', 'database', 'warehouse.db'))
     SCHEMA_PATH = os.path.abspath(os.path.join(script_dir, '..', 'database', 'schema.sql'))

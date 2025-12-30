@@ -1,6 +1,5 @@
 from sqlite3 import IntegrityError
 from .db_utils import get_db
-from .sync_worker import run_background_sync
 
 def get_all_providers():
     """Retrieves all providers from the database."""
@@ -12,12 +11,11 @@ def get_all_providers():
 
 def add_provider(name: str):
     """Adds a new provider to the database."""
-    db = get_db(type='write')
+    db = get_db()
     cursor = db.cursor()
     try:
         cursor.execute("INSERT INTO providers (name) VALUES (?)", (name,))
         db.commit()
-        run_background_sync()
         return {"id": cursor.lastrowid, "name": name}
     except IntegrityError:
         db.rollback()
@@ -28,14 +26,13 @@ def add_provider(name: str):
 
 def update_provider(provider_id: int, name: str):
     """Updates an existing provider's name."""
-    db = get_db(type='write')
+    db = get_db()
     cursor = db.cursor()
     try:
         cursor.execute("UPDATE providers SET name = ? WHERE id = ?", (name, provider_id))
         if cursor.rowcount == 0:
             return None
         db.commit()
-        run_background_sync()
         return {"id": provider_id, "name": name}
     except IntegrityError:
         db.rollback()
@@ -56,15 +53,14 @@ def delete_provider(provider_id: int):
     if is_provider_in_use(provider_id):
         raise ValueError("Cannot delete a provider that is currently in use by one or more items.")
     
-    db = get_db(type='write')
+    db = get_db()
     cursor = db.cursor()
     try:
         cursor.execute("DELETE FROM providers WHERE id = ?", (provider_id,))
         if cursor.rowcount == 0:
             return False
         db.commit()
-        run_background_sync()
         return True
     except Exception as e:
         db.rollback()
-        raise e 
+        raise e

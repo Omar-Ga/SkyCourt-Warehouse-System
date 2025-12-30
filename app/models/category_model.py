@@ -1,5 +1,4 @@
 from .db_utils import get_db
-from .sync_worker import run_background_sync
 import logging
 
 logger = logging.getLogger(__name__)
@@ -10,7 +9,7 @@ def add_category(name: str, parent_id: int | None = None) -> dict | None:
     Returns the newly added category as a dictionary.
     Raises ValueError if the category limit is reached.
     """
-    db = get_db(type='write')
+    db = get_db()
     cursor = db.cursor()
     try:
         if parent_id is None:
@@ -23,13 +22,12 @@ def add_category(name: str, parent_id: int | None = None) -> dict | None:
             (name, parent_id)
         )
         db.commit()
-        run_background_sync()
         new_category_id = cursor.lastrowid
         
         if new_category_id:
             return {"id": new_category_id, "name": name, "parent_id": parent_id}
         return None
-    except (sqlite3.Error, ValueError) as e:
+    except Exception as e:
         db.rollback()
         raise e
 
@@ -87,16 +85,15 @@ def get_category_by_id(category_id: int) -> dict | None:
 
 def update_category(category_id: int, name: str) -> dict | None:
     """Updates an existing category's name."""
-    db = get_db(type='write')
+    db = get_db()
     cursor = db.cursor()
     try:
         cursor.execute("UPDATE categories SET name = ? WHERE id = ?", (name, category_id))
         db.commit()
-        run_background_sync()
         if cursor.rowcount > 0:
             return {"id": category_id, "name": name}
         return None
-    except sqlite3.Error as e:
+    except Exception as e:
         db.rollback()
         raise e
 
@@ -121,7 +118,7 @@ def delete_category(category_id: int) -> bool:
     """
     Deletes a category after archiving its inactive items.
     """
-    db = get_db(type='write')
+    db = get_db()
     cursor = db.cursor()
     try:
         cursor.execute(
@@ -132,9 +129,8 @@ def delete_category(category_id: int) -> bool:
         cursor.execute("DELETE FROM categories WHERE id = ?", (category_id,))
         
         db.commit()
-        run_background_sync()
         return cursor.rowcount > 0
-    except sqlite3.Error as e:
+    except Exception as e:
         logger.error(f"Database error in delete_category for ID {category_id}: {e}")
         db.rollback()
-        return False 
+        return False
