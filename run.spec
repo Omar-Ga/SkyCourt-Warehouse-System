@@ -1,4 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
+import certifi
+import os
+
 
 block_cipher = None
 
@@ -10,7 +13,7 @@ a = Analysis(
         ('UI/dist', 'dist'),
         ('app/assets', 'app/assets'),
         ('database/schema.sql', 'database'),
-        (r'C:\Users\Administrator\AppData\Local\Programs\Python\Python313\Lib\site-packages\certifi\cacert.pem', '.'),
+        (certifi.where(), '.'),
     ],
     hiddenimports=['dotenv'],
     hookspath=[],
