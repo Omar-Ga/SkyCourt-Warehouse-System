@@ -212,12 +212,7 @@ def get_db(type='read'):
     return g.db
 
 
-def get_db_connection(type='read'):
-    """
-    Returns the database connection.
-    The 'type' parameter is kept for backward compatibility but is ignored.
-    """
-    return _get_persistent_connection()
+
 
 
 def get_sync_status():

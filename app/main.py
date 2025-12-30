@@ -112,9 +112,7 @@ def serve_spa(path):
 
 
 # --- Lifecycle Handlers ---
-def on_closing():
-    """Triggered when the window is closing."""
-    pass
+
 
 
 def run_flask():
@@ -140,7 +138,7 @@ def start_app():
         resizable=True,
         text_select=True,
     )
-    window.events.closing += on_closing
+
 
     webview.start(debug=False)
 
