@@ -62,6 +62,10 @@ def bad_request(error):
 
 @app.errorhandler(404)
 def not_found(error):
+    from flask import request
+    # If the request is not for an API, serve the SPA index.html
+    if not request.path.startswith('/api/'):
+        return send_from_directory(app.static_folder, "index.html")
     return jsonify({"error": "Not Found", "details": str(error.description)}), 404
 
 @app.errorhandler(500)
@@ -75,7 +79,7 @@ def handle_database_error(error):
 
 @app.errorhandler(ValueError)
 def handle_value_error(error):
-    return jsonify({"error": "Invalid Value", "details": str(error)}), 400
+    return jsonify({"error": str(error)}), 400
 
 @app.errorhandler(Exception)
 def handle_exception(error):

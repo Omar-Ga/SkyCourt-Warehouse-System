@@ -14,8 +14,8 @@ def add_category(name: str, parent_id: int | None = None) -> dict | None:
     try:
         if parent_id is None:
             cursor.execute("SELECT COUNT(*) FROM categories WHERE parent_id IS NULL")
-            if cursor.fetchone()[0] >= 8:
-                raise ValueError("تم الوصول إلى الحد الأقصى للفئات الرئيسية.")
+            if cursor.fetchone()[0] >= 25:
+                raise ValueError("تم الوصول إلى الحد الأقصى للفئات الرئيسية (25).")
 
         cursor.execute(
             "INSERT INTO categories (name, parent_id) VALUES (?, ?)",
