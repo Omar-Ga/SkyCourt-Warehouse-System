@@ -402,7 +402,7 @@ export const ItemsManagement = () => {
           {viewLevel === 'mainCategories' && (
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {/* Add new main category card */}
-              {mainCategories.length < 8 && (
+              {mainCategories.length < 25 && (
                 <MainCategoryCard
                   onClick={() => handleOpenCategoryModal(null, null)}
                   className="border-2 border-primary-500 h-28"

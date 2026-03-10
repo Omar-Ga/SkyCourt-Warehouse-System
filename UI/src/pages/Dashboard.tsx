@@ -125,8 +125,8 @@ export const Dashboard = () => {
   };
 
   const statsToDisplay = [
-    { label: 'إضافات اليوم', value: stats.additionsToday.toString(), icon: <ArrowUpCircle className="text-success-500" size={24} /> },
-    { label: 'مسحوبات اليوم', value: stats.withdrawalsToday.toString(), icon: <ArrowDownCircle className="text-accent-500" size={24} /> },
+    { label: 'إضافات اليوم', value: stats.additionsToday.toString(), icon: <ArrowUpCircle className="text-primary-500" size={24} /> },
+    { label: 'مسحوبات اليوم', value: stats.withdrawalsToday.toString(), icon: <ArrowDownCircle className="text-error-500" size={24} /> },
   ];
 
   // Helper function to format timestamp
@@ -252,7 +252,7 @@ export const Dashboard = () => {
 
         {statsToDisplay.map((stat, index) => (
           <div key={index} className="card flex items-center p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className={`p-3 rounded-full ml-4 rtl:mr-4 rtl:ml-0 ${stat.label === 'إضافات اليوم' ? 'bg-success-100' : 'bg-accent-100'
+            <div className={`p-3 rounded-full ml-4 rtl:mr-4 rtl:ml-0 ${stat.label === 'إضافات اليوم' ? 'bg-primary-100' : 'bg-error-100'
               }`}>
               {stat.icon}
             </div>
