@@ -57,14 +57,20 @@ export const MainCategoryCard = ({
     >
       <div className="card-body p-4 flex flex-col justify-between items-center">
         <h2 className="card-title text-center block truncate">{category.name}</h2>
-        <div className="card-actions justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <button className="btn btn-xs btn-ghost" onClick={handleEdit}>
-            <Edit2 size={14} />
-          </button>
-          <button className="btn btn-xs btn-ghost" onClick={handleDelete}>
-            <Trash2 size={14} />
-          </button>
-        </div>
+        {(onEdit || onDelete) && (
+          <div className="card-actions justify-center items-center opacity-0 group-hover:opacity-100 transition-opacity">
+            {onEdit && (
+              <button className="btn btn-xs btn-ghost" onClick={handleEdit} title="تعديل الفئة">
+                <Edit2 size={14} />
+              </button>
+            )}
+            {onDelete && (
+              <button className="btn btn-xs btn-ghost" onClick={handleDelete} title="حذف الفئة">
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

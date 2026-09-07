@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Category } from '../types';
+import { apiClient } from '../services/apiClient';
+import { useCapabilities } from '../hooks/useCapabilities';
 
 type CategoryModalProps = {
   isOpen: boolean;
@@ -11,6 +13,9 @@ type CategoryModalProps = {
 };
 
 export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentId }: CategoryModalProps) => {
+  const { canMutateCategories } = useCapabilities();
+  if (!canMutateCategories) return null;
+
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
 
@@ -45,8 +50,7 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
     e.preventDefault();
     if (!validate()) return;
 
-    const url = isEditing ? `/api/categories/${categoryToEdit?.id}` : '/api/categories';
-    const method = isEditing ? 'PUT' : 'POST';
+    const endpoint = isEditing ? `/categories/${categoryToEdit?.id}` : '/categories';
     
     const body: { name: string; parent_id?: number | null } = { name: name.trim() };
     if (!isEditing) {
@@ -54,21 +58,16 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
     }
 
     try {
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-
-      const responseData = await response.json();
-      if (!response.ok) {
-        throw new Error(responseData.error || 'فشل حفظ القسم');
+      if (isEditing) {
+        await apiClient.put(endpoint, body);
+      } else {
+        await apiClient.post(endpoint, body);
       }
       
       onSave();
       onClose();
     } catch (err: any) {
-      setError(err.message);
+      setError(err.message || 'فشل حفظ القسم');
     }
   };
 

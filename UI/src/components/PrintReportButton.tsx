@@ -4,6 +4,7 @@ import { useReactToPrint } from 'react-to-print';
 import { Printer } from 'lucide-react';
 import { PrintableReport } from './PrintableReport';
 import { MovementLogEntry } from '../types';
+import { apiClient } from '../services/apiClient';
 
 interface PrintReportButtonProps {
   filters: {
@@ -12,6 +13,7 @@ interface PrintReportButtonProps {
     itemId: string;
     providerId: string;
     destinationId: string;
+    actionType?: string;
   };
   disabled: boolean;
 }
@@ -50,14 +52,10 @@ export const PrintReportButton: React.FC<PrintReportButtonProps> = ({ filters, d
     if (filters.itemId) params.append('item_id', filters.itemId);
     if (filters.providerId) params.append('provider_id', filters.providerId);
     if (filters.destinationId) params.append('destination_id', filters.destinationId);
+    if (filters.actionType) params.append('action_type', filters.actionType);
 
     try {
-      const response = await fetch(`/api/movement-logs/all_filtered?${params.toString()}`);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || errorData.error || 'Failed to fetch data for printing');
-      }
-      const allLogs = await response.json();
+      const allLogs = await apiClient.get<MovementLogEntry[]>(`/movement-logs/all_filtered?${params.toString()}`);
 
       if (allLogs && allLogs.length > 0) {
         setPrintableData(allLogs);

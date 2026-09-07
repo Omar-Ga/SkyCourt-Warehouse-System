@@ -1,27 +1,10 @@
 import React from 'react';
 import { MovementLogEntry } from '../types';
+import { formatSafeDate } from '../services/statsService';
 
 interface PrintableReportProps {
   data: MovementLogEntry[];
 }
-
-// Helper to safely format a date string
-const formatSafeDate = (dateString: string) => {
-  try {
-    return new Date(dateString).toLocaleString('ar-EG', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: true,
-    });
-  } catch (error) {
-    console.error("Invalid date format for printing:", dateString);
-    return 'تاريخ غير صالح';
-  }
-};
 
 export const PrintableReport = React.forwardRef<HTMLDivElement, PrintableReportProps>((props, ref) => {
   const { data } = props;
@@ -29,9 +12,11 @@ export const PrintableReport = React.forwardRef<HTMLDivElement, PrintableReportP
   const getActionTypeInArabic = (actionType: string) => {
     switch (actionType) {
       case 'Addition':
-        return 'دخول';
+        return 'إضافة';
       case 'Removal':
-        return 'خروج';
+        return 'سحب';
+      case 'Return':
+        return 'مرتجع';
       default:
         return actionType;
     }
@@ -53,21 +38,36 @@ export const PrintableReport = React.forwardRef<HTMLDivElement, PrintableReportP
           </tr>
         </thead>
         <tbody>
-          {data.map((log) => (
-            <tr key={log.id}>
-              <td style={{ border: '1px solid #ddd', padding: '12px' }}>{log.item_name ? `${log.item_name} (#${log.item_id})` : 'N/A'}</td>
-              <td style={{ border: '1px solid #ddd', padding: '12px' }}>{log.destination_name || '-'}</td>
-              <td style={{ border: '1px solid #ddd', padding: '12px' }}>{formatSafeDate(log.timestamp)}</td>
-              <td style={{ border: '1px solid #ddd', padding: '12px' }}>{log.person_name || '-'}</td>
-              <td style={{ border: '1px solid #ddd', padding: '12px' }}>{getActionTypeInArabic(log.action_type)}</td>
-              <td style={{ border: '1px solid #ddd', padding: '12px' }}>
-                {log.quantity_changed !== null && log.quantity_changed !== undefined ? log.quantity_changed : '-'}
-              </td>
-              <td style={{ border: '1px solid #ddd', padding: '12px' }}>
-                {log.resulting_quantity !== null && log.resulting_quantity !== undefined ? log.resulting_quantity : '-'}
-              </td>
-            </tr>
-          ))}
+          {data.map((log) => {
+            const reference = log.return_event_id
+              ? ` (مرتجع #${log.return_event_id})`
+              : log.leave_line_id
+              ? ` (إذن صرف #${log.leave_line_id})`
+              : log.po_line_id
+              ? ` (أمر شراء #${log.po_line_id})`
+              : '';
+            const actor = log.actor_name || log.person_name || '-';
+            const displayQty = log.quantity_changed !== null && log.quantity_changed !== undefined
+              ? Math.abs(log.quantity_changed)
+              : '-';
+
+            return (
+              <tr key={log.id}>
+                <td style={{ border: '1px solid #ddd', padding: '12px' }}>
+                  {log.item_name ? `${log.item_name} (#${log.item_id})` : 'N/A'}
+                  {reference}
+                </td>
+                <td style={{ border: '1px solid #ddd', padding: '12px' }}>{log.destination_name || '-'}</td>
+                <td style={{ border: '1px solid #ddd', padding: '12px' }}>{formatSafeDate(log.timestamp)}</td>
+                <td style={{ border: '1px solid #ddd', padding: '12px' }}>{actor}</td>
+                <td style={{ border: '1px solid #ddd', padding: '12px' }}>{getActionTypeInArabic(log.action_type)}</td>
+                <td style={{ border: '1px solid #ddd', padding: '12px' }}>{displayQty}</td>
+                <td style={{ border: '1px solid #ddd', padding: '12px' }}>
+                  {log.resulting_quantity !== null && log.resulting_quantity !== undefined ? log.resulting_quantity : '-'}
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
     </div>

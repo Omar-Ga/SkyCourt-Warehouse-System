@@ -7,6 +7,7 @@ type BarcodeScannerOverlayProps = {
   onScan: (barcode: string) => void;
   message?: string;
   isError?: boolean;
+  isProcessing?: boolean;
 };
 
 export const BarcodeScannerOverlay = ({
@@ -15,12 +16,17 @@ export const BarcodeScannerOverlay = ({
   onScan,
   message = 'جاري قراءة الباركود...',
   isError = false,
+  isProcessing = false,
 }: BarcodeScannerOverlayProps) => {
   const [barcode, setBarcode] = useState('');
 
   const handleKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (event.key === 'Enter') {
+        if (isProcessing) {
+          event.preventDefault();
+          return;
+        }
         if (barcode.trim()) {
           onScan(barcode.trim());
           setBarcode('');
@@ -33,13 +39,12 @@ export const BarcodeScannerOverlay = ({
         setBarcode((prev) => prev.slice(0, -1));
         event.preventDefault();
       } else if (event.key.length === 1 && !event.ctrlKey && !event.altKey && !event.metaKey) {
-        
         setBarcode((prev) => prev + event.key);
       }
-      
     },
-    [barcode, onScan, onClose]
+    [barcode, onScan, onClose, isProcessing]
   );
+
 
   useEffect(() => {
     // This effect handles resetting the state when the modal opens.

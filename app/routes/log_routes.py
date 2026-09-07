@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.models import movement_log_model
+from app.auth import require_role
 from datetime import datetime
 import logging
 
@@ -7,7 +8,9 @@ logger = logging.getLogger(__name__)
 
 bp = Blueprint('logs', __name__, url_prefix='/api/movement-logs')
 
-@bp.route('', methods=['GET'])
+@bp.route('', methods=['GET'], strict_slashes=False)
+@bp.route('/', methods=['GET'], strict_slashes=False)
+@require_role('office', 'warehouse')
 def get_movement_logs_route():
 
         page = request.args.get('page', 1, type=int)
@@ -53,14 +56,15 @@ def get_movement_logs_route():
 
         result = movement_log_model.get_movement_logs(filters=filters, page=page, page_size=page_size)
 
-        if result is not None:
-            return jsonify(result), 200
-        else:
-            return jsonify({'error': 'Failed to retrieve movement logs'}), 500
+        if isinstance(result, dict) and "error" in result:
+            return jsonify({'error': 'Failed to retrieve movement logs', 'details': result['error']}), 500
+
+        return jsonify(result), 200
             
  
 
 @bp.route('/all_filtered', methods=['GET'])
+@require_role('office', 'warehouse')
 def get_all_filtered_movement_logs():
 
         filters = {}
@@ -105,30 +109,24 @@ def get_all_filtered_movement_logs():
             except ValueError:
                 return jsonify({"error": "Invalid date_to format. Must be YYYY-MM-DD."}), 400
 
-        # Call the model function without pagination to get all records
         all_logs = movement_log_model.get_movement_logs(filters=filters, page=None, page_size=None)
 
-        if 'logs' in all_logs:
-            return jsonify(all_logs['logs']), 200
-        else:
-            # Handle case where result might be an error dictionary
+        if isinstance(all_logs, dict) and 'error' in all_logs:
             return jsonify({'error': 'Failed to retrieve movement logs', 'details': all_logs.get('error', '')}), 500
+
+        if isinstance(all_logs, dict) and 'logs' in all_logs:
+            return jsonify(all_logs['logs']), 200
+
+        return jsonify({'error': 'Failed to retrieve movement logs'}), 500
             
 
 
 @bp.route('/summary/today', methods=['GET'])
+@require_role('office', 'warehouse')
 def get_daily_summary_route():
     """API endpoint to get a summary of today's movements."""
     summary = movement_log_model.get_daily_movement_summary()
     if 'error' in summary:
-        # Distinguish between DB connection/query errors and just no movements
-        if "Database connection failed" in summary.get("error", "") or "Database error" in summary.get("error", ""):
-             return jsonify({"error": "Failed to retrieve daily summary", "details": summary.get("error")}), 500
-        # If it's an unexpected error but not a DB operational error, still might be 500
-        elif "An unexpected error occurred" in summary.get("error", ""):
-             return jsonify({"error": "An unexpected server error occurred", "details": summary.get("error")}), 500
-        # If no specific DB/unexpected error, it implies 0 counts, which is not an HTTP error
-        # The model already returns 0s in case of non-critical issues or no data, so we can proceed
+        return jsonify({"error": "Failed to retrieve daily summary", "details": summary.get("error")}), 500
 
-    # If summary contains keys additions_today and withdrawals_today, it's a success or 0 counts
     return jsonify(summary), 200 

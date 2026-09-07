@@ -4,6 +4,8 @@ import { Unit, Provider } from '../types'; // Import shared Unit and Provider ty
 import { RefreshCw, Printer } from 'lucide-react';
 import { PrintableBarcode } from './PrintableBarcode';
 import toast from 'react-hot-toast';
+import { apiClient, ApiError, generateIdempotencyKey } from '../services/apiClient';
+import { useCapabilities } from '../hooks/useCapabilities';
 
 type AddItemModalProps = {
   isOpen: boolean;
@@ -14,6 +16,9 @@ type AddItemModalProps = {
 };
 
 export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryId }: AddItemModalProps) => {
+  const { canMutateItems } = useCapabilities();
+  if (!canMutateItems) return null;
+
   const [name, setName] = useState('');
   const [quantity, setQuantity] = useState('');
   const [unitId, setUnitId] = useState('');
@@ -31,11 +36,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
   useEffect(() => {
     const fetchProviders = async () => {
       try {
-        const response = await fetch('/api/providers');
-        if (!response.ok) {
-          throw new Error('Failed to fetch providers');
-        }
-        const data = await response.json();
+        const data = await apiClient.get<Provider[]>('/providers');
         setProviders(data);
       } catch (error) {
         console.error("Error fetching providers:", error);
@@ -95,69 +96,47 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
         person_name: personName.trim() || null,
       };
 
+    const idempotencyKey = generateIdempotencyKey();
+
     try {
-      const response = await fetch('/api/items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+      await apiClient.post('/items', payload, {
+        headers: { 'Idempotency-Key': idempotencyKey }
       });
-
-      if (response.ok) {
-        toast.success('تمت إضافة الصنف بنجاح!');
-        onItemAdded();
-        resetForm();
-        onClose();
-        // No need to set isSaving to false here, as the component will unmount.
-        return;
-      }
-
-          const errorData = await response.json();
-          if (response.status === 409 && errorData.type === 'item_conflict') {
+      toast.success('تمت إضافة الصنف بنجاح!');
+      onItemAdded();
+      resetForm();
+      onClose();
+      return;
+    } catch (err: any) {
+      if (err instanceof ApiError && err.status === 409 && err.data?.type === 'item_conflict') {
         if (window.confirm(`An item named "${payload.name}" is inactive or archived. Would you like to restore it to this category?`)) {
-          
-              handleRestoreItem(errorData.item_id);
-          
+          handleRestoreItem(err.data.item_id);
         } else {
           setApiError("Please choose a different name or restore the existing item.");
           setIsSaving(false); 
         }
       } else {
-        
-        setApiError(errorData.error || 'Failed to add item. Please try again.');
-          setIsSaving(false);
-        }
-    } catch (err) {
-      
-      setApiError('An unexpected error occurred. Please check your connection and try again.');
-      setIsSaving(false);
+        setApiError(err.message || 'Failed to add item. Please try again.');
+        setIsSaving(false);
+      }
     }
   };
 
   const handleRestoreItem = async (itemId: number) => {
     setApiError(null);
-    // Don't set isSaving to true here, as the main button is already in a saving state.
-    // Let the primary handleSubmit function manage the state.
     try {
-      const response = await fetch(`/api/items/${itemId}/restore`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sub_category_id: subCategoryId, person_name: personName }),
+      await apiClient.patch(`/items/${itemId}/restore`, {
+        sub_category_id: subCategoryId,
+        person_name: personName,
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to restore item.');
-      }
-
       onItemAdded();
       toast.success('تم استعادة الصنف وتحديثه بنجاح!');
       resetForm();
       onClose();
     } catch (err: any) {
-      setApiError(err.message);
-      setIsSaving(false); // On failure, allow user to try again.
+      setApiError(err.message || 'Failed to restore item.');
+      setIsSaving(false);
     }
-    // On success, the modal closes, so no need to reset isSaving.
   };
 
   const resetForm = () => {

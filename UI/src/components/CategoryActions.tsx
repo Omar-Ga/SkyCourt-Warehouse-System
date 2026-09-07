@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pencil, Trash2 } from 'lucide-react';
 import { Category } from '../types';
+import { useCapabilities } from '../hooks/useCapabilities';
 
 interface CategoryActionsProps {
   category: Category;
@@ -9,6 +10,13 @@ interface CategoryActionsProps {
 }
 
 export const CategoryActions: React.FC<CategoryActionsProps> = ({ category, onEdit, onDelete }) => {
+  const { canMutateCategories } = useCapabilities();
+
+  // Office cannot render or invoke category actions
+  if (!canMutateCategories) {
+    return null;
+  }
+
   const handleActionClick = (e: React.MouseEvent, action: () => void) => {
     e.stopPropagation();
     action();

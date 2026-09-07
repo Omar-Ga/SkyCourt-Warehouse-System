@@ -15,10 +15,22 @@ import { itemsService, ItemsResponse } from '../services/itemsService';
 import { categoryService, CategoriesResponse } from '../services/categoryService';
 import { useUnits, useCategories } from '../hooks/useMetadata';
 import { useItems } from '../hooks/useItems';
+import { useCapabilities } from '../hooks/useCapabilities';
 
 type ViewLevel = 'mainCategories' | 'subCategories' | 'items';
 
-export const ItemsManagement = () => {
+export interface ItemsManagementProps {
+  canMutateItems?: boolean;
+  canMutateCategories?: boolean;
+}
+
+export const ItemsManagement = ({
+  canMutateItems: propCanMutateItems,
+  canMutateCategories: propCanMutateCategories,
+}: ItemsManagementProps = {}) => {
+  const capabilities = useCapabilities();
+  const canMutateItems = propCanMutateItems ?? capabilities.canMutateItems;
+  const canMutateCategories = propCanMutateCategories ?? capabilities.canMutateCategories;
   const queryClient = useQueryClient();
 
   // Helper to get initial state from sessionStorage
@@ -248,8 +260,10 @@ export const ItemsManagement = () => {
 
   const invalidateData = (keys: string[]) => {
     keys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
-    // Always invalidate dashboard stats when something changes
+    // Invalidate dashboard stats and logs on stock/item mutations
     queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['recent-logs'] });
+    queryClient.invalidateQueries({ queryKey: ['movement-logs'] });
   };
 
   const handleItemAdded = () => {
@@ -267,12 +281,14 @@ export const ItemsManagement = () => {
   };
 
   const handleOpenCategoryModal = (category: Category | null, parentId: number | null = null) => {
+    if (!canMutateCategories) return;
     setCategoryToEdit(category);
     setCurrentParentId(parentId);
     setIsCategoryModalOpen(true);
   };
 
   const handleDeleteCategory = async (category: Category) => {
+    if (!canMutateCategories) return;
     if (!window.confirm(`هل أنت متأكد من رغبتك في حذف الفئة "${category.name}"؟ لا يمكن التراجع عن هذا الإجراء.`)) {
       return;
     }
@@ -287,6 +303,7 @@ export const ItemsManagement = () => {
   };
 
   const handleToggleStatus = async (item: Item) => {
+    if (!canMutateItems) return;
     const newStatus = item.status === 'active' ? 'inactive' : 'active';
 
     if (newStatus === 'inactive') {
@@ -303,7 +320,7 @@ export const ItemsManagement = () => {
     }
   };
 
-  // Columns Definitions
+  // Columns Definitions - omit actions column entirely when in read-only mode
   const columns = [
     { key: 'id', header: 'المعرف' },
     { key: 'name', header: 'اسم الصنف' },
@@ -317,7 +334,7 @@ export const ItemsManagement = () => {
       header: 'الحالة',
       render: (status: Item['status']) => <span className={`badge ${status === 'active' ? 'badge-success' : 'badge-error'}`}>{status}</span>
     },
-    {
+    ...(canMutateItems ? [{
       key: 'actions',
       header: 'إجراءات',
       render: (_: any, item: Item) => (
@@ -328,13 +345,14 @@ export const ItemsManagement = () => {
           onToggleStatus={handleToggleStatus}
         />
       )
-    },
+    }] : []),
   ];
 
+  // Subcategory columns - omit actions column entirely when in read-only mode
   const subCategoryColumns = [
     { key: 'id', header: 'المعرف' },
     { key: 'name', header: 'اسم الفئة الفرعية' },
-    {
+    ...(canMutateCategories ? [{
       key: 'actions',
       header: 'الإجراءات',
       render: (_: any, row: Category) => (
@@ -344,7 +362,7 @@ export const ItemsManagement = () => {
           onDelete={handleDeleteCategory}
         />
       ),
-    },
+    }] : []),
   ];
 
   const renderBreadcrumbs = () => (
@@ -389,8 +407,12 @@ export const ItemsManagement = () => {
   return (
     <div className="p-6 bg-base-200 min-h-full">
       <header className="mb-6">
-        <h1 className="text-3xl font-bold text-base-content">إدارة الأصناف</h1>
-        <p className="text-base-content/70">تصفح الأقسام والأصناف، وقم بإدارتها.</p>
+        <h1 className="text-3xl font-bold text-base-content">
+          {canMutateItems ? 'إدارة الأصناف' : 'دليل الأصناف'}
+        </h1>
+        <p className="text-base-content/70">
+          {canMutateItems ? 'تصفح الأقسام والأصناف، وقم بإدارتها.' : 'تصفح الأقسام والأصناف ومتابعة أرصدتها.'}
+        </p>
       </header>
 
       {/* Conditional Rendering based on viewLevel */}
@@ -402,7 +424,7 @@ export const ItemsManagement = () => {
           {viewLevel === 'mainCategories' && (
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
               {/* Add new main category card */}
-              {mainCategories.length < 25 && (
+              {canMutateCategories && mainCategories.length < 25 && (
                 <MainCategoryCard
                   onClick={() => handleOpenCategoryModal(null, null)}
                   className="border-2 border-primary-500 h-28"
@@ -414,8 +436,8 @@ export const ItemsManagement = () => {
                   key={cat.id}
                   category={cat}
                   onSelect={handleSelectMainCategory}
-                  onEdit={(c) => handleOpenCategoryModal(c, null)}
-                  onDelete={handleDeleteCategory}
+                  onEdit={canMutateCategories ? (c) => handleOpenCategoryModal(c, null) : undefined}
+                  onDelete={canMutateCategories ? handleDeleteCategory : undefined}
                   className="border-2 border-primary-500 h-28"
                 />
               ))}
@@ -426,12 +448,14 @@ export const ItemsManagement = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center">
                 {renderBreadcrumbs()}
-                <button
-                  className="btn btn-primary btn-sm"
-                  onClick={() => handleOpenCategoryModal(null, selectedMainCategory?.id ?? null)}
-                >
-                  <Plus size={20} /> إضافة فئة فرعية
-                </button>
+                {canMutateCategories && (
+                  <button
+                    className="btn btn-primary btn-sm"
+                    onClick={() => handleOpenCategoryModal(null, selectedMainCategory?.id ?? null)}
+                  >
+                    <Plus size={20} /> إضافة فئة فرعية
+                  </button>
+                )}
               </div>
 
               <Table
@@ -463,7 +487,11 @@ export const ItemsManagement = () => {
               <div className="bg-base-100 p-4 rounded-box shadow-lg">
                 <div className="flex justify-between items-center mb-4">
                   <SearchBar onSearch={setSearchTerm} />
-                  <button onClick={() => setIsAddItemModalOpen(true)} className="btn btn-primary"><Plus size={18} /> إضافة صنف جديد</button>
+                  {canMutateItems && (
+                    <button onClick={() => setIsAddItemModalOpen(true)} className="btn btn-primary">
+                      <Plus size={18} /> إضافة صنف جديد
+                    </button>
+                  )}
                 </div>
                 <Table
                   columns={columns}
@@ -488,7 +516,7 @@ export const ItemsManagement = () => {
         </>
       )}
 
-      {isAddItemModalOpen && (
+      {canMutateItems && isAddItemModalOpen && (
         <AddItemModal
           isOpen={isAddItemModalOpen}
           onClose={() => setIsAddItemModalOpen(false)}
@@ -498,7 +526,7 @@ export const ItemsManagement = () => {
         />
       )}
 
-      {isEditItemModalOpen && selectedItem && (
+      {canMutateItems && isEditItemModalOpen && selectedItem && (
         <EditItemModal
           isOpen={isEditItemModalOpen}
           onClose={() => setIsEditItemModalOpen(false)}
@@ -508,7 +536,7 @@ export const ItemsManagement = () => {
         />
       )}
 
-      {isAdjustModalOpen && selectedItem && (
+      {canMutateItems && isAdjustModalOpen && selectedItem && (
         <AdjustQuantityModal
           isOpen={isAdjustModalOpen}
           onClose={() => setIsAdjustModalOpen(false)}
@@ -517,13 +545,15 @@ export const ItemsManagement = () => {
         />
       )}
 
-      <CategoryModal
-        isOpen={isCategoryModalOpen}
-        onClose={() => setIsCategoryModalOpen(false)}
-        onSave={handleCategorySaved}
-        categoryToEdit={categoryToEdit}
-        parentId={currentParentId}
-      />
+      {canMutateCategories && isCategoryModalOpen && (
+        <CategoryModal
+          isOpen={isCategoryModalOpen}
+          onClose={() => setIsCategoryModalOpen(false)}
+          onSave={handleCategorySaved}
+          categoryToEdit={categoryToEdit}
+          parentId={currentParentId}
+        />
+      )}
     </div>
   );
 };

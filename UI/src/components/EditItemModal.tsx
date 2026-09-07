@@ -4,6 +4,8 @@ import { Item, Unit } from '../types'; // Import shared types
 import toast from 'react-hot-toast';
 import { Printer, RefreshCw, Loader2 } from 'lucide-react';
 import { PrintableBarcode } from './PrintableBarcode';
+import { apiClient, ApiError } from '../services/apiClient';
+import { useCapabilities } from '../hooks/useCapabilities';
 
 type EditItemModalProps = {
   isOpen: boolean;
@@ -23,6 +25,9 @@ interface UpdateItemPayload {
 }
 
 export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: EditItemModalProps) => {
+  const { canMutateItems } = useCapabilities();
+  if (!canMutateItems) return null;
+
   const [name, setName] = useState('');
   const [unitId, setUnitId] = useState('');
   const [subCategoryId, setSubCategoryId] = useState<number | null | undefined>(null);
@@ -83,48 +88,33 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
       };
 
       const attemptSubmit = async (forceChange = false) => {
-        let payload: UpdateItemPayload = { ...updatedItemPayload };
+        const payload: UpdateItemPayload = { ...updatedItemPayload };
         if (forceChange) {
           payload.force_unit_change = true;
         }
 
         try {
-          const response = await fetch(`/api/items/${item.id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
-          });
-          const responseData = await response.json();
-
-          if (!response.ok) {
-            if (response.status === 409 && responseData.type === "UNIT_CHANGE_CONFIRMATION") {
-              // We need to keep isSaving true while confirm dialog is shown or reset it if cancelled?
-              // The browser confirm is synchronous (blocking), so execution halts here.
-              if (window.confirm(responseData.message)) {
-                await attemptSubmit(true);
-              } else {
-                setErrors({ api: "Update cancelled by user." });
-                setIsSaving(false);
-              }
-            } else {
-              const errorMessage = responseData.message || responseData.error || 'Failed to update item';
-              if (responseData.errors) {
-                setErrors(prevErrors => ({ ...prevErrors, ...responseData.errors, api: errorMessage }));
-              } else {
-                setErrors({ api: errorMessage });
-              }
-              setIsSaving(false);
-            }
-            return;
-          }
+          await apiClient.put(`/items/${item.id}`, payload);
           onItemUpdated();
           onClose();
           toast.success(`تم تحديث الصنف "${item.name}" بنجاح.`);
-          // No need to setIsSaving(false) here because component might unmount or reset on next open
-        } catch (apiError: any) {
-          console.error("Failed to update item:", apiError);
-          setErrors({ api: apiError.message || "An unexpected error occurred." });
-          setIsSaving(false);
+        } catch (apiErr: any) {
+          if (apiErr instanceof ApiError && apiErr.status === 409 && apiErr.data?.type === 'UNIT_CHANGE_CONFIRMATION') {
+            if (window.confirm(apiErr.data.message || apiErr.message)) {
+              await attemptSubmit(true);
+            } else {
+              setErrors({ api: "Update cancelled by user." });
+              setIsSaving(false);
+            }
+          } else {
+            const errorMessage = apiErr.data?.message || apiErr.data?.error || apiErr.message || 'Failed to update item';
+            if (apiErr.data?.errors) {
+              setErrors(prevErrors => ({ ...prevErrors, ...apiErr.data.errors, api: errorMessage }));
+            } else {
+              setErrors({ api: errorMessage });
+            }
+            setIsSaving(false);
+          }
         }
       };
 

@@ -42,11 +42,22 @@ def update_provider(provider_id: int, name: str):
         raise e
 
 def is_provider_in_use(provider_id: int):
-    """Checks if a provider is currently associated with any items."""
+    """Checks if a provider is currently associated with any items, logs, or purchase orders."""
     db = get_db()
     cursor = db.cursor()
     cursor.execute("SELECT 1 FROM items WHERE provider_id = ? LIMIT 1", (provider_id,))
-    return cursor.fetchone() is not None
+    if cursor.fetchone() is not None:
+        return True
+
+    cursor.execute("SELECT 1 FROM movement_logs WHERE provider_id = ? LIMIT 1", (provider_id,))
+    if cursor.fetchone() is not None:
+        return True
+
+    cursor.execute("SELECT 1 FROM purchase_orders WHERE provider_id = ? LIMIT 1", (provider_id,))
+    if cursor.fetchone() is not None:
+        return True
+
+    return False
 
 def delete_provider(provider_id: int):
     """Deletes a provider from the database."""

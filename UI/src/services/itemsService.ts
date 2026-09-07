@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { apiClient, generateIdempotencyKey } from './apiClient';
 import { Item } from '../types';
 
 export interface ItemsResponse {
@@ -15,8 +15,17 @@ export interface FetchItemsParams {
     limit?: number;
 }
 
+export interface AdjustQuantityPayload {
+    change_amount: number;
+    adjustment_type: 'addition' | 'removal';
+    person_name?: string | null;
+    provider_id?: number | null;
+    cost?: number | null;
+    destination_id?: number | null;
+}
+
 export const itemsService = {
-    fetchItems: async (params: FetchItemsParams = {}): Promise<ItemsResponse | Item[]> => {
+    fetchItems: async (params: FetchItemsParams = {}, signal?: AbortSignal): Promise<ItemsResponse | Item[]> => {
         const queryParams: Record<string, any> = {};
         if (params.page) queryParams.page = params.page;
         if (params.page_size) queryParams.page_size = params.page_size;
@@ -28,7 +37,7 @@ export const itemsService = {
         const queryString = new URLSearchParams(queryParams).toString();
         const endpoint = `/items/${queryString ? '?' + queryString : ''}`;
 
-        return apiClient.get<ItemsResponse | Item[]>(endpoint);
+        return apiClient.get<ItemsResponse | Item[]>(endpoint, { signal });
     },
 
     getItem: (id: number) =>
@@ -40,8 +49,21 @@ export const itemsService = {
     getItemLocation: (id: number, sub_category_id: number, page_size: number) =>
         apiClient.get<{ page: number, position: number }>(`/items/${id}/location?sub_category_id=${sub_category_id}&page_size=${page_size}`),
 
-    createItem: (data: Omit<Item, 'id'> & { initial_quantity: number, provider_id?: number, person_name?: string }) =>
-        apiClient.post<Item>('/items/', data),
+    createItem: (
+        data: Omit<Item, 'id'> & {
+            initial_quantity: number;
+            provider_id?: number | null;
+            cost?: number | null;
+            person_name?: string | null;
+            barcode?: string | null;
+        },
+        idempotencyKey?: string
+    ) =>
+        apiClient.post<Item>('/items/', data, {
+            headers: {
+                'Idempotency-Key': idempotencyKey || generateIdempotencyKey()
+            }
+        }),
 
     updateItem: (id: number, data: Partial<Item> & { force_unit_change?: boolean, person_name?: string }) =>
         apiClient.put<Item>(`/items/${id}`, data),
@@ -52,12 +74,13 @@ export const itemsService = {
     restoreItem: (id: number, sub_category_id: number, person_name?: string) =>
         apiClient.patch<Item>(`/items/${id}/restore`, { sub_category_id, person_name }),
 
-    adjustItemQuantity: (id: number, data: { quantity_change: number, reason: string, person_name?: string }) =>
-        apiClient.post<{ new_quantity: number, log_id: number }>(`/items/${id}/adjust`, data),
+    adjustItemQuantity: (id: number, data: AdjustQuantityPayload, idempotencyKey?: string) =>
+        apiClient.post<Item>(`/items/${id}/adjust`, data, {
+            headers: {
+                'Idempotency-Key': idempotencyKey || generateIdempotencyKey()
+            }
+        }),
 
-    getBarcodeImage: async (id: number): Promise<Blob> => {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/items/${id}/barcode`);
-        if (!response.ok) throw new Error('Failed to fetch barcode');
-        return response.blob();
-    }
+    getBarcodeImage: (id: number): Promise<Blob> =>
+        apiClient.getBlob(`/items/${id}/barcode`),
 };

@@ -1,11 +1,14 @@
 from flask import Blueprint, request, jsonify
 from app.models import category_model
+from app.auth import require_role
 import logging
 logger = logging.getLogger(__name__)
 
 bp = Blueprint('category_routes', __name__, url_prefix='/api/categories')
 
-@bp.route('/', methods=['POST'])
+@bp.route('', methods=['POST'], strict_slashes=False)
+@bp.route('/', methods=['POST'], strict_slashes=False)
+@require_role('warehouse')
 def create_category():
     data = request.get_json()
     if not data or not data.get('name'):
@@ -32,13 +35,16 @@ def create_category():
         return jsonify({'error': 'Failed to create category.'}), 500
 
 @bp.route('/<int:category_id>', methods=['GET'])
+@require_role('office', 'warehouse')
 def get_category(category_id):
     category = category_model.get_category_by_id(category_id)
     if category:
         return jsonify(category), 200
     return jsonify({'error': 'Category not found'}), 404
 
-@bp.route('/', methods=['GET'])
+@bp.route('', methods=['GET'], strict_slashes=False)
+@bp.route('/', methods=['GET'], strict_slashes=False)
+@require_role('office', 'warehouse')
 def get_categories_route():
     parent_id_str = request.args.get('parent_id')
     level = request.args.get('level')
@@ -69,6 +75,7 @@ def get_categories_route():
 
 
 @bp.route('/<int:category_id>', methods=['PUT'])
+@require_role('warehouse')
 def update_category_route(category_id):
     data = request.get_json()
     if not data or not data.get('name'):
@@ -91,6 +98,7 @@ def update_category_route(category_id):
         return jsonify({'error': 'Failed to update category due to a database error.'}), 500
 
 @bp.route('/<int:category_id>', methods=['DELETE'])
+@require_role('warehouse')
 def delete_category_route(category_id):
     if not category_model.get_category_by_id(category_id):
         return jsonify({'error': 'Category not found.'}), 404

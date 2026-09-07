@@ -15,7 +15,7 @@ export interface FetchCategoriesParams {
 }
 
 export const categoryService = {
-    fetchCategories: (params: FetchCategoriesParams = {}) => {
+    fetchCategories: (params: FetchCategoriesParams = {}, signal?: AbortSignal) => {
         const queryParams: Record<string, any> = {};
         if (params.parent_id) queryParams.parent_id = params.parent_id;
         if (params.level) queryParams.level = params.level;
@@ -25,7 +25,7 @@ export const categoryService = {
         const queryString = new URLSearchParams(queryParams).toString();
         const endpoint = `/categories/${queryString ? '?' + queryString : ''}`;
 
-        return apiClient.get<CategoriesResponse | Category[]>(endpoint);
+        return apiClient.get<CategoriesResponse | Category[]>(endpoint, { signal });
     },
 
     getCategoryById: (id: number) =>

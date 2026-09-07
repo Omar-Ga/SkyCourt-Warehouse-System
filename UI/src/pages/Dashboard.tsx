@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Archive, ArrowUpCircle, ArrowDownCircle, Activity, Edit3, Info, AlertTriangle,
-  PlusCircle, BarChart3, ScanLine, Search
+  PlusCircle, BarChart3, ScanLine, Search, RotateCcw
 } from 'lucide-react';
 import { AsyncPaginate, LoadOptions } from 'react-select-async-paginate';
 import type { GroupBase, OptionsOrGroups } from 'react-select';
@@ -13,6 +13,8 @@ import { useDashboardStats, useRecentLogs } from '../hooks/useDashboardStats';
 import { useUnits } from '../hooks/useMetadata';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { SoftRefreshButton } from '../components/SoftRefreshButton';
+import { apiClient } from '../services/apiClient';
+import { useCapabilities } from '../hooks/useCapabilities';
 
 // Define ItemOption for react-select-async-paginate
 interface ItemOption {
@@ -32,6 +34,7 @@ const AsyncPaginateComponent = AsyncPaginate as any; // Workaround for TS2786
 
 export const Dashboard = () => {
   const { setActivePage, openScanner } = useAppContext();
+  const { canAdjustQuantity, canMutateItems, canManagePOs } = useCapabilities();
   const queryClient = useQueryClient();
 
   // Hooks
@@ -39,7 +42,7 @@ export const Dashboard = () => {
   const { data: dashboardUnits = [] } = useUnits();
 
   const {
-    data: stats = { additionsToday: 0, withdrawalsToday: 0 },
+    data: stats = { additionsToday: 0, withdrawalsToday: 0, returnsToday: 0 },
     isLoading: isLoadingStats,
     error: statsError
   } = useDashboardStats();
@@ -74,13 +77,7 @@ export const Dashboard = () => {
         params.append('q', searchQuery);
       }
 
-      const response = await fetch(`/api/items?${params.toString()}`);
-      if (!response.ok) {
-        console.error('Failed to fetch items:', response.statusText);
-        return { options: [], hasMore: false, additional: { offset } };
-      }
-
-      const apiResponse: { items: Item[]; total_count: number } = await response.json();
+      const apiResponse = await apiClient.get<{ items: Item[]; total_count: number }>(`/items?${params.toString()}`);
 
       const newOptions: ItemOption[] = apiResponse.items.map((item: Item) => ({
         value: item.id,
@@ -125,20 +122,39 @@ export const Dashboard = () => {
   };
 
   const statsToDisplay = [
-    { label: 'إضافات اليوم', value: stats.additionsToday.toString(), icon: <ArrowUpCircle className="text-primary-500" size={24} /> },
-    { label: 'مسحوبات اليوم', value: stats.withdrawalsToday.toString(), icon: <ArrowDownCircle className="text-error-500" size={24} /> },
+    {
+      label: 'إضافات اليوم',
+      value: stats.additionsToday.toString(),
+      icon: <ArrowUpCircle className="text-primary-500" size={24} />,
+      bgColor: 'bg-primary-100'
+    },
+    {
+      label: 'مسحوبات اليوم',
+      value: stats.withdrawalsToday.toString(),
+      icon: <ArrowDownCircle className="text-error-500" size={24} />,
+      bgColor: 'bg-error-100'
+    },
+    {
+      label: 'مرتجعات اليوم',
+      value: (stats.returnsToday ?? 0).toString(),
+      icon: <RotateCcw className="text-amber-600" size={24} />,
+      bgColor: 'bg-amber-100'
+    },
   ];
 
   // Helper function to format timestamp
   const formatTimeAgo = (isoTimestamp: string) => {
-    const date = new Date(isoTimestamp);
+    if (!isoTimestamp) return '';
+    const date = (isoTimestamp.endsWith('Z') || isoTimestamp.includes('+'))
+      ? new Date(isoTimestamp)
+      : new Date(isoTimestamp.replace(' ', 'T'));
     const now = new Date();
     const seconds = Math.round((now.getTime() - date.getTime()) / 1000);
     const minutes = Math.round(seconds / 60);
     const hours = Math.round(minutes / 60);
     const days = Math.round(hours / 24);
 
-    if (seconds < 60) return `منذ ${seconds} ثوان`;
+    if (seconds < 60) return `منذ ${Math.max(0, seconds)} ثوان`;
     if (minutes < 60) return `منذ ${minutes} دقائق`;
     if (hours < 24) return `منذ ${hours} ساعات`;
     return `منذ ${days} أيام`;
@@ -149,38 +165,50 @@ export const Dashboard = () => {
     let icon = <Activity size={18} className="text-gray-500 ml-3 rtl:mr-3 rtl:ml-0 flex-shrink-0" />;
     let text = `${log.action_type} for item ${log.item_name}`;
 
-    const byUser = log.person_name ? `بواسطة ${log.person_name}` : 'بواسطة النظام';
+    const actor = log.actor_name || log.person_name || 'بواسطة النظام';
+    const absQty = Math.abs(log.quantity_changed ?? 0);
 
     switch (log.action_type) {
-      case 'Addition':
+      case 'Addition': {
         icon = <ArrowUpCircle size={18} className="text-success-500 ml-3 rtl:mr-3 rtl:ml-0 flex-shrink-0" />;
-        text = `${log.person_name} أضاف ${log.quantity_changed} من ${log.item_name}`;
+        const refInfo = log.po_line_id ? ` (أمر شراء #${log.po_line_id})` : '';
+        text = `${actor} أضاف ${absQty} من "${log.item_name}"${refInfo}`;
         if (log.details && log.details.includes("created and initial quantity set")) {
           icon = <Archive size={18} className="text-primary-500 ml-3 rtl:mr-3 rtl:ml-0 flex-shrink-0" />;
           text = `تم إنشاء "${log.item_name}"`;
         }
         break;
-      case 'Removal':
+      }
+      case 'Removal': {
         icon = <ArrowDownCircle size={18} className="text-error-500 ml-3 rtl:mr-3 rtl:ml-0 flex-shrink-0" />;
-        text = `${log.person_name} سحب ${log.quantity_changed} من ${log.item_name}`;
+        const refInfo = log.leave_line_id ? ` (إذن #${log.leave_line_id})` : '';
+        text = `${actor} سحب ${absQty} من "${log.item_name}"${refInfo}`;
         break;
+      }
+      case 'Return': {
+        icon = <RotateCcw size={18} className="text-amber-600 ml-3 rtl:mr-3 rtl:ml-0 flex-shrink-0" />;
+        const refInfo = log.return_event_id ? ` (مرتجع #${log.return_event_id})` : log.leave_line_id ? ` (إذن #${log.leave_line_id})` : '';
+        text = `${actor} أرجع ${absQty} من "${log.item_name}"${refInfo}`;
+        break;
+      }
       case 'Update':
         icon = <Edit3 size={18} className="text-blue-500 ml-3 rtl:mr-3 rtl:ml-0 flex-shrink-0" />;
-        text = `تم تحديث بيانات "${log.item_name}". ${log.details ? `(${log.details})` : ''} ${byUser}.`;
+        text = `تم تحديث بيانات "${log.item_name}". ${log.details ? `(${log.details})` : ''} بواسطة ${actor}.`;
         break;
       case 'Status Changed to Active':
         icon = <Info size={18} className="text-green-500 ml-3 rtl:mr-3 rtl:ml-0 flex-shrink-0" />;
-        text = `تم تفعيل الصنف "${log.item_name}" ${byUser}.`;
+        text = `تم تفعيل الصنف "${log.item_name}" بواسطة ${actor}.`;
         break;
       case 'Status Changed to Inactive':
         icon = <AlertTriangle size={18} className="text-yellow-500 ml-3 rtl:mr-3 rtl:ml-0 flex-shrink-0" />;
-        text = `تم إلغاء تنشيط الصنف "${log.item_name}" ${byUser}.`;
+        text = `تم إلغاء تنشيط الصنف "${log.item_name}" بواسطة ${actor}.`;
         break;
       case 'Creation':
         icon = <PlusCircle size={18} className="text-primary-500 ml-3 rtl:mr-3 rtl:ml-0 flex-shrink-0" />;
+        text = `تم إنشاء "${log.item_name}" بواسطة ${actor}`;
         break;
       default:
-        text = `${log.action_type}: "${log.item_name}". ${log.details ? `(${log.details})` : ''} ${byUser}.`;
+        text = `${log.action_type}: "${log.item_name}". ${log.details ? `(${log.details})` : ''} بواسطة ${actor}.`;
     }
     return { icon, text };
   };
@@ -231,7 +259,7 @@ export const Dashboard = () => {
 
 
       {/* Stats Cards & Search */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-10">
         {/* Search Bar - Takes up 2 columns on desktop */}
         <div className="md:col-span-2 card p-5 flex flex-col justify-center shadow-sm">
           <label className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-2">
@@ -252,8 +280,7 @@ export const Dashboard = () => {
 
         {statsToDisplay.map((stat, index) => (
           <div key={index} className="card flex items-center p-5 shadow-sm hover:shadow-md transition-shadow">
-            <div className={`p-3 rounded-full ml-4 rtl:mr-4 rtl:ml-0 ${stat.label === 'إضافات اليوم' ? 'bg-primary-100' : 'bg-error-100'
-              }`}>
+            <div className={`p-3 rounded-full ml-4 rtl:mr-4 rtl:ml-0 ${stat.bgColor || 'bg-primary-100'}`}>
               {stat.icon}
             </div>
             <div>
@@ -267,17 +294,28 @@ export const Dashboard = () => {
       {/* Quick Actions Section */}
       <div className="mb-10">
         <h2 className="text-xl font-semibold mb-4 text-gray-700">إجراءات سريعة</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {canAdjustQuantity && (
+            <button
+              className="btn btn-primary btn-lg flex items-center justify-center py-4 px-6 text-base"
+              onClick={openScanner}
+            >
+              <ScanLine size={20} className="ml-2 rtl:mr-2 rtl:ml-0" />
+              قراءة الباركود
+            </button>
+          )}
+          {canManagePOs && (
+            <button
+              className="btn btn-primary btn-lg flex items-center justify-center py-4 px-6 text-base"
+              onClick={() => setActivePage('PurchaseOrders')}
+            >
+              <BarChart3 size={20} className="ml-2 rtl:mr-2 rtl:ml-0" />
+              أوامر الشراء
+            </button>
+          )}
           <button
             className="btn btn-primary btn-lg flex items-center justify-center py-4 px-6 text-base"
-            onClick={openScanner}
-          >
-            <ScanLine size={20} className="ml-2 rtl:mr-2 rtl:ml-0" />
-            قراءة الباركود
-          </button>
-          <button
-            className="btn btn-primary btn-lg flex items-center justify-center py-4 px-6 text-base"
-            onClick={() => setActivePage('logs')}
+            onClick={() => setActivePage('Logs')}
           >
             <BarChart3 size={20} className="ml-2 rtl:mr-2 rtl:ml-0" />
             عرض سجل الحركات
@@ -325,8 +363,7 @@ export const Dashboard = () => {
                   href="#"
                   onClick={(e) => {
                     e.preventDefault();
-                    setActivePage('logs');
-
+                    setActivePage('Logs');
                   }}
                   className="text-primary-600 hover:text-primary-700 text-sm font-medium"
                 >
@@ -339,12 +376,14 @@ export const Dashboard = () => {
       </div>
 
       {/* AddItemModal Render */}
-      <AddItemModal
-        isOpen={isAddItemModalOpen}
-        onClose={() => setIsAddItemModalOpen(false)}
-        units={dashboardUnits}
-        onItemAdded={handleItemAdded}
-      />
+      {canMutateItems && isAddItemModalOpen && (
+        <AddItemModal
+          isOpen={isAddItemModalOpen}
+          onClose={() => setIsAddItemModalOpen(false)}
+          units={dashboardUnits}
+          onItemAdded={handleItemAdded}
+        />
+      )}
     </div >
   );
 };

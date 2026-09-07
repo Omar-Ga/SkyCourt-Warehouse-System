@@ -121,6 +121,33 @@ def has_movement_logs(cursor, item_id):
     cursor.execute("SELECT 1 FROM movement_logs WHERE item_id = ? LIMIT 1", (item_id,))
     return cursor.fetchone() is not None
 
+def has_unresolved_orders(cursor, item_id: int) -> bool:
+    """Checks if an item is referenced by open purchase orders or active leave orders with unreturned stock."""
+    cursor.execute(
+        """
+        SELECT 1 FROM purchase_order_items poi
+        JOIN purchase_orders po ON poi.po_id = po.id
+        WHERE poi.item_id = ? AND po.status = 'open'
+        LIMIT 1
+        """,
+        (item_id,)
+    )
+    if cursor.fetchone():
+        return True
+
+    cursor.execute(
+        """
+        SELECT 1 FROM leave_order_items loi
+        WHERE loi.item_id = ? AND (loi.quantity - loi.returned_quantity) > 0
+        LIMIT 1
+        """,
+        (item_id,)
+    )
+    if cursor.fetchone():
+        return True
+
+    return False
+
 def update_item_details(cursor, item_id, name, unit_id, sub_category_id, barcode):
     """Updates basic item details."""
     cursor.execute("UPDATE items SET name = ?, unit_id = ?, sub_category_id = ?, barcode = ? WHERE id = ?",
@@ -129,3 +156,52 @@ def update_item_details(cursor, item_id, name, unit_id, sub_category_id, barcode
 def update_quantity(cursor, item_id, new_quantity):
     """Updates item quantity directly."""
     cursor.execute("UPDATE items SET current_quantity = ? WHERE id = ?", (new_quantity, item_id))
+
+def add_item_quantity_conditional(cursor, item_id: int, amount: int, active_only: bool = True) -> int:
+    """
+    Atomically adds quantity to an item.
+    Returns new balance if successful, raises ValueError if item not eligible.
+    """
+    if active_only:
+        cursor.execute(
+            "UPDATE items SET current_quantity = current_quantity + ? WHERE id = ? AND status = 'active'",
+            (amount, item_id)
+        )
+    else:
+        cursor.execute(
+            "UPDATE items SET current_quantity = current_quantity + ? WHERE id = ?",
+            (amount, item_id)
+        )
+    if cursor.rowcount == 0:
+        cursor.execute("SELECT id, status FROM items WHERE id = ?", (item_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise ValueError(f"Item with ID {item_id} does not exist.")
+        status = row["status"] if hasattr(row, "__getitem__") and "status" in row else row[1]
+        raise ValueError(f"Item '{item_id}' is {status}, cannot adjust quantity.")
+
+    cursor.execute("SELECT current_quantity FROM items WHERE id = ?", (item_id,))
+    return cursor.fetchone()[0]
+
+def subtract_item_quantity_conditional(cursor, item_id: int, amount: int) -> int:
+    """
+    Atomically subtracts quantity from an active item if sufficient stock exists.
+    Returns new balance if successful, raises ValueError if item not found, inactive, or insufficient stock.
+    """
+    cursor.execute(
+        "UPDATE items SET current_quantity = current_quantity - ? WHERE id = ? AND status = 'active' AND current_quantity >= ?",
+        (amount, item_id, amount)
+    )
+    if cursor.rowcount == 0:
+        cursor.execute("SELECT id, status, current_quantity FROM items WHERE id = ?", (item_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise ValueError(f"Item with ID {item_id} does not exist.")
+        status = row["status"] if hasattr(row, "__getitem__") and "status" in row else row[1]
+        if status != "active":
+            raise ValueError(f"Cannot deduct stock: item '{item_id}' is {status}.")
+        curr_qty = row["current_quantity"] if hasattr(row, "__getitem__") and "current_quantity" in row else row[2]
+        raise ValueError(f"Insufficient stock for item '{item_id}': available {curr_qty}, requested {amount}.")
+
+    cursor.execute("SELECT current_quantity FROM items WHERE id = ?", (item_id,))
+    return cursor.fetchone()[0]

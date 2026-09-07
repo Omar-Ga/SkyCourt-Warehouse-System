@@ -43,6 +43,10 @@ export type MovementLogEntry = {
   person_name?: string | null;
   destination_name?: string | null; // For removals
   timestamp: string; // ISO date string
+  actor_name?: string | null;
+  po_line_id?: number | null;
+  leave_line_id?: number | null;
+  return_event_id?: number | null;
 };
 
 export type Provider = {

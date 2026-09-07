@@ -53,8 +53,7 @@ UI/dist-ssr/
 /Docs,Prd,Task/
 
 # Test files
-
-
+.pytest_cache/
 # Database files
 *.db
 
@@ -62,3 +61,11 @@ UI/dist-ssr/
 .vite/
 .next/
 .cache/
+*.tsbuildinfo
+
+# Documentation
+docs/
+
+# Graphify
+graphify-out/
+.graphifyignore

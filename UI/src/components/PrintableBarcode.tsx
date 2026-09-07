@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { apiClient } from '../services/apiClient';
 
 type PrintableBarcodeProps = {
   barcodeValue: string;
@@ -6,9 +7,18 @@ type PrintableBarcodeProps = {
   onClose: () => void;
 };
 
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 export const PrintableBarcode = ({ barcodeValue, isOpen, onClose }: PrintableBarcodeProps) => {
-  const barcodeUrl = `/api/backup/barcode/${barcodeValue}`;
   const printStarted = useRef(false);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -19,23 +29,21 @@ export const PrintableBarcode = ({ barcodeValue, isOpen, onClose }: PrintableBar
     if (isOpen && !printStarted.current) {
       printStarted.current = true;
 
-      // Fetch the barcode data first
-      fetch(`/api/items/generate-barcode/${barcodeValue}`)
-        .then(response => {
-          if (!response.ok) {
-            throw new Error('Failed to fetch barcode data');
-          }
-          return response.json();
-        })
+      // Fetch the barcode data first using apiClient
+      apiClient.get<{ imageData: string; imageFormat: string }>(
+        `/items/generate-barcode/${encodeURIComponent(barcodeValue)}`
+      )
         .then(data => {
           if (!data.imageData) {
             throw new Error('Invalid barcode data received');
           }
 
           const imageUrl = `data:image/${data.imageFormat};base64,${data.imageData}`;
+          const escapedBarcode = escapeHtml(barcodeValue);
 
           // Now create the iframe and print
           const iframe = document.createElement('iframe');
+          iframeRef.current = iframe;
           iframe.style.position = 'absolute';
           iframe.style.width = '0';
           iframe.style.height = '0';
@@ -58,7 +66,7 @@ export const PrintableBarcode = ({ barcodeValue, isOpen, onClose }: PrintableBar
                 </head>
                 <body>
                   <div class="printable-area">
-                    <img src="${imageUrl}" alt="Barcode for ${barcodeValue}" />
+                    <img src="${escapeHtml(imageUrl)}" alt="Barcode for ${escapedBarcode}" />
                   </div>
                 </body>
               </html>
@@ -73,13 +81,14 @@ export const PrintableBarcode = ({ barcodeValue, isOpen, onClose }: PrintableBar
               if (iframe.parentNode) {
                 iframe.parentNode.removeChild(iframe);
               }
+              iframeRef.current = null;
               onClose();
             };
 
             const printImage = doc.querySelector('img');
             if (printImage) {
               if (printImage.complete) {
-                setTimeout(printAndCleanup, 100); // Give a slight delay for rendering
+                setTimeout(printAndCleanup, 100);
               } else {
                 printImage.onload = printAndCleanup;
                 printImage.onerror = () => {
@@ -97,7 +106,14 @@ export const PrintableBarcode = ({ barcodeValue, isOpen, onClose }: PrintableBar
           onClose(); // Close the modal on error
         });
     }
-  }, [isOpen, onClose, barcodeValue, barcodeUrl]);
+
+    return () => {
+      if (iframeRef.current && iframeRef.current.parentNode) {
+        iframeRef.current.parentNode.removeChild(iframeRef.current);
+        iframeRef.current = null;
+      }
+    };
+  }, [isOpen, onClose, barcodeValue]);
 
   return null;
 };

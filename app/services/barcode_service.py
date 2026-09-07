@@ -10,18 +10,30 @@ def get_resource_path(relative_path):
     if getattr(sys, 'frozen', False):
         base_path = sys._MEIPASS
     else:
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        candidate = os.path.join(app_dir, relative_path)
+        if os.path.exists(candidate):
+            return candidate
+        root_dir = os.path.dirname(app_dir)
+        candidate = os.path.join(root_dir, relative_path)
+        if os.path.exists(candidate):
+            return candidate
         base_path = os.path.abspath(".")
-    
-    return os.path.join(base_path, relative_path)
+
+    direct = os.path.join(base_path, relative_path)
+    if os.path.exists(direct):
+        return direct
+    app_rel = os.path.join(base_path, 'app', relative_path)
+    if os.path.exists(app_rel):
+        return app_rel
+    return direct
 
 def generate_barcode_base64(barcode_value):
     """
     Generates a barcode image for the given value and returns a dictionary with the base64 string.
     """
     try:
-        # Define the font path
         font_path = get_resource_path(os.path.join('assets', 'arial.ttf'))
-
         Code128 = barcode.get_barcode_class('code128')
         code128 = Code128(barcode_value, writer=ImageWriter())
         

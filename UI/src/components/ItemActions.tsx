@@ -1,6 +1,7 @@
 import React from 'react';
 import { Pencil, SlidersHorizontal, ToggleLeft, ToggleRight } from 'lucide-react';
 import { Item } from '../types';
+import { useCapabilities } from '../hooks/useCapabilities';
 
 interface ItemActionsProps {
   item: Item;
@@ -10,6 +11,13 @@ interface ItemActionsProps {
 }
 
 export const ItemActions: React.FC<ItemActionsProps> = ({ item, onAdjust, onEdit, onToggleStatus }) => {
+  const { canMutateItems } = useCapabilities();
+
+  // Office cannot render or invoke item actions
+  if (!canMutateItems) {
+    return null;
+  }
+
   const handleActionClick = (e: React.MouseEvent, action: () => void) => {
     e.stopPropagation(); // Prevent row click event
     action();

@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { ArrowUp, ArrowDown, User, Loader2 } from 'lucide-react';
 import { Item, Destination, Provider } from '../types'; // Import shared types
+import { apiClient, generateIdempotencyKey } from '../services/apiClient';
+import { useCapabilities } from '../hooks/useCapabilities';
 
 type AdjustQuantityModalProps = {
   isOpen: boolean;
@@ -12,6 +14,9 @@ type AdjustQuantityModalProps = {
 };
 
 export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: AdjustQuantityModalProps) => {
+  const { canAdjustQuantity } = useCapabilities();
+  if (!canAdjustQuantity) return null;
+
   const [quantity, setQuantity] = useState('');
   const [cost, setCost] = useState('');
   const [personName, setPersonName] = useState('');
@@ -53,11 +58,7 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
     setDestinationsLoading(true);
     setDestinationsError(null);
     try {
-      const response = await fetch('/api/destinations');
-      if (!response.ok) {
-        throw new Error('Failed to fetch destinations');
-      }
-      const data: Destination[] = await response.json();
+      const data = await apiClient.get<Destination[]>('/destinations');
       setDestinations(data);
     } catch (error: any) {
       setDestinationsError(error.message);
@@ -71,11 +72,7 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
     setProvidersLoading(true);
     setProvidersError(null);
     try {
-      const response = await fetch('/api/providers');
-      if (!response.ok) {
-        throw new Error('Failed to fetch providers');
-      }
-      const data: Provider[] = await response.json();
+      const data = await apiClient.get<Provider[]>('/providers');
       setProviders(data);
     } catch (error: any) {
       setProvidersError(error.message);
@@ -116,6 +113,7 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
   };
 
   const handleSubmit = (currentAction: 'add' | 'remove') => {
+    if (isSaving) return;
     if (!validate(currentAction)) {
       return;
     }
@@ -146,20 +144,15 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
 
     console.log(`API CALL (${apiAdjustmentType} Stock):`, `/api/items/${item.id}/adjust`, finalPayload);
 
-    fetch(`/api/items/${item.id}/adjust`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(finalPayload),
+    const idempotencyKey = generateIdempotencyKey();
+    apiClient.post(`/items/${item.id}/adjust`, finalPayload, {
+      headers: { 'Idempotency-Key': idempotencyKey }
     })
-      .then(async response => {
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ message: 'An unknown error occurred' }));
-          throw new Error(errorData.message || errorData.error || `Failed to ${apiAdjustmentType} stock`);
-        }
+      .then(() => {
         onItemAdjusted();
         onClose();
       })
-      .catch(apiError => {
+      .catch((apiError: any) => {
         console.error(`Failed to ${apiAdjustmentType} stock:`, apiError);
         setErrors(prevErrors => ({ ...prevErrors, api: apiError.message }));
         setIsSaving(false);

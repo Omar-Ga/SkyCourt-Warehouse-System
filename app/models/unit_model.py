@@ -62,13 +62,23 @@ def update_unit(unit_id: int, name: str) -> dict | None:
         raise e
 
 def is_unit_in_use(unit_id: int) -> bool:
-    """Checks if a unit is currently assigned to any item."""
+    """Checks if a unit is currently assigned to any item or order line."""
     db = get_db()
     cursor = db.cursor()
     
     cursor.execute("SELECT 1 FROM items WHERE unit_id = ? LIMIT 1", (unit_id,))
-    row = cursor.fetchone()
-    return bool(row)
+    if cursor.fetchone():
+        return True
+
+    cursor.execute("SELECT 1 FROM purchase_order_items WHERE unit_id = ? LIMIT 1", (unit_id,))
+    if cursor.fetchone():
+        return True
+
+    cursor.execute("SELECT 1 FROM leave_order_items WHERE unit_id = ? LIMIT 1", (unit_id,))
+    if cursor.fetchone():
+        return True
+
+    return False
 
 def delete_unit(unit_id: int) -> bool:
     """Deletes a unit by its ID.

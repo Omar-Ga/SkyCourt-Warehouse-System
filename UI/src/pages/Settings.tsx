@@ -1,9 +1,9 @@
 
 import { Monitor, FileText, AlertTriangle } from 'lucide-react';
-
+import { useSyncStatus } from '../hooks/useSyncStatus';
 
 export const Settings = () => {
-
+  const { data: syncStatus = { connected: false, mode: 'cloud' } } = useSyncStatus();
 
   return (
     <div>
@@ -11,7 +11,6 @@ export const Settings = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Backup Section */}
-
 
         {/* Application Info Section */}
         <div className="card">
@@ -35,8 +34,34 @@ export const Settings = () => {
               <span className="font-medium">13 يوليو 2025</span>
             </li>
             <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
-              <span className="text-gray-500">قاعدة البيانات:</span>
-              <span className="font-medium">SQLite 3</span>
+              <span className="text-gray-500">وضع قاعدة البيانات:</span>
+              <span className="font-medium">
+                {syncStatus.mode === 'cloud' ? 'سحابي (Cloud)' : syncStatus.mode === 'offline' ? 'غير متصل (Offline)' : syncStatus.mode === 'local' ? 'محلي (Local)' : syncStatus.mode}
+              </span>
+            </li>
+            <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+              <span className="text-gray-500">حالة الاتصال:</span>
+              <span className={`font-medium ${syncStatus.connected ? 'text-green-600' : 'text-red-600'}`}>
+                {syncStatus.connected ? 'متصل بقاعدة البيانات' : (syncStatus.last_error ? `تعذر الاتصال (${syncStatus.last_error})` : 'غير متصل')}
+              </span>
+            </li>
+            <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+              <span className="text-gray-500">آخر تحديث / مزامنة:</span>
+              <span className="font-medium text-gray-700">
+                {syncStatus.last_synced_at ? new Date(syncStatus.last_synced_at).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' }) : 'حسب الطلب'}
+              </span>
+            </li>
+            {syncStatus.revision && (
+              <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+                <span className="text-gray-500">مراجعة قاعدة البيانات:</span>
+                <span className="font-mono text-xs font-semibold text-primary-700">#{syncStatus.revision}</span>
+              </li>
+            )}
+            <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
+              <span className="text-gray-500">محرك وإصدار قاعدة البيانات:</span>
+              <span className="font-medium">
+                {syncStatus.engine || 'SQLite'} {syncStatus.version && syncStatus.version !== 'Unknown' ? `(v${syncStatus.version})` : ''}
+              </span>
             </li>
             <li className="flex justify-between items-center text-sm">
               <span className="text-gray-500">لغة الواجهة:</span>

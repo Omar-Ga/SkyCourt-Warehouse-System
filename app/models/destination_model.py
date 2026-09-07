@@ -52,11 +52,18 @@ def update_destination(destination_id: int, name: str) -> dict | None:
         raise e
 
 def is_destination_in_use(destination_id: int) -> bool:
-    """Checks if a destination is currently used in any movement logs."""
+    """Checks if a destination is currently used in any movement logs or leave orders."""
     db = get_db()
     cursor = db.cursor()
     cursor.execute("SELECT 1 FROM movement_logs WHERE destination_id = ? LIMIT 1", (destination_id,))
-    return bool(cursor.fetchone())
+    if cursor.fetchone():
+        return True
+
+    cursor.execute("SELECT 1 FROM leave_orders WHERE destination_id = ? LIMIT 1", (destination_id,))
+    if cursor.fetchone():
+        return True
+
+    return False
 
 def delete_destination(destination_id: int) -> bool:
     """Deletes a destination by its ID."""

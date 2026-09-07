@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Filter, ArrowDown, ArrowUp, Package, User, Trash2 } from 'lucide-react';
+import { Filter, ArrowDown, ArrowUp, Package, User, Trash2, RotateCcw } from 'lucide-react';
 import { Table } from '../components/Table';
 import { AsyncPaginate, LoadOptions } from 'react-select-async-paginate';
 import type { GroupBase, OptionsOrGroups } from 'react-select';
@@ -8,6 +8,9 @@ import { PrintReportButton } from '../components/PrintReportButton';
 import { useDestinations, useProviders } from '../hooks/useMetadata';
 import { useMovementLogs, FetchLogsParams, LogsResponse } from '../hooks/useMovementLogs';
 import { UseQueryResult } from '@tanstack/react-query';
+import { apiClient } from '../services/apiClient';
+
+import { formatMovementTimestamp } from '../services/statsService';
 
 // Define ItemOption for react-select-async-paginate
 interface ItemOption {
@@ -25,24 +28,13 @@ const ITEMS_PER_PAGE = 50; // Page size for fetching items
 
 const AsyncPaginateComponent = AsyncPaginate as any; // Workaround for TS2786
 
-// Helper to format date for display
 const formatDate = (dateString: string) => {
-  const date = new Date(dateString);
-  const formattedDate = date.toLocaleDateString('ar-EG', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-  const formattedTime = date.toLocaleTimeString('en-GB', { // en-GB for HH:MM:SS typically
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  });
+  if (!dateString) return <span className="text-gray-400">-</span>;
+  const { displayDate, displayTime } = formatMovementTimestamp(dateString);
   return (
     <div className="flex flex-col">
-      <span>{formattedDate}</span>
-      <span className="text-xs text-gray-500 mt-1">{formattedTime}</span>
+      <span>{displayDate}</span>
+      <span className="text-xs text-gray-500 mt-1">{displayTime}</span>
     </div>
   );
 };
@@ -55,6 +47,7 @@ export const MovementLog = () => {
     item_id: '',
     provider_id: '',
     destination_id: '',
+    action_type: '',
   });
   const [activeFilters, setActiveFilters] = useState<FetchLogsParams>({});
   const [selectedItemOption, setSelectedItemOption] = useState<ItemOption | null>(null);
@@ -108,13 +101,7 @@ export const MovementLog = () => {
         params.append('q', searchQuery);
       }
 
-      const response = await fetch(`/api/items?${params.toString()}`);
-      if (!response.ok) {
-        console.error('Failed to fetch items:', response.statusText);
-        return { options: [], hasMore: false, additional: { offset } };
-      }
-
-      const apiResponse: { items: SharedItem[]; total_count: number } = await response.json();
+      const apiResponse = await apiClient.get<{ items: SharedItem[]; total_count: number }>(`/items?${params.toString()}`);
 
       const newOptions: ItemOption[] = apiResponse.items.map((item: SharedItem) => ({
         value: item.id,
@@ -156,6 +143,7 @@ export const MovementLog = () => {
       item_id: '',
       provider_id: '',
       destination_id: '',
+      action_type: '',
     });
     setSelectedItemOption(null);
     setFiltersApplied(false);
@@ -172,17 +160,33 @@ export const MovementLog = () => {
     {
       key: 'item_name',
       header: 'الصنف',
-      render: (value: string, row: MovementLogEntry) => (
-        <div>
-          <div className="flex items-center">
-            <div className="p-1 rounded-full bg-primary-100 text-primary-600 mr-2 rtl:ml-2 rtl:mr-0">
-              <Package size={16} />
+      render: (value: string, row: MovementLogEntry) => {
+        const reference = row.return_event_id
+          ? `مرتجع #${row.return_event_id}`
+          : row.leave_line_id
+          ? `إذن صرف #${row.leave_line_id}`
+          : row.po_line_id
+          ? `أمر شراء #${row.po_line_id}`
+          : null;
+        return (
+          <div>
+            <div className="flex items-center">
+              <div className="p-1 rounded-full bg-primary-100 text-primary-600 mr-2 rtl:ml-2 rtl:mr-0">
+                <Package size={16} />
+              </div>
+              <span className="font-medium">{value}</span>
             </div>
-            <span className="font-medium">{value}</span>
+            <div className="flex items-center gap-2 text-xs text-gray-500 ml-8 rtl:mr-8 rtl:ml-0">
+              <span>#{row.item_id}</span>
+              {reference && (
+                <span className="bg-gray-100 text-gray-700 px-1.5 py-0.5 rounded text-[11px] font-medium">
+                  {reference}
+                </span>
+              )}
+            </div>
           </div>
-          <span className="text-xs text-gray-500 ml-8 rtl:mr-8 rtl:ml-0">#{row.item_id}</span>
-        </div>
-      ),
+        );
+      },
       width: 'w-2/12 md:w-1/4'
     },
     {
@@ -191,16 +195,23 @@ export const MovementLog = () => {
       render: (value: string) => {
         if (value === 'Addition') {
           return (
-            <div className="flex items-center text-success-600">
+            <div className="flex items-center text-success-600 font-medium">
               <ArrowUp size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
               <span>إضافة</span>
             </div>
           );
         } else if (value === 'Removal') {
           return (
-            <div className="flex items-center text-error-600">
+            <div className="flex items-center text-error-600 font-medium">
               <ArrowDown size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
               <span>سحب</span>
+            </div>
+          );
+        } else if (value === 'Return') {
+          return (
+            <div className="flex items-center text-amber-600 font-medium">
+              <RotateCcw size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
+              <span>مرتجع</span>
             </div>
           );
         } else {
@@ -212,21 +223,23 @@ export const MovementLog = () => {
     {
       key: 'person_name',
       header: 'بواسطة',
-      render: (value: string | null | undefined) =>
-        value ? (
+      render: (value: string | null | undefined, row: MovementLogEntry) => {
+        const actor = row.actor_name || value;
+        return actor ? (
           <div className="flex items-center text-sm text-gray-600">
             <User size={14} className="mr-1 rtl:ml-1 rtl:mr-0 text-gray-400" />
-            {value}
+            {actor}
           </div>
         ) : (
           <span className="text-xs text-gray-400">غير محدد</span>
-        ),
+        );
+      },
       width: 'w-1/12 md:w-1/6'
     },
     {
       key: 'quantity_changed',
       header: 'الكمية',
-      render: (value?: number | null) => value ?? '-',
+      render: (value?: number | null) => (value !== null && value !== undefined ? Math.abs(value) : '-'),
       width: 'w-1/12 md:w-1/12'
     },
     {
@@ -285,6 +298,23 @@ export const MovementLog = () => {
               onChange={handleInputChange}
               className="input input-bordered w-full"
             />
+          </div>
+
+          {/* Action Type Filter */}
+          <div className="flex-grow md:flex-grow-0">
+            <label htmlFor="actionType" className="text-sm font-medium text-gray-600 mb-1 block">نوع الحركة</label>
+            <select
+              id="actionType"
+              name="actionType"
+              value={filters.action_type || ''}
+              onChange={(e) => setFilters(prev => ({ ...prev, action_type: e.target.value }))}
+              className="input input-bordered w-full"
+            >
+              <option value="">الكل</option>
+              <option value="Addition">إضافة</option>
+              <option value="Removal">سحب</option>
+              <option value="Return">مرتجع</option>
+            </select>
           </div>
 
           {/* Item Select */}
@@ -352,11 +382,12 @@ export const MovementLog = () => {
             </button>
             <PrintReportButton
               filters={{
-                fromDate: filters.date_from || '',
-                toDate: filters.date_to || '',
-                itemId: filters.item_id || '',
-                providerId: filters.provider_id || '',
-                destinationId: filters.destination_id || ''
+                fromDate: activeFilters.date_from || '',
+                toDate: activeFilters.date_to || '',
+                itemId: activeFilters.item_id || '',
+                providerId: activeFilters.provider_id || '',
+                destinationId: activeFilters.destination_id || '',
+                actionType: activeFilters.action_type || ''
               }}
               disabled={!filtersApplied || logs.length === 0}
             />
