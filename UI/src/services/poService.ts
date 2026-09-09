@@ -18,7 +18,8 @@ export interface PurchaseOrderItem {
   line_description: string;
   ordered_quantity: number;
   received_quantity?: number | null;
-  disposition: 'pending' | 'received' | 'struck_off';
+  requested_quantity: number;
+  disposition?: 'pending' | 'received' | 'struck_off';
   unit_price: string;
   unit_price_minor: number;
   line_total: string;
@@ -29,17 +30,17 @@ export interface PurchaseOrderItem {
 export interface PurchaseOrderSummary {
   id: number;
   po_number: string;
-  barcode: string;
   provider_id: number;
   provider_name: string;
-  status: 'open' | 'closed' | 'void' | 'expired';
+  status: 'draft' | 'open' | 'closed' | 'void' | 'expired';
   db_status: string;
   is_expired: boolean;
   notes?: string | null;
   created_by: number;
   creator_name?: string | null;
   created_at: string;
-  expires_at: string;
+  expires_at?: string | null;
+  dispatched_at?: string | null;
   revision: number;
   received_by?: number | null;
   receiver_name?: string | null;
@@ -74,7 +75,8 @@ export interface PaginatedPurchaseOrders {
 
 export interface CreatePOItemInput {
   item_id: number;
-  quantity: number;
+  requested_quantity: number;
+  ordered_quantity: number;
   unit_price: string;
   line_description?: string;
 }
@@ -90,15 +92,8 @@ export interface VoidPOInput {
   reason: string;
 }
 
-export interface ReceivePOItemInput {
-  line_id: number;
-  received_quantity: number;
-  disposition: 'received' | 'struck_off';
-}
-
 export interface ReceivePOInput {
   expected_revision: number;
-  items: ReceivePOItemInput[];
 }
 
 export interface AffectedBalance {
@@ -111,12 +106,6 @@ export interface AffectedBalance {
 
 export interface ReceivePOResponse extends PurchaseOrderDetail {
   affected_balances: AffectedBalance[];
-}
-
-export interface BarcodeResponse {
-  barcodeValue: string;
-  imageData: string;
-  imageFormat: string;
 }
 
 export const getPurchaseOrders = async (params?: {
@@ -137,14 +126,6 @@ export const getPurchaseOrders = async (params?: {
 
 export const getPurchaseOrderDetail = async (id: number): Promise<PurchaseOrderDetail> => {
   return apiClient.get<PurchaseOrderDetail>(`/purchase-orders/${id}`);
-};
-
-export const getPurchaseOrderByBarcode = async (barcode: string): Promise<PurchaseOrderDetail> => {
-  return apiClient.get<PurchaseOrderDetail>(`/purchase-orders/by-barcode/${encodeURIComponent(barcode)}`);
-};
-
-export const getPurchaseOrderBarcode = async (id: number): Promise<BarcodeResponse> => {
-  return apiClient.get<BarcodeResponse>(`/purchase-orders/${id}/barcode`);
 };
 
 export const createPurchaseOrder = async (
@@ -179,3 +160,23 @@ export const receivePurchaseOrder = async (
   });
 };
 
+export interface EditPOInput extends Omit<CreatePOInput, 'items'> {
+  expected_revision: number;
+  items: CreatePOItemInput[];
+}
+
+export const editPurchaseOrder = async (
+  id: number,
+  input: EditPOInput,
+  idempotencyKey: string = crypto.randomUUID()
+): Promise<PurchaseOrderDetail> => apiClient.put<PurchaseOrderDetail>(`/purchase-orders/${id}`, input, {
+  headers: { 'Idempotency-Key': idempotencyKey }
+});
+
+export const dispatchPurchaseOrder = async (
+  id: number,
+  expected_revision: number,
+  idempotencyKey: string = crypto.randomUUID()
+): Promise<PurchaseOrderDetail> => apiClient.post<PurchaseOrderDetail>(`/purchase-orders/${id}/dispatch`, { expected_revision }, {
+  headers: { 'Idempotency-Key': idempotencyKey }
+});

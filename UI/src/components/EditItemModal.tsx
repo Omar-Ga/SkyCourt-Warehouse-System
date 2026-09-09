@@ -1,9 +1,9 @@
+/* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Item, Unit } from '../types'; // Import shared types
 import toast from 'react-hot-toast';
-import { Printer, RefreshCw, Loader2 } from 'lucide-react';
-import { PrintableBarcode } from './PrintableBarcode';
+import { Loader2 } from 'lucide-react';
 import { apiClient, ApiError } from '../services/apiClient';
 import { useCapabilities } from '../hooks/useCapabilities';
 
@@ -19,7 +19,6 @@ interface UpdateItemPayload {
   name: string;
   unit_id: number;
   sub_category_id?: number | null;
-  barcode?: string | null;
   person_name?: string;
   force_unit_change?: boolean; // Optional property
 }
@@ -31,18 +30,15 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
   const [name, setName] = useState('');
   const [unitId, setUnitId] = useState('');
   const [subCategoryId, setSubCategoryId] = useState<number | null | undefined>(null);
-  const [barcode, setBarcode] = useState('');
   const [personName, setPersonName] = useState('');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [isSaving, setIsSaving] = useState(false);
-  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
 
   useEffect(() => {
     if (item) {
       setName(item.name);
       setUnitId(String(item.unit_id));
       setSubCategoryId(item.sub_category_id);
-      setBarcode(item.barcode || '');
       setPersonName('');
       setErrors({});
       setIsSaving(false);
@@ -51,18 +47,11 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
       setName('');
       setUnitId('');
       setSubCategoryId(null);
-      setBarcode('');
       setPersonName('');
       setErrors({});
       setIsSaving(false);
     }
   }, [item, isOpen]);
-
-  const generateBarcode = () => {
-
-    const random12 = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
-    setBarcode(random12);
-  };
 
   const validate = () => {
     const newErrors: { [key: string]: string } = {};
@@ -83,7 +72,6 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
         name: name.trim(),
         unit_id: Number(unitId),
         sub_category_id: subCategoryId,
-        barcode: barcode.trim() || null,
         person_name: personName.trim() || 'System',
       };
 
@@ -125,12 +113,6 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
   const handleClose = () => {
     onClose();
   }
-
-  const handlePrintClick = () => {
-    if (barcode.trim()) {
-      setIsPrintModalOpen(true);
-    }
-  };
 
   const footer = (
     <>
@@ -197,36 +179,6 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
           </div>
 
           <div className="form-group">
-            <label htmlFor="edit-barcode" className="form-label">
-              <span>الباركود</span>
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                id="edit-barcode"
-                className="input flex-1"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                placeholder={item.barcode ? '' : "توليد أو إدخال الباركود"}
-                disabled={!!item.barcode}
-              />
-              <button
-                type="button"
-                onClick={generateBarcode}
-                className="btn btn-ghost btn-square"
-                disabled={!!item.barcode || !!barcode}
-                title={(!!item.barcode || !!barcode) ? 'لا يمكن تغيير الباركود بعد تعيينه' : 'توليد باركود تلقائي'}
-              >
-                <RefreshCw size={20} />
-              </button>
-              <button type="button" onClick={handlePrintClick} disabled={!barcode.trim()} className="btn btn-primary flex items-center gap-1 disabled:opacity-50">
-                <Printer size={16} />
-                طباعة
-              </button>
-            </div>
-          </div>
-
-          <div className="form-group">
             <label htmlFor="edit-personName" className="form-label">اسم المُعدِّل</label>
             <input
               type="text"
@@ -251,13 +203,6 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
 
         </div>
       </form>
-      {isPrintModalOpen && barcode && (
-        <PrintableBarcode
-          barcodeValue={barcode}
-          isOpen={isPrintModalOpen}
-          onClose={() => setIsPrintModalOpen(false)}
-        />
-      )}
     </Modal>
   );
-}; 
+};

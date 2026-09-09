@@ -1,6 +1,6 @@
 # SkyCourt Warehouse System
 
-A modern, efficient warehouse management system built with a React frontend and a Python (Flask) backend. Designed for seamless inventory tracking, barcode generation, and movement logging.
+A modern, efficient warehouse management system built with a React frontend and a Python (Flask) backend. Designed for digital inventory tracking, two-operator order workflows, and movement logging.
 
 ## 🚀 Features
 
@@ -8,7 +8,7 @@ A modern, efficient warehouse management system built with a React frontend and 
 - **Categorization:** Organize items by categories for better searchability and management.
 - **Metadata Management:** Manage destinations, providers, and units to keep your data consistent.
 - **Movement Logs:** Detailed history of all item movements and quantity changes.
-- **Barcode Integration:** Generate and print barcodes for items; support for barcode scanning.
+- **Two-Operator Workflows:** Office reservations and purchase-order drafts are dispatched to Warehouse for physical fulfillment and receipt.
 - **Reporting:** Generate printable reports for inventory and logs.
 - **Modern UI:** Responsive and intuitive interface built with React, Tailwind CSS, and Lucide icons.
 - **Desktop Ready:** Integrated with `pywebview` for a native desktop application experience.
@@ -27,7 +27,6 @@ A modern, efficient warehouse management system built with a React frontend and 
 - **Framework:** Python (Flask)
 - **Database:** SQLite / LibSQL
 - **Desktop Integration:** pywebview
-- **Barcode Generation:** python-barcode
 
 ## 📋 Prerequisites
 

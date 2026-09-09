@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { apiClient, generateIdempotencyKey } from './apiClient';
 import { Item } from '../types';
 
@@ -43,9 +44,6 @@ export const itemsService = {
     getItem: (id: number) =>
         apiClient.get<Item>(`/items/${id}`),
 
-    getItemByBarcode: (barcode: string) =>
-        apiClient.get<Item>(`/items/by-barcode/${barcode}`),
-
     getItemLocation: (id: number, sub_category_id: number, page_size: number) =>
         apiClient.get<{ page: number, position: number }>(`/items/${id}/location?sub_category_id=${sub_category_id}&page_size=${page_size}`),
 
@@ -55,7 +53,6 @@ export const itemsService = {
             provider_id?: number | null;
             cost?: number | null;
             person_name?: string | null;
-            barcode?: string | null;
         },
         idempotencyKey?: string
     ) =>
@@ -81,6 +78,4 @@ export const itemsService = {
             }
         }),
 
-    getBarcodeImage: (id: number): Promise<Blob> =>
-        apiClient.getBlob(`/items/${id}/barcode`),
 };

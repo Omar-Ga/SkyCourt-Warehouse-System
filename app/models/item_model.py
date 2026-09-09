@@ -16,9 +16,9 @@ def get_items_paginated(page=1, page_size=10, search_term=None, sub_category_id=
     params = []
 
     if search_term:
-        where_clauses.append("(i.name LIKE ? OR i.id LIKE ? OR i.barcode LIKE ?)")
+        where_clauses.append("(i.name LIKE ? OR CAST(i.id AS TEXT) LIKE ?)")
         search_like = f"%{search_term}%"
-        params.extend([search_like, search_like, search_like])
+        params.extend([search_like, search_like])
     
     if sub_category_id is not None:
         where_clauses.append("i.sub_category_id = ?")
@@ -30,7 +30,7 @@ def get_items_paginated(page=1, page_size=10, search_term=None, sub_category_id=
     cursor.execute(count_query, params)
     total_count = cursor.fetchone()[0]
 
-    select_clause = "SELECT i.id, i.name, i.current_quantity, i.unit_id, u.name as unit_name, i.sub_category_id, c.name as sub_category_name, c.parent_id as main_category_id, i.provider_id, p.name as provider_name, i.cost, i.status, i.barcode"
+    select_clause = "SELECT i.id, i.name, i.current_quantity, i.reserved_quantity, (i.current_quantity - i.reserved_quantity) AS available_quantity, i.unit_id, u.name as unit_name, i.sub_category_id, c.name as sub_category_name, c.parent_id as main_category_id, i.provider_id, p.name as provider_name, i.cost, i.status"
     query = select_clause + " " + base_query + full_where_clause + " ORDER BY i.id DESC LIMIT ? OFFSET ?"
     params.extend([page_size, (page - 1) * page_size])
     
@@ -44,7 +44,7 @@ def get_item_by_id(item_id: int, db=None):
     if db is None:
         db = get_db()
     cursor = db.cursor()
-    cursor.execute("SELECT i.*, u.name as unit_name, c.name as sub_category_name, c.parent_id as main_category_id FROM items i JOIN units u ON i.unit_id = u.id LEFT JOIN categories c ON i.sub_category_id = c.id WHERE i.id = ?", (item_id,))
+    cursor.execute("SELECT i.*, (i.current_quantity - i.reserved_quantity) AS available_quantity, u.name as unit_name, c.name as sub_category_name, c.parent_id as main_category_id FROM items i JOIN units u ON i.unit_id = u.id LEFT JOIN categories c ON i.sub_category_id = c.id WHERE i.id = ?", (item_id,))
     item = cursor.fetchone()
     
     return dict(item) if item else None
@@ -58,25 +58,6 @@ def get_item_by_name(name: str, db=None):
     item = cursor.fetchone()
     
     return dict(item) if item else None
-
-def get_item_by_barcode(barcode: str, db=None):
-    """Retrieves a single active item by its barcode. Can use an existing DB connection."""
-    if db is None:
-        db = get_db()
-    cursor = db.cursor()
-    cursor.execute(
-        """
-        SELECT i.*, u.name as unit_name, c.name as sub_category_name, c.parent_id as main_category_id 
-        FROM items i 
-        JOIN units u ON i.unit_id = u.id 
-        LEFT JOIN categories c ON i.sub_category_id = c.id 
-        WHERE i.barcode = ? AND i.status = 'active'
-        """, 
-        (barcode,)
-    )
-    item = cursor.fetchone()
-    return dict(item) if item else None
-
 
 def get_item_position(item_id: int, sub_category_id: int, db=None) -> int:
     """
@@ -97,10 +78,10 @@ def get_item_position(item_id: int, sub_category_id: int, db=None) -> int:
 
 # Write Methods (DAO only)
 
-def insert_item(cursor, name, unit_id, sub_category_id, quantity, provider_id, cost, barcode):
+def insert_item(cursor, name, unit_id, sub_category_id, quantity, provider_id=None, cost=None):
     """Inserts a new item record. Expects an open cursor."""
-    cursor.execute("INSERT INTO items (name, current_quantity, unit_id, sub_category_id, provider_id, cost, status, barcode) VALUES (?, ?, ?, ?, ?, ?, 'active', ?)",
-                   (name, quantity, unit_id, sub_category_id, provider_id, cost, barcode))
+    cursor.execute("INSERT INTO items (name, current_quantity, reserved_quantity, unit_id, sub_category_id, provider_id, cost, status) VALUES (?, ?, 0, ?, ?, ?, ?, 'active')",
+                   (name, quantity, unit_id, sub_category_id, provider_id, cost))
     return cursor.lastrowid
 
 def update_status_and_category(cursor, item_id, status, sub_category_id):
@@ -110,11 +91,6 @@ def update_status_and_category(cursor, item_id, status, sub_category_id):
 def update_status(cursor, item_id, status):
     """Updates only status. Expects cursor."""
     cursor.execute("UPDATE items SET status = ? WHERE id = ?", (status, item_id))
-
-def check_barcode_exists(cursor, barcode, exclude_item_id):
-    """Checks if a barcode exists for another item."""
-    cursor.execute("SELECT id FROM items WHERE barcode = ? AND id != ?", (barcode, exclude_item_id))
-    return cursor.fetchone() is not None
 
 def has_movement_logs(cursor, item_id):
     """Checks if there are any movement logs for this item."""
@@ -138,7 +114,7 @@ def has_unresolved_orders(cursor, item_id: int) -> bool:
     cursor.execute(
         """
         SELECT 1 FROM leave_order_items loi
-        WHERE loi.item_id = ? AND (loi.quantity - loi.returned_quantity) > 0
+        WHERE loi.item_id = ? AND (loi.dispensed_quantity - loi.returned_quantity) > 0
         LIMIT 1
         """,
         (item_id,)
@@ -148,10 +124,10 @@ def has_unresolved_orders(cursor, item_id: int) -> bool:
 
     return False
 
-def update_item_details(cursor, item_id, name, unit_id, sub_category_id, barcode):
+def update_item_details(cursor, item_id, name, unit_id, sub_category_id):
     """Updates basic item details."""
-    cursor.execute("UPDATE items SET name = ?, unit_id = ?, sub_category_id = ?, barcode = ? WHERE id = ?",
-                   (name, unit_id, sub_category_id, barcode, item_id))
+    cursor.execute("UPDATE items SET name = ?, unit_id = ?, sub_category_id = ? WHERE id = ?",
+                   (name, unit_id, sub_category_id, item_id))
 
 def update_quantity(cursor, item_id, new_quantity):
     """Updates item quantity directly."""
@@ -189,11 +165,11 @@ def subtract_item_quantity_conditional(cursor, item_id: int, amount: int) -> int
     Returns new balance if successful, raises ValueError if item not found, inactive, or insufficient stock.
     """
     cursor.execute(
-        "UPDATE items SET current_quantity = current_quantity - ? WHERE id = ? AND status = 'active' AND current_quantity >= ?",
+        "UPDATE items SET current_quantity = current_quantity - ? WHERE id = ? AND status = 'active' AND current_quantity - reserved_quantity >= ?",
         (amount, item_id, amount)
     )
     if cursor.rowcount == 0:
-        cursor.execute("SELECT id, status, current_quantity FROM items WHERE id = ?", (item_id,))
+        cursor.execute("SELECT id, status, current_quantity, reserved_quantity FROM items WHERE id = ?", (item_id,))
         row = cursor.fetchone()
         if not row:
             raise ValueError(f"Item with ID {item_id} does not exist.")
@@ -201,7 +177,8 @@ def subtract_item_quantity_conditional(cursor, item_id: int, amount: int) -> int
         if status != "active":
             raise ValueError(f"Cannot deduct stock: item '{item_id}' is {status}.")
         curr_qty = row["current_quantity"] if hasattr(row, "__getitem__") and "current_quantity" in row else row[2]
-        raise ValueError(f"Insufficient stock for item '{item_id}': available {curr_qty}, requested {amount}.")
+        reserved = row["reserved_quantity"] if hasattr(row, "__getitem__") and "reserved_quantity" in row else row[3]
+        raise ValueError(f"Insufficient stock for item '{item_id}': available {curr_qty - reserved}, requested {amount}.")
 
     cursor.execute("SELECT current_quantity FROM items WHERE id = ?", (item_id,))
     return cursor.fetchone()[0]

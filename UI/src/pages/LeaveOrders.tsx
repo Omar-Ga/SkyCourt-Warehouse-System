@@ -7,7 +7,7 @@ import { LeaveOrderDetailModal } from '../components/LeaveOrderDetailModal';
 
 export const LeaveOrders: React.FC = () => {
   const { user } = useAuth();
-  const canCreate = user?.role === 'warehouse' || user?.role === 'admin';
+  const canCreate = user?.role === 'office' || user?.role === 'admin';
 
   const [page, setPage] = useState(1);
   const [pageSize] = useState(15);
@@ -35,36 +35,14 @@ export const LeaveOrders: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Send className="text-primary-600" size={26} />
-            أذونات الصرف
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            صرف المواد وتتبع الكميات المتبقية بالخارج وتذاكر الاسترجاع.
-          </p>
-        </div>
-
-        {canCreate && (
-          <button
-            type="button"
-            className="btn btn-primary flex items-center gap-2"
-            onClick={() => setIsCreateOpen(true)}
-          >
-            <Plus size={18} />
-            إنشاء إذن صرف جديد
-          </button>
-        )}
-      </div>
-
-      {/* Filter and Search Bar */}
-      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
+      {/* Top Action & Search Bar */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
         {/* Status Filters */}
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           {[
             { label: 'الكل', value: '' },
-            { label: 'مفتوح', value: 'open' },
+            { label: 'مفتوح بالمخزن', value: 'open' },
+            { label: 'مرفوض', value: 'rejected' },
             { label: 'مرتجع جزئياً', value: 'partially_returned' },
             { label: 'مغلق', value: 'closed' }
           ].map((tab) => (
@@ -75,10 +53,10 @@ export const LeaveOrders: React.FC = () => {
                 setStatusFilter(tab.value);
                 setPage(1);
               }}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 statusFilter === tab.value
-                  ? 'bg-primary-600 text-white shadow-sm'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  ? 'bg-brand-violet text-white shadow-xs'
+                  : 'bg-slate-100 text-ink-700 hover:bg-slate-200'
               }`}
             >
               {tab.label}
@@ -86,57 +64,74 @@ export const LeaveOrders: React.FC = () => {
           ))}
         </div>
 
-        {/* Search */}
-        <form onSubmit={handleSearchSubmit} className="relative w-full md:w-72">
-          <input
-            type="text"
-            className="input w-full pl-9 pr-3 text-sm"
-            placeholder="بحث برقم الإذن، المستلم، أو الوجهة..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <button
-            type="submit"
-            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-          >
-            <Search size={16} />
-          </button>
-        </form>
+        {/* Search and New Leave Order Action */}
+        <div className="flex items-center gap-3">
+          <form onSubmit={handleSearchSubmit} className="relative w-full md:w-72">
+            <input
+              type="text"
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-4 py-2.5 pl-10 text-sm text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
+              placeholder="بحث برقم الإذن، المستلم، أو الوجهة..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-400 hover:text-ink-600"
+            >
+              <Search size={16} />
+            </button>
+          </form>
+
+          {canCreate && (
+            <button
+              type="button"
+              className="px-4 py-2.5 rounded-xl bg-brand-violet hover:bg-brand-violet-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer"
+              onClick={() => setIsCreateOpen(true)}
+            >
+              <Plus size={16} />
+              <span>إنشاء إذن صرف جديد</span>
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Orders Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+      {/* Orders Table Card */}
+      <div className="bg-white rounded-2xl shadow-xs border border-gray-200 overflow-hidden">
         {isLoading ? (
-          <div className="p-12 text-center text-gray-500">جاري تحميل أذونات الصرف...</div>
+          <div className="py-16 text-center text-ink-500">
+            <div className="inline-block w-8 h-8 border-3 border-brand-violet border-t-transparent rounded-full animate-spin mb-3" />
+            <p className="font-semibold text-sm">جاري تحميل أذونات الصرف...</p>
+          </div>
         ) : isError ? (
-          <div className="p-12 text-center text-red-500">
-            حدث خطأ أثناء تحميل أذونات الصرف. يرجى المحاولة مرة أخرى.
+          <div className="py-16 text-center text-rose-600">
+            <AlertTriangle className="mx-auto mb-2 text-rose-500" size={32} />
+            <p className="font-bold text-sm">حدث خطأ أثناء تحميل أذونات الصرف. يرجى المحاولة مرة أخرى.</p>
           </div>
         ) : orders.length === 0 ? (
-          <div className="p-12 text-center">
-            <div className="mx-auto w-12 h-12 mb-3 rounded-full bg-gray-100 flex items-center justify-center text-gray-400">
-              <Send size={24} />
+          <div className="py-16 text-center text-ink-600">
+            <div className="w-14 h-14 rounded-2xl bg-purple-50 text-brand-violet border border-purple-100 flex items-center justify-center mx-auto mb-3">
+              <Send size={28} />
             </div>
-            <h3 className="text-base font-semibold text-gray-700">لا توجد أذونات صرف مطابقة</h3>
-            <p className="text-xs text-gray-500 mt-1">
+            <h4 className="text-base font-bold text-ink-900 mb-1">لا توجد أذونات صرف مطابقة للبحث أو الفلتر المحدد</h4>
+            <p className="text-xs text-ink-500 max-w-sm mx-auto">
               {searchTerm || statusFilter
-                ? 'جرب تغيير شروط البحث أو الفلترة.'
-                : 'يمكنك إنشاء إذن صرف جديد للصرف من المخزن.'}
+                ? 'جرب تغيير شروط البحث أو الفلترة لتوسيع النتائج.'
+                : 'يمكنك إنشاء إذن صرف جديد وحجزه ليقوم أمين المخزن بتسليمه.'}
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="table w-full text-right text-sm">
-              <thead className="bg-gray-50/80 text-gray-600 font-semibold border-b border-gray-100">
+            <table className="w-full text-right text-xs">
+              <thead className="bg-surface-canvas text-ink-600 border-b border-gray-200 font-bold">
                 <tr>
-                  <th className="p-3">رقم الإذن</th>
-                  <th className="p-3">المستلم / الموظف</th>
-                  <th className="p-3">جهة الصرف</th>
-                  <th className="p-3">الحالة</th>
-                  <th className="p-3">عدد الأصناف</th>
-                  <th className="p-3">إجمالي المنصرف</th>
-                  <th className="p-3">المتبقي بالخارج</th>
-                  <th className="p-3">تاريخ الإنشاء</th>
+                  <th className="py-3.5 px-4">رقم الإذن</th>
+                  <th className="py-3.5 px-4">المستلم / الموظف</th>
+                  <th className="py-3.5 px-4">جهة الصرف</th>
+                  <th className="py-3.5 px-4">الحالة</th>
+                  <th className="py-3.5 px-4 text-center">عدد الأصناف</th>
+                  <th className="py-3.5 px-4 text-center">إجمالي المنصرف</th>
+                  <th className="py-3.5 px-4 text-center">المتبقي بالخارج</th>
+                  <th className="py-3.5 px-4">تاريخ الإنشاء</th>
                   <th className="p-3 text-center">الإجراءات</th>
                 </tr>
               </thead>
@@ -154,7 +149,12 @@ export const LeaveOrders: React.FC = () => {
                           <Clock size={12} /> مفتوح
                         </span>
                       )}
-                      {order.status === 'partially_returned' && (
+                       {order.status === 'rejected' && (
+                         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
+                           <AlertTriangle size={12} /> مرفوض
+                         </span>
+                       )}
+                       {order.status === 'partially_returned' && (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                           <AlertTriangle size={12} /> مرتجع جزئياً
                         </span>

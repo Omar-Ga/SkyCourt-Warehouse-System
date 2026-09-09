@@ -492,7 +492,7 @@ def test_offline_mode_blocks_purchase_order_receipt(office_client, client, sampl
         json={
             "provider_id": sample_metadata["provider_id"],
             "notes": "Testing offline gate",
-            "items": [{"item_id": item_id, "quantity": 15, "unit_price": "50.00"}]
+                "items": [{"item_id": item_id, "requested_quantity": 15, "ordered_quantity": 15, "unit_price": "50.00"}]
         },
         headers={"Idempotency-Key": "test-po-offline-gate-001"}
     )
@@ -506,8 +506,7 @@ def test_offline_mode_blocks_purchase_order_receipt(office_client, client, sampl
         res_receive = client.post(
             f"/api/purchase-orders/{po['id']}/receive",
             json={
-                "expected_revision": 0,
-                "items": [{"line_id": line_id, "received_quantity": 15, "disposition": "received"}]
+                    "expected_revision": 1
             },
             headers={"Idempotency-Key": "test-po-receive-offline-001"}
         )
@@ -519,7 +518,7 @@ def test_offline_mode_blocks_purchase_order_receipt(office_client, client, sampl
         client.application.config["OFFLINE_MODE"] = False
 
 
-def test_offline_mode_blocks_leave_order_disbursement(client, sample_metadata):
+def test_offline_mode_blocks_leave_order_disbursement(client, office_client, sample_metadata):
     """
     Verifies that when OFFLINE_MODE is configured, creating a Leave Order
     (which deducts stock) is strictly blocked with HTTP 503 OFFLINE_MUTATION_GATED.
@@ -538,7 +537,7 @@ def test_offline_mode_blocks_leave_order_disbursement(client, sample_metadata):
 
     client.application.config["OFFLINE_MODE"] = True
     try:
-        res = client.post(
+        res = office_client.post(
             "/api/leave-orders",
             json={
                 "employee_name": "Sami Youssef",
@@ -574,7 +573,7 @@ def test_offline_mode_blocks_leave_order_return(client, office_client, sample_me
     assert res_item.status_code == 201
     item_id = res_item.get_json()["id"]
 
-    res_lo = client.post(
+    res_lo = office_client.post(
         "/api/leave-orders",
         json={
             "employee_name": "Khaled Amer",
@@ -620,4 +619,3 @@ def test_offline_qualification_decision_invariants():
     status = get_sync_status()
     assert status["offline_mutations_allowed"] is False
     assert status["authoritative_writer"] == "remote_libsql"
-

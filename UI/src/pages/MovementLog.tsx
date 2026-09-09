@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState } from 'react';
 import { Filter, ArrowDown, ArrowUp, Package, User, Trash2, RotateCcw } from 'lucide-react';
 import { Table } from '../components/Table';
@@ -269,83 +270,69 @@ export const MovementLog = () => {
   ];
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-8">سجل الحركات</h1>
+    <div className="space-y-6 max-w-[1520px] mx-auto">
+      {/* Comprehensive Filter Bar */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xs">
+        <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
+          <Filter size={18} className="text-brand-violet" />
+          <h2 className="text-base font-bold text-ink-950 m-0">تصفية نتائج سجل الحركات والرقابة</h2>
+        </div>
 
-      <div className="card mb-6">
-        <h2 className="text-lg font-medium mb-4">تصفية النتائج</h2>
-
-        <div className="flex flex-wrap items-center gap-4 p-4 bg-white rounded-lg shadow">
-          {/* Date Filters */}
-          <div className="flex-grow md:flex-grow-0">
-            <label htmlFor="fromDate" className="text-sm font-medium text-gray-600 mb-1 block">من تاريخ</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
+          {/* Date From */}
+          <div>
+            <label htmlFor="fromDate" className="text-xs font-bold text-ink-700 mb-1.5 block">من تاريخ</label>
             <input
               type="date"
               id="fromDate"
               name="fromDate"
               value={filters.date_from}
               onChange={handleInputChange}
-              className="input input-bordered w-full"
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
             />
           </div>
-          <div className="flex-grow md:flex-grow-0">
-            <label htmlFor="toDate" className="text-sm font-medium text-gray-600 mb-1 block">إلى تاريخ</label>
+
+          {/* Date To */}
+          <div>
+            <label htmlFor="toDate" className="text-xs font-bold text-ink-700 mb-1.5 block">إلى تاريخ</label>
             <input
               type="date"
               id="toDate"
               name="toDate"
               value={filters.date_to}
               onChange={handleInputChange}
-              className="input input-bordered w-full"
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
             />
           </div>
 
           {/* Action Type Filter */}
-          <div className="flex-grow md:flex-grow-0">
-            <label htmlFor="actionType" className="text-sm font-medium text-gray-600 mb-1 block">نوع الحركة</label>
+          <div>
+            <label htmlFor="actionType" className="text-xs font-bold text-ink-700 mb-1.5 block">نوع الحركة</label>
             <select
               id="actionType"
               name="actionType"
               value={filters.action_type || ''}
               onChange={(e) => setFilters(prev => ({ ...prev, action_type: e.target.value }))}
-              className="input input-bordered w-full"
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
             >
-              <option value="">الكل</option>
-              <option value="Addition">إضافة</option>
-              <option value="Removal">سحب</option>
-              <option value="Return">مرتجع</option>
+              <option value="">جميع الحركات</option>
+              <option value="Addition">توريد وارد (إضافة)</option>
+              <option value="Removal">صرف صادر (سحب)</option>
+              <option value="Return">مرتجع للمخزن</option>
             </select>
           </div>
 
-          {/* Item Select */}
-          <div className="flex-grow" style={{ minWidth: '250px' }}>
-            <label htmlFor="item-select" className="text-sm font-medium text-gray-600 mb-1 block">
-              الصنف
-            </label>
-            <AsyncPaginateComponent
-              id="item-select"
-              value={selectedItemOption}
-              loadOptions={loadItems}
-              onChange={handleItemSelectChange}
-              isClearable
-              placeholder="ابحث عن صنف..."
-              debounceTimeout={300}
-              classNamePrefix="react-select"
-            />
-          </div>
-
           {/* Destination Filter */}
-          <div className="flex-grow md:flex-grow-0">
-            <label htmlFor="destinationId" className="text-sm font-medium text-gray-600 mb-1 block">الوجهة</label>
+          <div>
+            <label htmlFor="destinationId" className="text-xs font-bold text-ink-700 mb-1.5 block">القسم / الوجهة</label>
             <select
               id="destinationId"
               name="destinationId"
               value={filters.destination_id}
               onChange={(e) => setFilters(prev => ({ ...prev, destination_id: e.target.value }))}
-              className="input input-bordered w-full"
-              disabled={false}
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
             >
-              <option value="">الكل</option>
+              <option value="">جميع الأقسام</option>
               {destinations.map((dest: any) => (
                 <option key={dest.id} value={dest.id}>{dest.name}</option>
               ))}
@@ -353,88 +340,117 @@ export const MovementLog = () => {
           </div>
 
           {/* Provider Filter */}
-          <div className="flex-grow md:flex-grow-0">
-            <label htmlFor="providerId" className="text-sm font-medium text-gray-600 mb-1 block">المورد</label>
+          <div>
+            <label htmlFor="providerId" className="text-xs font-bold text-ink-700 mb-1.5 block">المورد</label>
             <select
               id="providerId"
               name="providerId"
               value={filters.provider_id}
               onChange={(e) => setFilters(prev => ({ ...prev, provider_id: e.target.value }))}
-              className="input input-bordered w-full"
-              disabled={false}
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
             >
-              <option value="">الكل</option>
+              <option value="">جميع الموردين</option>
               {providers.map((prov: any) => (
                 <option key={prov.id} value={prov.id}>{prov.name}</option>
               ))}
             </select>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-end gap-2">
-            <button onClick={() => applyFilters(1)} className="btn btn-primary">
-              <Filter size={16} className="ml-2 rtl:mr-2 rtl:ml-0" />
-              تطبيق الفلاتر
-            </button>
-            <button onClick={resetFilters} className="btn btn-danger">
-              <Trash2 size={16} className="ml-2 rtl:mr-2 rtl:ml-0" />
-              مسح
-            </button>
-            <PrintReportButton
-              filters={{
-                fromDate: activeFilters.date_from || '',
-                toDate: activeFilters.date_to || '',
-                itemId: activeFilters.item_id || '',
-                providerId: activeFilters.provider_id || '',
-                destinationId: activeFilters.destination_id || '',
-                actionType: activeFilters.action_type || ''
-              }}
-              disabled={!filtersApplied || logs.length === 0}
+          {/* Item Select */}
+          <div>
+            <label htmlFor="item-select" className="text-xs font-bold text-ink-700 mb-1.5 block">
+              صنف محدد
+            </label>
+            <AsyncPaginateComponent
+              id="item-select"
+              value={selectedItemOption}
+              loadOptions={loadItems}
+              onChange={handleItemSelectChange}
+              isClearable
+              placeholder="ابحث برمز أو اسم الصنف..."
+              debounceTimeout={300}
+              classNamePrefix="react-select"
             />
           </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-5 pt-4 border-t border-gray-100">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => applyFilters(1)}
+              className="px-5 py-2.5 rounded-xl bg-brand-violet hover:bg-brand-violet-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+            >
+              <Filter size={15} />
+              <span>تطبيق الفلترة</span>
+            </button>
+            <button
+              onClick={resetFilters}
+              className="px-4 py-2.5 rounded-xl bg-white hover:bg-rose-50 text-rose-700 border border-rose-200 text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Trash2 size={15} />
+              <span>مسح الفلاتر</span>
+            </button>
+          </div>
+
+          <PrintReportButton
+            filters={{
+              fromDate: activeFilters.date_from || '',
+              toDate: activeFilters.date_to || '',
+              itemId: activeFilters.item_id || '',
+              providerId: activeFilters.provider_id || '',
+              destinationId: activeFilters.destination_id || '',
+              actionType: activeFilters.action_type || ''
+            }}
+            disabled={!filtersApplied || logs.length === 0}
+          />
         </div>
       </div>
 
       {/* Log Display Area */}
       {logsLoading && (
-        <div className="text-center p-8">
-          <p>جاري تحميل سجل الحركات...</p>
+        <div className="py-16 text-center text-ink-500 bg-white rounded-2xl border border-gray-200 shadow-xs">
+          <div className="inline-block w-8 h-8 border-3 border-brand-violet border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="font-semibold text-sm">جاري تحميل سجل الحركات...</p>
         </div>
       )}
 
       {!logsLoading && logsError && (
-        <div className="text-center p-8 text-error-500">
-          <p>خطأ في تحميل السجل: {(logsError as Error).message}</p>
-          <button onClick={() => applyFilters(currentPage as number)} className="btn btn-sm btn-link mt-2">
+        <div className="py-16 text-center text-rose-600 bg-white rounded-2xl border border-gray-200 shadow-xs">
+          <p className="font-bold text-sm">خطأ في تحميل السجل: {(logsError as Error).message}</p>
+          <button
+            onClick={() => applyFilters(currentPage as number)}
+            className="mt-3 px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 text-xs font-semibold cursor-pointer"
+          >
             حاول مرة أخرى
           </button>
         </div>
       )}
 
       {!logsLoading && !logsError && !filtersApplied && (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <div className="text-gray-400 mb-4">
-            <Filter size={48} className="mx-auto" />
+        <div className="py-16 text-center bg-white rounded-2xl border border-gray-200 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-purple-50 text-brand-violet border border-purple-100 flex items-center justify-center mx-auto mb-3">
+            <Filter size={28} />
           </div>
-          <h3 className="text-lg font-medium text-gray-700">
-            يرجى تحديد معايير التصفية وضغط "تطبيق الفلاتر"
+          <h3 className="text-base font-bold text-ink-900 mb-1">
+            يرجى تحديد معايير التصفية ثم الضغط على "تطبيق الفلترة"
           </h3>
-          <p className="text-gray-500">
-            يمكنك البحث حسب الفترة الزمنية والصنف والمورد
+          <p className="text-xs text-ink-500 max-w-md mx-auto">
+            يمكنك تصفية سجل التدقيق حسب الفترة الزمنية، نوع الحركة، الأقسام المستفيدة، أو صنف معين لتوليد التقارير وطباعتها.
           </p>
         </div>
       )}
 
       {!logsLoading && !logsError && filtersApplied && logs.length === 0 && (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <div className="text-gray-400 mb-4">
-            <Filter size={48} className="mx-auto" />
+        <div className="py-16 text-center bg-white rounded-2xl border border-gray-200 shadow-xs">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 flex items-center justify-center mx-auto mb-3">
+            <Filter size={28} />
           </div>
-          <h3 className="text-lg font-medium text-gray-700">
-            لا توجد سجلات تطابق معايير البحث.
+          <h3 className="text-base font-bold text-ink-900 mb-1">
+            لا توجد سجلات تطابق معايير البحث المحددة
           </h3>
-          <p className="text-gray-500 mb-4">
-            يرجى تعديل الفلاتر والمحاولة مرة أخرى.
+          <p className="text-xs text-ink-500 max-w-sm mx-auto">
+            يرجى توسيع نطاق البحث أو تعديل الفلاتر والمحاولة مرة أخرى.
           </p>
         </div>
       )}

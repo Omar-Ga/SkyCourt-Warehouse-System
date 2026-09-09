@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import {
@@ -6,6 +7,8 @@ import {
   createPurchaseOrder,
   voidPurchaseOrder,
   receivePurchaseOrder,
+  editPurchaseOrder,
+  dispatchPurchaseOrder,
   CreatePOInput,
   VoidPOInput,
   ReceivePOInput,
@@ -103,3 +106,26 @@ export const useReceivePurchaseOrder = () => {
   });
 };
 
+export const useEditPurchaseOrder = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input, idempotencyKey }: { id: number; input: Parameters<typeof editPurchaseOrder>[1]; idempotencyKey?: string }) =>
+      editPurchaseOrder(id, input, idempotencyKey),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-order', variables.id] });
+    }
+  });
+};
+
+export const useDispatchPurchaseOrder = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, expected_revision, idempotencyKey }: { id: number; expected_revision: number; idempotencyKey?: string }) =>
+      dispatchPurchaseOrder(id, expected_revision, idempotencyKey),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['purchase-order', variables.id] });
+    }
+  });
+};

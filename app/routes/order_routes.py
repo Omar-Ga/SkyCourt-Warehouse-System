@@ -1,424 +1,288 @@
-"""
-Order route endpoints for SkyCourt Warehouse System.
-Provides route endpoints for purchase orders, leave orders, and tickets with full role enforcement
-per the authorization matrix.
-"""
-import logging
-from flask import Blueprint, jsonify, request, g
+"""HTTP endpoints for the two-operator purchase and disbursement workflows."""
+from flask import Blueprint, g, jsonify, request
 
 from app.auth import require_role
 from app.services import leave_order_service, purchase_order_service
 from app.services.idempotency_service import IdempotencyError
-from app.validation import (
-    ValidationError,
-    validate_allowed_fields,
-    validate_required_fields
-)
-
-logger = logging.getLogger(__name__)
+from app.validation import ValidationError, validate_allowed_fields, validate_required_fields
 
 po_bp = Blueprint("purchase_orders_bp", __name__, url_prefix="/api/purchase-orders")
 leave_order_bp = Blueprint("leave_orders_bp", __name__, url_prefix="/api/leave-orders")
 tickets_bp = Blueprint("tickets_bp", __name__, url_prefix="/api/tickets")
 
 
-# --- Purchase Orders Matrix ---
-@po_bp.route("", methods=["GET"], strict_slashes=False)
-@po_bp.route("/", methods=["GET"], strict_slashes=False)
+def _body():
+    data = request.get_json()
+    if not isinstance(data, dict):
+        return None, (jsonify({"error": "Request body must be a JSON object", "code": "INVALID_OBJECT_SHAPE"}), 400)
+    return data, None
+
+
+def _key_required():
+    key = request.headers.get("Idempotency-Key")
+    if not key or not key.strip():
+        return None, (jsonify({"error": "Idempotency-Key header is required", "code": "MISSING_IDEMPOTENCY_KEY"}), 400)
+    return key.strip(), None
+
+
+def _error(error):
+    if isinstance(error, (IdempotencyError, ValidationError)):
+        status = error.status_code if isinstance(error, IdempotencyError) else (404 if error.code == "NOT_FOUND" else 400)
+        return jsonify(error.to_dict()), status
+    if isinstance(error, ValueError):
+        return jsonify({"error": str(error), "code": "VALIDATION_ERROR"}), 400
+    raise error
+
+
+@po_bp.get("", strict_slashes=False)
+@po_bp.get("/", strict_slashes=False)
 @require_role("office", "warehouse")
 def get_purchase_orders():
-    """Lists purchase orders with filtering and pagination."""
-    raw_page = request.args.get("page", default=1)
-    raw_page_size = request.args.get("page_size", default=20)
     try:
-        page = int(raw_page)
-        page_size = int(raw_page_size)
-        if page < 1 or page_size < 1:
-            raise ValueError()
-    except (ValueError, TypeError):
+        page = int(request.args.get("page", 1)); page_size = int(request.args.get("page_size", 20))
+        if page < 1 or page_size < 1: raise ValueError
+    except (TypeError, ValueError):
         return jsonify({"error": "Page and page_size must be positive integers", "code": "INVALID_PAGINATION"}), 400
-
-    status = request.args.get("status", default=None, type=str)
-    search = request.args.get("search", default=request.args.get("q", None), type=str)
-    role = g.current_user["role"] if getattr(g, "current_user", None) else None
-
-    result = purchase_order_service.list_purchase_orders_service(
-        page=page,
-        page_size=page_size,
-        status=status,
-        search=search,
-        role=role
-    )
-    return jsonify(result), 200
+    try:
+        result = purchase_order_service.list_purchase_orders_service(
+            page, page_size, request.args.get("status"), request.args.get("search", request.args.get("q")),
+            g.current_user["role"]
+        )
+        return jsonify(result)
+    except Exception as error:
+        return _error(error)
 
 
-@po_bp.route("/<int:po_id>", methods=["GET"])
+@po_bp.get("/<int:po_id>")
 @require_role("office", "warehouse")
 def get_purchase_order_detail(po_id):
-    """Retrieves purchase order detail by ID."""
-    role = g.current_user["role"] if getattr(g, "current_user", None) else None
     try:
-        detail = purchase_order_service.get_purchase_order_detail_service(po_id, role=role)
-    except ValidationError as e:
-        return jsonify(e.to_dict()), 404 if e.code == "NOT_FOUND" else 400
-    return jsonify(detail), 200
+        return jsonify(purchase_order_service.get_purchase_order_detail_service(po_id, g.current_user["role"]))
+    except Exception as error:
+        return _error(error)
 
 
-@po_bp.route("/by-barcode/<string:barcode_val>", methods=["GET"])
-@require_role("office", "warehouse")
-def get_purchase_order_by_barcode(barcode_val):
-    """Retrieves purchase order detail by barcode."""
-    role = g.current_user["role"] if getattr(g, "current_user", None) else None
-    try:
-        detail = purchase_order_service.get_purchase_order_by_barcode_service(barcode_val, role=role)
-    except ValidationError as e:
-        return jsonify(e.to_dict()), 404 if e.code == "NOT_FOUND" else 400
-    return jsonify(detail), 200
-
-
-@po_bp.route("/<int:po_id>/barcode", methods=["GET"])
-@require_role("office", "warehouse")
-def get_purchase_order_barcode(po_id):
-    """Returns barcode for a purchase order."""
-    try:
-        result = purchase_order_service.get_purchase_order_barcode_service(po_id)
-    except ValidationError as e:
-        return jsonify(e.to_dict()), 404 if e.code == "NOT_FOUND" else 400
-    return jsonify(result), 200
-
-
-@po_bp.route("", methods=["POST"], strict_slashes=False)
-@po_bp.route("/", methods=["POST"], strict_slashes=False)
+@po_bp.post("", strict_slashes=False)
+@po_bp.post("/", strict_slashes=False)
 @require_role("office")
 def create_purchase_order():
-    """Creates a new purchase order (Office only)."""
-    data = request.get_json()
-    if not isinstance(data, dict):
-        return jsonify({"error": "Request body must be a JSON object", "code": "INVALID_OBJECT_SHAPE"}), 400
-
-    idempotency_key = request.headers.get("Idempotency-Key")
-    if not idempotency_key or not str(idempotency_key).strip():
-        return jsonify({"error": "Idempotency-Key header is required", "code": "MISSING_IDEMPOTENCY_KEY"}), 400
-
-    actor = getattr(g, "current_user", None)
-    actor_id = actor["id"] if actor else None
-
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
     try:
-        order = purchase_order_service.create_purchase_order_service(
-            provider_id=data.get("provider_id"),
-            items=data.get("items"),
-            notes=data.get("notes"),
-            actor_id=actor_id,
-            idempotency_key=idempotency_key
-        )
-    except ValidationError as e:
-        return jsonify(e.to_dict()), 400
-    return jsonify(order), 201
+        validate_allowed_fields(data, {"provider_id", "items", "notes"})
+        validate_required_fields(data, ("provider_id", "items"))
+        result = purchase_order_service.create_purchase_order_service(data["provider_id"], data["items"], data.get("notes"), g.current_user["id"], key)
+        return jsonify(result), 201
+    except Exception as exc:
+        return _error(exc)
 
 
-@po_bp.route("/<int:po_id>/void", methods=["POST"])
+@po_bp.put("/<int:po_id>")
+@require_role("office")
+def edit_purchase_order(po_id):
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
+    try:
+        validate_allowed_fields(data, {"provider_id", "items", "notes", "expected_revision"})
+        validate_required_fields(data, ("provider_id", "items", "expected_revision"))
+        result = purchase_order_service.edit_purchase_order_service(po_id, data["provider_id"], data["items"], data.get("notes"), data["expected_revision"], g.current_user["id"], key)
+        return jsonify(result)
+    except Exception as exc:
+        return _error(exc)
+
+
+@po_bp.post("/<int:po_id>/dispatch")
+@require_role("office")
+def dispatch_purchase_order(po_id):
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
+    try:
+        validate_allowed_fields(data, {"expected_revision"}); validate_required_fields(data, ("expected_revision",))
+        return jsonify(purchase_order_service.dispatch_purchase_order_service(po_id, data["expected_revision"], g.current_user["id"], key))
+    except Exception as exc:
+        return _error(exc)
+
+
+@po_bp.post("/<int:po_id>/void")
 @require_role("office")
 def void_purchase_order(po_id):
-    """Voids an open purchase order (Office only)."""
-    data = request.get_json()
-    if not isinstance(data, dict):
-        return jsonify({"error": "Request body must be a JSON object", "code": "INVALID_OBJECT_SHAPE"}), 400
-
-    idempotency_key = request.headers.get("Idempotency-Key")
-    actor = getattr(g, "current_user", None)
-    actor_id = actor["id"] if actor else None
-
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
     try:
-        updated_order = purchase_order_service.void_purchase_order_service(
-            po_id=po_id,
-            expected_revision=data.get("expected_revision"),
-            reason=data.get("reason"),
-            actor_id=actor_id,
-            idempotency_key=idempotency_key
-        )
-    except ValidationError as e:
-        return jsonify(e.to_dict()), 404 if e.code == "NOT_FOUND" else 400
-    return jsonify(updated_order), 200
+        validate_allowed_fields(data, {"expected_revision", "reason"}); validate_required_fields(data, ("expected_revision", "reason"))
+        return jsonify(purchase_order_service.void_purchase_order_service(po_id, data["expected_revision"], data["reason"], g.current_user["id"], key))
+    except Exception as exc:
+        return _error(exc)
 
 
-
-@po_bp.route("/<int:po_id>/receive", methods=["POST"])
+@po_bp.post("/<int:po_id>/receive")
 @require_role("warehouse")
 def receive_purchase_order(po_id):
-    """Receives items for a purchase order (Warehouse only)."""
-    data = request.get_json()
-    if not isinstance(data, dict):
-        return jsonify({"error": "Request body must be a JSON object", "code": "INVALID_OBJECT_SHAPE"}), 400
-
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
     try:
-        validate_allowed_fields(data, {"expected_revision", "items"})
-        validate_required_fields(data, ["expected_revision", "items"])
-    except ValidationError as e:
-        return jsonify(e.to_dict()), 400
-
-    idempotency_key = request.headers.get("Idempotency-Key")
-    if not idempotency_key or not str(idempotency_key).strip():
-        return jsonify({"error": "Idempotency-Key header is required", "code": "MISSING_IDEMPOTENCY_KEY"}), 400
-
-    actor = getattr(g, "current_user", None)
-    actor_id = actor["id"] if actor else None
-    actor_name = actor["display_name"] if actor else None
-    if not actor_id:
-        return jsonify({"error": "غير مصرح به. يرجى تسجيل الدخول.", "code": "UNAUTHENTICATED"}), 401
-
-    try:
-        updated_order = purchase_order_service.receive_purchase_order_service(
-            po_id=po_id,
-            expected_revision=data.get("expected_revision"),
-            items=data.get("items"),
-            actor_id=actor_id,
-            actor_name=actor_name,
-            idempotency_key=idempotency_key
-        )
-        return jsonify(updated_order), 200
-    except ValidationError as e:
-        status_code = 404 if e.code in ("NOT_FOUND", "ITEM_NOT_FOUND") else 400
-        return jsonify(e.to_dict()), status_code
-    except IdempotencyError as e:
-        return jsonify(e.to_dict()), e.status_code
-    except ValueError as e:
-        return jsonify({"error": str(e), "code": "VALIDATION_ERROR"}), 400
-    except Exception as e:
-        logger.error(f"Error receiving purchase order {po_id}: {e}")
-        raise e
+        validate_allowed_fields(data, {"expected_revision"}); validate_required_fields(data, ("expected_revision",))
+        return jsonify(purchase_order_service.receive_purchase_order_service(po_id, data["expected_revision"], actor_id=g.current_user["id"], actor_name=g.current_user["display_name"], idempotency_key=key))
+    except Exception as exc:
+        return _error(exc)
 
 
-
-# --- Leave Orders Matrix ---
-
-@leave_order_bp.route("", methods=["GET"], strict_slashes=False)
-@leave_order_bp.route("/", methods=["GET"], strict_slashes=False)
+@leave_order_bp.get("", strict_slashes=False)
+@leave_order_bp.get("/", strict_slashes=False)
 @require_role("office", "warehouse")
 def get_leave_orders():
-    """Lists leave orders with filtering and pagination."""
-    raw_page = request.args.get("page", default=1)
-    raw_page_size = request.args.get("page_size", default=20)
     try:
-        page = int(raw_page)
-        page_size = int(raw_page_size)
-        if page < 1 or page_size < 1:
-            raise ValueError()
-    except (ValueError, TypeError):
-        return jsonify({"error": "Page and page_size must be positive integers", "code": "INVALID_PAGINATION"}), 400
-
-    status = request.args.get("status", default=None, type=str)
-    search = request.args.get("search", default=request.args.get("q", None), type=str)
-
-    result = leave_order_service.list_leave_orders_service(
-        page=page,
-        page_size=page_size,
-        status=status,
-        search=search
-    )
-    return jsonify(result), 200
+        result = leave_order_service.list_leave_orders_service(
+            int(request.args.get("page", 1)), int(request.args.get("page_size", 20)),
+            request.args.get("status"), request.args.get("search", request.args.get("q")), g.current_user["role"]
+        )
+        return jsonify(result)
+    except Exception as error:
+        return _error(error)
 
 
-@leave_order_bp.route("/<int:order_id>", methods=["GET"])
+@leave_order_bp.get("/<int:order_id>")
 @require_role("office", "warehouse")
 def get_leave_order_detail(order_id):
-    """Retrieves leave order detail by ID."""
     try:
         detail = leave_order_service.get_leave_order_detail_service(order_id)
-    except ValidationError as e:
-        return jsonify(e.to_dict()), 404 if e.code == "NOT_FOUND" else 400
-    if not detail:
-        return jsonify({"error": f"Leave order with ID {order_id} not found", "code": "NOT_FOUND"}), 404
-    return jsonify(detail), 200
+        return jsonify(detail) if detail else (jsonify({"error": "Leave order not found", "code": "NOT_FOUND"}), 404)
+    except Exception as error:
+        return _error(error)
 
 
-@leave_order_bp.route("/tickets/count", methods=["GET"])
+@leave_order_bp.get("/tickets/count")
 @require_role("office", "warehouse")
 def get_tickets_count():
-    """Retrieves count of actionable tickets (open + partially_returned)."""
-    count = leave_order_service.get_actionable_tickets_count_service()
-    return jsonify({"count": count}), 200
+    return jsonify({"count": leave_order_service.get_actionable_tickets_count_service(role=g.current_user["role"])})
 
 
-@leave_order_bp.route("", methods=["POST"], strict_slashes=False)
-@leave_order_bp.route("/", methods=["POST"], strict_slashes=False)
-@require_role("warehouse")
+@leave_order_bp.post("", strict_slashes=False)
+@leave_order_bp.post("/", strict_slashes=False)
+@require_role("office")
 def create_leave_order():
-    """Creates a new leave order (Warehouse only)."""
-    data = request.get_json()
-    if not isinstance(data, dict):
-        return jsonify({"error": "Request body must be a JSON object", "code": "INVALID_OBJECT_SHAPE"}), 400
-
-    idempotency_key = request.headers.get("Idempotency-Key")
-    if not idempotency_key or not str(idempotency_key).strip():
-        return jsonify({"error": "Idempotency-Key header is required", "code": "MISSING_IDEMPOTENCY_KEY"}), 400
-
-    actor = getattr(g, "current_user", None)
-    actor_id = actor["id"] if actor else None
-    actor_name = actor["display_name"] if actor else None
-
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
     try:
-        order = leave_order_service.create_leave_order_service(
-            employee_name=data.get("employee_name"),
-            destination_id=data.get("destination_id"),
-            items=data.get("items"),
-            notes=data.get("notes"),
-            actor_id=actor_id,
-            actor_name=actor_name,
-            idempotency_key=idempotency_key
-        )
-        return jsonify(order), 201
-    except ValidationError as e:
-        return jsonify(e.to_dict()), 400
-    except IdempotencyError as e:
-        return jsonify(e.to_dict()), e.status_code
-    except ValueError as e:
-        return jsonify({"error": str(e), "code": "VALIDATION_ERROR"}), 400
-    except Exception as e:
-        logger.error(f"Error creating leave order: {e}")
-        raise e
+        validate_allowed_fields(data, {"employee_name", "destination_id", "items", "notes"})
+        validate_required_fields(data, ("employee_name", "destination_id", "items"))
+        result = leave_order_service.create_leave_order_service(data["employee_name"], data["destination_id"], data["items"], data.get("notes"), g.current_user["id"], g.current_user["display_name"], key)
+        return jsonify(result), 201
+    except Exception as exc:
+        return _error(exc)
 
 
-@leave_order_bp.route("/<int:order_id>/close", methods=["POST"])
-@require_role("office", "warehouse")
-def close_leave_order(order_id):
-    """Manually closes a leave order with disposition reason (Office or Warehouse)."""
-    data = request.get_json()
-    if not isinstance(data, dict):
-        return jsonify({"error": "Request body must be a JSON object", "code": "INVALID_OBJECT_SHAPE"}), 400
-
-    idempotency_key = request.headers.get("Idempotency-Key")
-    actor = getattr(g, "current_user", None)
-    actor_id = actor["id"] if actor else None
-    if not actor_id:
-        return jsonify({"error": "غير مصرح به. يرجى تسجيل الدخول.", "code": "UNAUTHENTICATED"}), 401
-
-    try:
-        updated = leave_order_service.close_leave_order_service(
-            order_id=order_id,
-            closed_by=actor_id,
-            reason=data.get("reason"),
-            expected_revision=data.get("expected_revision"),
-            idempotency_key=idempotency_key
-        )
-        return jsonify(updated), 200
-    except ValidationError as e:
-        status_code = 404 if e.code == "NOT_FOUND" else 400
-        return jsonify(e.to_dict()), status_code
-    except IdempotencyError as e:
-        return jsonify(e.to_dict()), e.status_code
-    except ValueError as e:
-        return jsonify({"error": str(e), "code": "VALIDATION_ERROR"}), 400
-    except Exception as e:
-        logger.error(f"Error closing leave order: {e}")
-        raise e
-
-
-# --- Tickets Matrix ---
-
-@tickets_bp.route("", methods=["GET"], strict_slashes=False)
-@tickets_bp.route("/", methods=["GET"], strict_slashes=False)
-@require_role("office", "warehouse")
+@tickets_bp.get("", strict_slashes=False)
+@tickets_bp.get("/", strict_slashes=False)
+@require_role("warehouse")
 def get_tickets():
-    """Lists actionable tickets with pagination."""
-    raw_page = request.args.get("page", default=1)
-    raw_page_size = request.args.get("page_size", default=20)
     try:
-        page = int(raw_page)
-        page_size = int(raw_page_size)
-        if page < 1 or page_size < 1:
-            raise ValueError()
-    except (ValueError, TypeError):
-        return jsonify({"error": "Page and page_size must be positive integers", "code": "INVALID_PAGINATION"}), 400
-
-    status = request.args.get("status", default="actionable", type=str)
-    search = request.args.get("search", default=request.args.get("q", None), type=str)
-
-    result = leave_order_service.list_leave_orders_service(
-        page=page,
-        page_size=page_size,
-        status=status,
-        search=search
-    )
-    return jsonify({
-        "tickets": result["leave_orders"],
-        "total_count": result["total_count"],
-        "page": result["page"],
-        "page_size": result["page_size"],
-        "total_pages": result["total_pages"]
-    }), 200
+        result = leave_order_service.list_leave_orders_service(int(request.args.get("page", 1)), int(request.args.get("page_size", 20)), "open", request.args.get("search", request.args.get("q")), "warehouse")
+        return jsonify({"tickets": result["leave_orders"], **{key: result[key] for key in ("total_count", "page", "page_size", "total_pages")}})
+    except Exception as error:
+        return _error(error)
 
 
-@tickets_bp.route("/<int:ticket_id>", methods=["GET"])
-@require_role("office", "warehouse")
+@tickets_bp.get("/<int:ticket_id>")
+@require_role("warehouse")
 def get_ticket_detail(ticket_id):
-    """Retrieves ticket detail by leave order ID."""
     try:
         detail = leave_order_service.get_leave_order_detail_service(ticket_id)
-    except ValidationError as e:
-        return jsonify(e.to_dict()), 404 if e.code == "NOT_FOUND" else 400
-    if not detail:
-        return jsonify({"error": f"Ticket with ID {ticket_id} not found", "code": "NOT_FOUND"}), 404
-    return jsonify(detail), 200
+        if not detail or detail["status"] != "open": return jsonify({"error": "Ticket not found", "code": "NOT_FOUND"}), 404
+        return jsonify(detail)
+    except Exception as error:
+        return _error(error)
 
 
-@tickets_bp.route("/count", methods=["GET"])
-@require_role("office", "warehouse")
+@tickets_bp.get("/count")
+@require_role("warehouse")
 def get_tickets_count_alias():
-    """Retrieves count of actionable tickets (open + partially_returned)."""
     return get_tickets_count()
 
 
-@tickets_bp.route("/<int:ticket_id>/return", methods=["POST"])
-@require_role("office")
-def return_ticket_items(ticket_id):
-    """Processes returns on a ticket (Office only)."""
-    data = request.get_json()
-    if not isinstance(data, dict):
-        return jsonify({"error": "Request body must be a JSON object", "code": "INVALID_OBJECT_SHAPE"}), 400
-
-    idempotency_key = request.headers.get("Idempotency-Key")
-    if not idempotency_key or not str(idempotency_key).strip():
-        return jsonify({"error": "Idempotency-Key header is required", "code": "MISSING_IDEMPOTENCY_KEY"}), 400
-
-    actor = getattr(g, "current_user", None)
-    actor_id = actor["id"] if actor else None
-    actor_name = actor["display_name"] if actor else None
-    if not actor_id:
-        return jsonify({"error": "غير مصرح به. يرجى تسجيل الدخول.", "code": "UNAUTHENTICATED"}), 401
-
+@tickets_bp.post("/<int:ticket_id>/fulfill")
+@require_role("warehouse")
+def fulfill_ticket(ticket_id):
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
     try:
-        updated = leave_order_service.process_ticket_return_service(
-            order_id=ticket_id,
-            expected_revision=data.get("expected_revision"),
-            items=data.get("items"),
-            actor_id=actor_id,
-            actor_name=actor_name,
-            notes=data.get("notes"),
-            idempotency_key=idempotency_key
-        )
-        return jsonify(updated), 200
-    except ValidationError as e:
-        status_code = 404 if e.code == "NOT_FOUND" else 400
-        return jsonify(e.to_dict()), status_code
-    except IdempotencyError as e:
-        return jsonify(e.to_dict()), e.status_code
-    except ValueError as e:
-        return jsonify({"error": str(e), "code": "VALIDATION_ERROR"}), 400
-    except Exception as e:
-        logger.error(f"Error returning ticket items: {e}")
-        raise e
+        validate_allowed_fields(data, {"expected_revision"}); validate_required_fields(data, ("expected_revision",))
+        return jsonify(leave_order_service.fulfill_leave_order_service(ticket_id, data["expected_revision"], g.current_user["id"], g.current_user["display_name"], key))
+    except Exception as exc:
+        return _error(exc)
 
 
-@tickets_bp.route("/<int:ticket_id>/close", methods=["POST"])
-@require_role("office", "warehouse")
-def close_ticket(ticket_id):
-    """Closes a ticket with disposition reason (Office or Warehouse)."""
-    return close_leave_order(ticket_id)
+@tickets_bp.post("/<int:ticket_id>/reject")
+@require_role("warehouse")
+def reject_ticket(ticket_id):
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
+    try:
+        validate_allowed_fields(data, {"expected_revision", "reason"}); validate_required_fields(data, ("expected_revision", "reason"))
+        return jsonify(leave_order_service.reject_leave_order_service(ticket_id, data["expected_revision"], data["reason"], g.current_user["id"], key))
+    except Exception as exc:
+        return _error(exc)
 
 
-@leave_order_bp.route("/<int:order_id>/return", methods=["POST"])
+@leave_order_bp.post("/<int:order_id>/resubmit")
+@require_role("office")
+def resubmit_leave_order(order_id):
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
+    try:
+        validate_allowed_fields(data, {"expected_revision", "items", "notes"}); validate_required_fields(data, ("expected_revision",))
+        return jsonify(leave_order_service.resubmit_leave_order_service(order_id, data["expected_revision"], g.current_user["id"], data.get("items"), data.get("notes"), key))
+    except Exception as exc:
+        return _error(exc)
+
+
+@leave_order_bp.post("/<int:order_id>/cancel")
+@require_role("office")
+def cancel_leave_order(order_id):
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
+    try:
+        validate_allowed_fields(data, {"expected_revision"}); validate_required_fields(data, ("expected_revision",))
+        return jsonify(leave_order_service.cancel_leave_order_service(order_id, data["expected_revision"], g.current_user["id"], key))
+    except Exception as exc:
+        return _error(exc)
+
+
+@leave_order_bp.post("/<int:order_id>/return")
 @require_role("office")
 def return_leave_order(order_id):
-    """Alias for ticket return on leave-orders prefix (Office only)."""
-    return return_ticket_items(order_id)
+    data, error = _body()
+    if error: return error
+    key, error = _key_required()
+    if error: return error
+    try:
+        validate_allowed_fields(data, {"expected_revision", "items", "notes"}); validate_required_fields(data, ("expected_revision", "items"))
+        return jsonify(leave_order_service.process_ticket_return_service(order_id, data["expected_revision"], data["items"], g.current_user["id"], g.current_user["display_name"], data.get("notes"), key))
+    except Exception as exc:
+        return _error(exc)
 
+
+@tickets_bp.post("/<int:ticket_id>/return")
+@require_role("office")
+def return_ticket_items(ticket_id):
+    return return_leave_order(ticket_id)

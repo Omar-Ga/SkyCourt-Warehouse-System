@@ -4,88 +4,106 @@
 @import './print.css';
 
 :root {
-  --color-primary: 31, 66, 135;
-  --color-secondary: 65, 179, 163;
-  --color-accent: 232, 135, 30;
-  --color-success: 40, 167, 69;
-  --color-warning: 255, 193, 7;
-  --color-error: 220, 53, 69;
-  --color-gray: 75, 85, 99;
-  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  --color-primary: 75, 30, 120;     /* #4B1E78 Royal Violet */
+  --color-secondary: 0, 107, 115;   /* #006B73 Coastal Teal */
+  --color-accent: 228, 0, 120;      /* #E40078 Vibrant Magenta */
+  --color-success: 20, 108, 67;     /* #146C43 */
+  --color-warning: 122, 74, 0;      /* #7A4A00 */
+  --color-error: 166, 27, 41;       /* #A61B29 */
+  --color-gray: 91, 102, 112;      /* #5B6670 */
+  font-family: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', Cairo, system-ui, sans-serif;
 }
 
 body {
-  font-family: 'Noto Sans Arabic', sans-serif;
-  color: rgb(55, 65, 81);
+  font-family: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', Cairo, sans-serif;
+  color: #102A3A;
+  background-color: #F5F8F7;
   direction: rtl;
   text-align: right;
+  -webkit-font-smoothing: antialiased;
 }
 
 @layer base {
   h1 {
-    @apply text-2xl font-bold mb-4;
+    @apply text-2xl font-bold mb-3 text-ink-950;
   }
   
   h2 {
-    @apply text-xl font-semibold mb-3;
+    @apply text-xl font-semibold mb-2.5 text-ink-950;
   }
   
   h3 {
-    @apply text-lg font-medium mb-2;
+    @apply text-lg font-medium mb-2 text-ink-950;
   }
 }
 
 @layer components {
   .card {
-    @apply bg-white rounded-lg shadow-md p-6 transition-all duration-300;
+    @apply bg-white rounded-xl border border-gray-200 shadow-sm p-6 transition-all duration-200;
   }
   
   .btn {
-    @apply px-4 py-2 rounded-md font-medium transition-all duration-200;
+    @apply h-11 px-5 rounded-lg font-medium text-sm inline-flex items-center justify-center gap-2 transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed select-none;
   }
   
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50;
+    @apply bg-primary-600 text-white hover:bg-primary-700 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 shadow-sm active:scale-[0.99];
   }
   
   .btn-secondary {
-    @apply bg-secondary-500 text-white hover:bg-secondary-600 focus:ring-2 focus:ring-secondary-400 focus:ring-opacity-50;
+    @apply bg-secondary-500 text-white hover:bg-secondary-600 focus:ring-2 focus:ring-secondary-400 focus:ring-offset-2 shadow-sm active:scale-[0.99];
   }
   
   .btn-accent {
-    @apply bg-accent-500 text-white hover:bg-accent-600 focus:ring-2 focus:ring-accent-400 focus:ring-opacity-50;
+    @apply bg-accent-500 text-white hover:bg-accent-600 focus:ring-2 focus:ring-accent-400 focus:ring-offset-2 shadow-sm active:scale-[0.99];
   }
   
   .btn-outline {
-    @apply border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-gray-200;
+    @apply border border-gray-300 bg-white text-ink-950 hover:bg-gray-50 focus:ring-2 focus:ring-gray-200 shadow-sm active:scale-[0.99];
   }
   
   .btn-danger {
-    @apply bg-error-500 text-white hover:bg-error-600 focus:ring-2 focus:ring-error-400 focus:ring-opacity-50;
+    @apply bg-error-500 text-white hover:bg-error-600 focus:ring-2 focus:ring-error-400 focus:ring-offset-2 shadow-sm active:scale-[0.99];
+  }
+
+  .btn-sm {
+    @apply h-9 px-3 text-xs;
+  }
+
+  .btn-lg {
+    @apply h-12 px-6 text-base font-semibold;
   }
   
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
+    @apply w-full h-11 px-3.5 py-2 border border-gray-300 bg-white text-ink-950 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm transition-all placeholder:text-gray-400;
   }
   
   .select {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
+    @apply w-full h-11 px-3.5 py-2 border border-gray-300 bg-white text-ink-950 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-sm transition-all;
   }
   
   .badge {
-    @apply px-2 py-1 text-xs font-medium rounded-full;
+    @apply inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full;
   }
   
   .badge-primary {
-    @apply bg-primary-100 text-primary-800;
+    @apply bg-primary-100 text-primary-700 border border-primary-200;
   }
   
   .badge-accent {
-    @apply bg-accent-100 text-accent-800;
+    @apply bg-accent-100 text-accent-700 border border-accent-200;
   }
   
   .badge-success {
-    @apply bg-success-100 text-success-800;
+    @apply bg-success-100 text-success-700 border border-success-200;
+  }
+
+  .badge-error {
+    @apply bg-error-100 text-error-700 border border-error-200;
+  }
+
+  .badge-warning {
+    @apply bg-warning-100 text-warning-700 border border-warning-200;
   }
   
   .form-group {
@@ -93,47 +111,76 @@ body {
   }
   
   .form-label {
-    @apply block mb-1 font-medium;
+    @apply block mb-1.5 text-sm font-medium text-gray-700;
   }
   
   .form-error {
-    @apply mt-1 text-sm text-error-600;
+    @apply mt-1 text-xs text-error-600;
   }
   
   .table-container {
-    @apply w-full overflow-x-auto rounded-lg shadow;
+    @apply w-full overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm;
   }
   
   .table {
-    @apply min-w-full bg-white;
+    @apply min-w-full bg-white text-sm text-right;
   }
   
   .table th {
-    @apply py-3 px-4 bg-gray-50 text-gray-700 font-medium text-right border-b;
+    @apply py-3.5 px-4 bg-gray-50/90 text-gray-700 font-semibold text-right border-b border-gray-200 text-xs tracking-wider;
   }
   
   .table td {
-    @apply py-3 px-4 border-b border-gray-100;
+    @apply py-3.5 px-4 border-b border-gray-100 text-gray-800;
   }
   
   .table tr:hover {
-    @apply bg-gray-50;
+    @apply bg-sky-50/40;
   }
   
   .modal-backdrop {
-    @apply fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50;
+    @apply fixed inset-0 bg-ink-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4;
   }
   
   .modal {
-    @apply bg-white rounded-lg shadow-xl p-6 max-w-2xl mx-auto max-h-[90vh] overflow-y-auto;
+    @apply bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full mx-auto max-h-[90vh] overflow-y-auto border border-gray-100;
   }
   
   .modal-header {
-    @apply border-b pb-4 mb-4 flex items-center justify-between;
+    @apply border-b border-gray-100 pb-4 mb-5 flex items-center justify-between;
   }
   
   .modal-footer {
-    @apply border-t pt-4 mt-4 flex justify-end space-x-2 space-x-reverse;
+    @apply border-t border-gray-100 pt-4 mt-5 flex justify-end space-x-2 space-x-reverse;
+  }
+
+  /* DaisyUI compatibility bridge to eliminate ghost styling bugs */
+  .bg-base-100 {
+    @apply bg-white;
+  }
+
+  .bg-base-200 {
+    @apply bg-gray-50;
+  }
+
+  .bg-base-300 {
+    @apply bg-gray-100;
+  }
+
+  .text-base-content {
+    @apply text-ink-950;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent hover:bg-gray-100 text-gray-700;
+  }
+
+  .card-body {
+    @apply p-4;
+  }
+
+  .card-title {
+    @apply text-base font-bold text-ink-950;
   }
 }
 

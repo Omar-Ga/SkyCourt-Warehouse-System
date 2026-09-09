@@ -10,8 +10,8 @@ export type Item = {
   provider?: string | null;
   cost?: number | null;
   status?: 'active' | 'inactive' | 'archived';
-  barcode?: string | null;
-  // Add other common item properties if they exist, e.g., description, if it becomes widely used.
+  reserved_quantity?: number;
+  available_quantity?: number;
 };
 
 export type Destination = {
@@ -54,4 +54,4 @@ export type Provider = {
   name: string;
 };
 
-// You can add other shared types/interfaces here as the application grows. 
+// You can add other shared types/interfaces here as the application grows.

@@ -176,7 +176,6 @@ def add_item(
     provider_id: Optional[int] = None,
     cost: Optional[float] = None,
     person_name: Optional[str] = None,
-    barcode: Optional[str] = None,
     user_id: Optional[int] = None,
     actor_name: Optional[str] = None,
     operation_key: Optional[str] = None,
@@ -217,21 +216,10 @@ def add_item(
                         raise IntegrityError(f"الصنف '{cleaned_name}' موجود بالفعل في الفئة الفرعية '{category_name}'.")
                 raise IntegrityError(f"An active item named '{cleaned_name}' already exists.")
 
-        # Check barcode uniqueness if provided
         cursor = conn.cursor()
-        if barcode:
-            cleaned_barcode = barcode.strip()
-            if cleaned_barcode.upper().startswith("PO-"):
-                raise IntegrityError("Barcode cannot use reserved 'PO-' purchase order prefix.")
-            if item_model.check_barcode_exists(cursor, cleaned_barcode, exclude_item_id=-1):
-                raise IntegrityError(f"Barcode '{cleaned_barcode}' is already in use by another item.")
-        else:
-            cleaned_barcode = None
-
-
         # Insert item
         item_id = item_model.insert_item(
-            cursor, cleaned_name, unit_id, sub_category_id, quantity, provider_id, cost, cleaned_barcode
+            cursor, cleaned_name, unit_id, sub_category_id, quantity, provider_id, cost
         )
 
         # Audit log entry
@@ -366,14 +354,13 @@ def update_item(
     name: str,
     unit_id: int,
     sub_category_id: Optional[int] = None,
-    barcode: Optional[str] = None,
     person_name: Optional[str] = None,
     force_unit_change: bool = False,
     db: Optional[Any] = None,
     user_id: Optional[int] = None,
     actor_name: Optional[str] = None
 ) -> Optional[dict]:
-    """Orchestrates updating item details with order checks and barcode uniqueness."""
+    """Orchestrates updating item details with order checks."""
     validate_positive_integer(item_id, "item_id")
     cleaned_name = validate_string(name, "name", min_len=1, max_len=150)
     validate_positive_integer(unit_id, "unit_id")
@@ -389,15 +376,6 @@ def update_item(
         if not current_item:
             return None
 
-        # Barcode uniqueness
-        if barcode and barcode != current_item.get('barcode'):
-            cleaned_barcode = barcode.strip()
-            if cleaned_barcode.upper().startswith("PO-"):
-                raise IntegrityError("Barcode cannot use reserved 'PO-' purchase order prefix.")
-            if item_model.check_barcode_exists(cursor, cleaned_barcode, exclude_item_id=item_id):
-                raise IntegrityError(f"Barcode '{cleaned_barcode}' is already in use by another item.")
-
-
         # Unit change checks
         if unit_id != current_item['unit_id']:
             # Block unit change if item is referenced by pending PO or outstanding leave orders
@@ -407,7 +385,7 @@ def update_item(
             if not force_unit_change and item_model.has_movement_logs(cursor, item_id):
                 return {"confirmation_required": True, "message": "Changing unit might affect logs."}
 
-        item_model.update_item_details(cursor, item_id, cleaned_name, unit_id, sub_category_id, barcode)
+        item_model.update_item_details(cursor, item_id, cleaned_name, unit_id, sub_category_id)
 
         add_log_entry(
             item_id=item_id,

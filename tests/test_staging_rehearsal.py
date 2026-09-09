@@ -56,10 +56,10 @@ def create_populated_legacy_database():
     prov_id = 1
 
     cursor.execute("""
-        INSERT INTO items (id, name, unit_id, sub_category_id, provider_id, current_quantity, status, barcode)
-        VALUES (101, 'سلك نحاس 4 ملم', ?, ?, ?, 150, 'active', 'EAN-101'),
-               (102, 'مفتاح أحادي 16A', ?, ?, ?, 80, 'active', 'EAN-102'),
-               (103, 'قاطع تيار قديم', ?, ?, ?, 0, 'archived', 'EAN-103');
+        INSERT INTO items (id, name, unit_id, sub_category_id, provider_id, current_quantity, status)
+        VALUES (101, 'سلك نحاس 4 ملم', ?, ?, ?, 150, 'active'),
+               (102, 'مفتاح أحادي 16A', ?, ?, ?, 80, 'active'),
+               (103, 'قاطع تيار قديم', ?, ?, ?, 0, 'archived');
     """, (unit1_id, cat_id, prov_id, unit2_id, cat_id, prov_id, unit2_id, cat_id, prov_id))
 
     cursor.execute("""
@@ -94,7 +94,6 @@ def test_inspect_database_captures_complete_metrics():
     assert items_summary["count"] == 3
     assert items_summary["total_quantity"] == 230  # 150 + 80 + 0
     assert items_summary["item_balances"] == {101: 150, 102: 80, 103: 0}
-    assert items_summary["barcodes"] == ["EAN-101", "EAN-102", "EAN-103"]
     assert items_summary["status_counts"]["active"] == 2
     assert items_summary["status_counts"]["archived"] == 1
 
@@ -254,8 +253,8 @@ def test_end_to_end_rehearse_staging_migration():
     report = rehearse_staging_migration(conn)
 
     assert report["passed"] is True, f"Rehearsal failed with discrepancies: {report['discrepancies']}"
-    assert report["applied_versions"] == [2]
-    assert report["current_version"] == 2
+    assert report["applied_versions"] == [2, 3]
+    assert report["current_version"] == 3
     assert report["discrepancies"] == []
 
     # Verify new tables exist and are clean
@@ -297,12 +296,12 @@ def test_flask_cli_staging_and_migration_commands(tmp_path):
     # 3. Apply migrations
     res_migrate = runner.invoke(args=["migrate"])
     assert res_migrate.exit_code == 0
-    assert "[1, 2]" in res_migrate.output
+    assert "[1, 2, 3]" in res_migrate.output
 
     # 4. Check migration status again (now compatible)
     res_check_after = runner.invoke(args=["migrate", "--check"])
     assert res_check_after.exit_code == 0
-    assert "Database schema is compatible at version 2." in res_check_after.output
+    assert "Database schema is compatible at version 3." in res_check_after.output
 
     # 5. Staging rehearsal
     res_rehearse = runner.invoke(args=["staging-rehearsal"])
@@ -438,4 +437,3 @@ def test_rehearsal_includes_restore_verification():
     assert report["passed"] is True
     assert report["restore_verified"] is True
     conn.close()
-

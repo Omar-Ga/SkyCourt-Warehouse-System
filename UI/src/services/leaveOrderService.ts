@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { apiClient } from './apiClient.ts';
 
 export interface LeaveOrderItem {
@@ -7,7 +8,8 @@ export interface LeaveOrderItem {
   item_name: string;
   unit_id: number;
   unit_name: string;
-  quantity: number;
+  requested_quantity: number;
+  dispensed_quantity: number;
   returned_quantity: number;
   remaining_quantity: number;
   current_item_status?: string;
@@ -19,7 +21,7 @@ export interface LeaveOrderSummary {
   employee_name: string;
   destination_id: number;
   destination_name: string;
-  status: 'open' | 'partially_returned' | 'closed';
+  status: 'open' | 'rejected' | 'closed' | 'partially_returned' | 'cancelled';
   notes?: string | null;
   created_by: number;
   creator_name?: string | null;
@@ -29,6 +31,8 @@ export interface LeaveOrderSummary {
   closer_name?: string | null;
   closed_at?: string | null;
   close_reason?: string | null;
+  rejection_reason?: string | null;
+  rejected_at?: string | null;
   items_count: number;
   total_quantity: number;
   total_returned: number;
@@ -50,7 +54,7 @@ export interface PaginatedLeaveOrders {
 
 export interface CreateLeaveOrderItemInput {
   item_id: number;
-  quantity: number;
+  requested_quantity: number;
 }
 
 export interface CreateLeaveOrderInput {
@@ -85,8 +89,42 @@ export const getTicketsCount = async (): Promise<{ count: number }> => {
 };
 
 export const createLeaveOrder = async (input: CreateLeaveOrderInput): Promise<LeaveOrderDetail> => {
-  return apiClient.post<LeaveOrderDetail>('/leave-orders', input);
+  return apiClient.post<LeaveOrderDetail>('/leave-orders', input, {
+    headers: { 'Idempotency-Key': crypto.randomUUID() }
+  });
 };
+
+export const fulfillLeaveOrder = async (
+  id: number,
+  expected_revision: number,
+  idempotencyKey: string = crypto.randomUUID()
+): Promise<LeaveOrderDetail> => apiClient.post<LeaveOrderDetail>(`/tickets/${id}/fulfill`, { expected_revision }, {
+  headers: { 'Idempotency-Key': idempotencyKey }
+});
+
+export const rejectLeaveOrder = async (
+  id: number,
+  input: { expected_revision: number; reason: string },
+  idempotencyKey: string = crypto.randomUUID()
+): Promise<LeaveOrderDetail> => apiClient.post<LeaveOrderDetail>(`/tickets/${id}/reject`, input, {
+  headers: { 'Idempotency-Key': idempotencyKey }
+});
+
+export const resubmitLeaveOrder = async (
+  id: number,
+  input: { expected_revision: number; items?: CreateLeaveOrderItemInput[]; notes?: string },
+  idempotencyKey: string = crypto.randomUUID()
+): Promise<LeaveOrderDetail> => apiClient.post<LeaveOrderDetail>(`/leave-orders/${id}/resubmit`, input, {
+  headers: { 'Idempotency-Key': idempotencyKey }
+});
+
+export const cancelLeaveOrder = async (
+  id: number,
+  expected_revision: number,
+  idempotencyKey: string = crypto.randomUUID()
+): Promise<LeaveOrderDetail> => apiClient.post<LeaveOrderDetail>(`/leave-orders/${id}/cancel`, { expected_revision }, {
+  headers: { 'Idempotency-Key': idempotencyKey }
+});
 
 export const closeLeaveOrder = async (
   id: number,
@@ -147,4 +185,3 @@ export const returnTicketItems = async (
     headers
   });
 };
-

@@ -187,6 +187,7 @@ class LibSQLCursorWrapper:
     def __init__(self, real_cursor, connection_wrapper):
         self._cursor = real_cursor
         self._conn_wrapper = connection_wrapper
+        self._last_rowcount = -1
 
     def __enter__(self):
         return self
@@ -204,7 +205,11 @@ class LibSQLCursorWrapper:
 
     @property
     def rowcount(self):
-        return self._cursor.rowcount
+        if isinstance(self._cursor, sqlite3.Cursor):
+            return self._cursor.rowcount
+        if self._last_rowcount != -1:
+            return self._last_rowcount
+        return getattr(self._cursor, "rowcount", -1)
 
     @property
     def arraysize(self):
@@ -217,14 +222,26 @@ class LibSQLCursorWrapper:
 
     def execute(self, sql, parameters=()):
         try:
+            if isinstance(self._cursor, sqlite3.Cursor):
+                self._cursor.execute(sql, parameters)
+                return self
+            prev_rc = getattr(self._cursor, "rowcount", 0) or 0
             self._cursor.execute(sql, parameters)
+            curr_rc = getattr(self._cursor, "rowcount", 0) or 0
+            self._last_rowcount = curr_rc - prev_rc if curr_rc >= prev_rc else curr_rc
             return self
         except Exception as e:
             raise _translate_driver_exception(e) from e
 
     def executemany(self, sql, seq_of_parameters):
         try:
+            if isinstance(self._cursor, sqlite3.Cursor):
+                self._cursor.executemany(sql, seq_of_parameters)
+                return self
+            prev_rc = getattr(self._cursor, "rowcount", 0) or 0
             self._cursor.executemany(sql, seq_of_parameters)
+            curr_rc = getattr(self._cursor, "rowcount", 0) or 0
+            self._last_rowcount = curr_rc - prev_rc if curr_rc >= prev_rc else curr_rc
             return self
         except Exception as e:
             raise _translate_driver_exception(e) from e

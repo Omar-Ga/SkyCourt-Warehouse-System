@@ -27,11 +27,11 @@ def test_fresh_install_migrations():
     conn.row_factory = sqlite3.Row
 
     applied = run_migrations(conn)
-    assert applied == [1, 2]
+    assert applied == [1, 2, 3]
 
     # Verify schema version
-    current_version = verify_schema_version(conn, required_version=2)
-    assert current_version == 2
+    current_version = verify_schema_version(conn, required_version=3)
+    assert current_version == 3
 
     # Verify all tables exist
     cursor = conn.cursor()
@@ -57,14 +57,14 @@ def test_migrations_rerun_is_idempotent():
 
     # First run
     applied_first = run_migrations(conn)
-    assert applied_first == [1, 2]
+    assert applied_first == [1, 2, 3]
 
     # Second run
     applied_second = run_migrations(conn)
     assert applied_second == []
 
     # Schema version remains current
-    assert verify_schema_version(conn) == 2
+    assert verify_schema_version(conn) == 3
     conn.close()
 
 
@@ -73,7 +73,7 @@ def test_upgrade_from_legacy_database():
     Tests upgrading an existing production legacy database:
     - Pre-populated with baseline schema and legacy inventory data
     - Has no schema_migrations table
-    - Verifies version 1 is baselined and version 2 is applied
+    - Verifies version 1 is baselined and versions 2 and 3 are applied
     - Verifies legacy items and logs survive intact with null new audit columns
     """
     conn = sqlite3.connect(":memory:")
@@ -94,7 +94,7 @@ def test_upgrade_from_legacy_database():
     cursor.execute("INSERT INTO categories (name) VALUES ('خامات')")
     cat_id = cursor.lastrowid
     cursor.execute(
-        "INSERT INTO items (name, unit_id, sub_category_id, current_quantity, status, barcode) VALUES ('سلك نحاس', ?, ?, 100, 'active', 'WIRE-01')",
+        "INSERT INTO items (name, unit_id, sub_category_id, current_quantity, status) VALUES ('سلك نحاس', ?, ?, 100, 'active')",
         (unit_id, cat_id)
     )
     item_id = cursor.lastrowid
@@ -106,10 +106,10 @@ def test_upgrade_from_legacy_database():
 
     # 3. Run migrations on this legacy database
     applied = run_migrations(conn)
-    assert applied == [2]  # Baselined 1, applied 2
+    assert applied == [2, 3]  # Baselined 1, applied 2 and 3
 
     # 4. Verify version
-    assert verify_schema_version(conn) == 2
+    assert verify_schema_version(conn) == 3
 
     # 5. Verify unmanaged table app_remote_settings survived intact
     cursor.execute("SELECT is_locked FROM app_remote_settings WHERE id = 1")
@@ -118,12 +118,12 @@ def test_upgrade_from_legacy_database():
     assert setting_row["is_locked"] == 0
 
     # 6. Verify legacy item survived intact
-    cursor.execute("SELECT name, current_quantity, status, barcode FROM items WHERE id = ?", (item_id,))
+    cursor.execute("SELECT name, current_quantity, status FROM items WHERE id = ?", (item_id,))
     item_row = cursor.fetchone()
     assert item_row["name"] == "سلك نحاس"
     assert item_row["current_quantity"] == 100
     assert item_row["status"] == "active"
-    assert item_row["barcode"] == "WIRE-01"
+    assert "barcode" not in item_row.keys()
 
     # 7. Verify legacy log survived with null new fields
     cursor.execute("SELECT item_name, action_type, person_name, user_id, operation_key, actor_name FROM movement_logs WHERE item_id = ?", (item_id,))
@@ -217,7 +217,7 @@ def test_verify_schema_version_rejection():
     cursor.execute("INSERT INTO schema_migrations (version, name, checksum) VALUES (1, '001', 'chk')")
     conn.commit()
 
-    with pytest.raises(IncompatibleSchemaError, match="version 2 is required"):
-        verify_schema_version(conn, required_version=2)
+    with pytest.raises(IncompatibleSchemaError, match="version 3 is required"):
+        verify_schema_version(conn, required_version=3)
 
     conn.close()

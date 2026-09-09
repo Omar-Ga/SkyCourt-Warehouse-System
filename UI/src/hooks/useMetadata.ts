@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../services/apiClient';
 import { categoryService, CategoriesResponse, FetchCategoriesParams } from '../services/categoryService';

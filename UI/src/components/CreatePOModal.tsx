@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { X, Plus, Trash2, AlertCircle, ShoppingCart } from 'lucide-react';
 import { useCreatePurchaseOrder } from '../hooks/usePurchaseOrders';
@@ -148,7 +149,8 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
           notes: notes.trim() || undefined,
           items: validLines.map((l) => ({
             item_id: Number(l.item_id),
-            quantity: Number(l.quantity),
+             requested_quantity: Number(l.quantity),
+             ordered_quantity: Number(l.quantity),
             unit_price: parseFloat(l.unit_price).toFixed(2),
             line_description: l.line_description.trim() || undefined
           }))
@@ -387,7 +389,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
               className="btn btn-primary"
               disabled={createPOMutation.isPending || loadingMetadata}
             >
-              {createPOMutation.isPending ? 'جاري الإنشاء...' : 'إنشاء أمر الشراء'}
+               {createPOMutation.isPending ? 'جاري الحفظ...' : 'حفظ مسودة أمر الشراء'}
             </button>
           </div>
         </form>

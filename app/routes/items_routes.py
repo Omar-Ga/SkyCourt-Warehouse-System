@@ -1,13 +1,10 @@
-from flask import Blueprint, request, jsonify, send_file, g
+from flask import Blueprint, request, jsonify, g
 import sqlite3
 from sqlite3 import IntegrityError
-from io import BytesIO
-import barcode
-from barcode.writer import ImageWriter
 import logging
 
 from app.auth import require_role
-from app.services import item_service, barcode_service
+from app.services import item_service
 from app.services.idempotency_service import (
     compute_request_hash,
     reserve_operation,
@@ -90,7 +87,7 @@ def add_item_route():
         validate_dict(data)
         validate_allowed_fields(data, {
             'name', 'unit_id', 'sub_category_id', 'initial_quantity',
-            'provider_id', 'cost', 'person_name', 'barcode'
+            'provider_id', 'cost', 'person_name'
         })
         validate_required_fields(data, ['name', 'unit_id', 'sub_category_id', 'initial_quantity'])
     except ValidationError as e:
@@ -123,7 +120,6 @@ def add_item_route():
             provider_id=data.get('provider_id'),
             cost=data.get('cost'),
             person_name=data.get('person_name'),
-            barcode=data.get('barcode'),
             user_id=actor_id,
             actor_name=actor_name,
             operation_key=idempotency_key,
@@ -228,7 +224,7 @@ def update_item_route(item_id):
     data = request.get_json()
     try:
         validate_dict(data)
-        validate_allowed_fields(data, {'name', 'unit_id', 'sub_category_id', 'barcode', 'person_name', 'force_unit_change'})
+        validate_allowed_fields(data, {'name', 'unit_id', 'sub_category_id', 'person_name', 'force_unit_change'})
         validate_required_fields(data, ['name', 'unit_id'])
     except ValidationError as e:
         return jsonify(e.to_dict()), 400
@@ -242,7 +238,6 @@ def update_item_route(item_id):
             name=data['name'],
             unit_id=data['unit_id'],
             sub_category_id=data.get('sub_category_id'),
-            barcode=data.get('barcode'),
             person_name=data.get('person_name'),
             force_unit_change=data.get('force_unit_change', False),
             user_id=actor_id,
@@ -265,16 +260,6 @@ def update_item_route(item_id):
         return jsonify({"error": str(e)}), 400
     except IntegrityError as e:
         return jsonify({"error": str(e)}), 409
-
-
-@items_bp.route('/by-barcode/<string:barcode_val>', methods=['GET'])
-@require_role('office', 'warehouse')
-def get_item_by_barcode_route(barcode_val):
-    """Gets a single active item by its barcode."""
-    item = item_model.get_item_by_barcode(barcode_val)
-    if item:
-        return jsonify(item), 200
-    return jsonify({'error': 'Item not found or is not active'}), 404
 
 
 @items_bp.route('/<int:item_id>/adjust', methods=['POST'])
@@ -359,34 +344,6 @@ def adjust_item_quantity_route(item_id):
         raise e
 
 
-@items_bp.route('/<int:item_id>/barcode', methods=['GET'])
-@require_role('office', 'warehouse')
-def get_barcode_route(item_id):
-    """Generates and returns a barcode image for a given item."""
-    item = item_model.get_item_by_id(item_id)
-    if not item:
-        return jsonify({'error': 'Item not found'}), 404
-
-    barcode_value = item.get('barcode')
-    if not barcode_value:
-        return jsonify({'error': 'Item does not have a barcode'}), 404
-
-    code128 = barcode.get_barcode_class('code128')
-    font_path = barcode_service.get_resource_path('assets/arial.ttf')
-    barcode_instance = code128(barcode_value, writer=ImageWriter())
-
-    buffer = BytesIO()
-    barcode_instance.write(buffer, options={"font_path": font_path})
-    buffer.seek(0)
-
-    return send_file(
-        buffer,
-        mimetype='image/png',
-        as_attachment=False,
-        download_name=f'{barcode_value}.png'
-    )
-
-
 @items_bp.route('/<int:item_id>', methods=['GET'])
 @require_role('office', 'warehouse')
 def get_item_by_id_route(item_id):
@@ -395,17 +352,6 @@ def get_item_by_id_route(item_id):
     if item:
         return jsonify(item), 200
     return jsonify({'error': 'Item not found'}), 404
-
-
-@items_bp.route('/generate-barcode/<string:barcode_value>', methods=['GET'])
-@require_role('office', 'warehouse')
-def generate_barcode_base64_route(barcode_value):
-    """Generates a barcode image as a Base64 encoded string."""
-    try:
-        data = barcode_service.generate_barcode_base64(barcode_value)
-        return jsonify(data), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
 
 @items_bp.route('/<int:item_id>/location', methods=['GET'])

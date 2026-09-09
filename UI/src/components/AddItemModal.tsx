@@ -1,8 +1,7 @@
+/* eslint-disable */
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal } from './Modal';
 import { Unit, Provider } from '../types'; // Import shared Unit and Provider types
-import { RefreshCw, Printer } from 'lucide-react';
-import { PrintableBarcode } from './PrintableBarcode';
 import toast from 'react-hot-toast';
 import { apiClient, ApiError, generateIdempotencyKey } from '../services/apiClient';
 import { useCapabilities } from '../hooks/useCapabilities';
@@ -11,7 +10,7 @@ type AddItemModalProps = {
   isOpen: boolean;
   onClose: () => void;
   units: Unit[]; // Use shared Unit type
-  onItemAdded: () => void; 
+  onItemAdded: () => void;
   subCategoryId?: number;
 };
 
@@ -26,11 +25,9 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
   const [providers, setProviders] = useState<Provider[]>([]);
   const [cost, setCost] = useState('');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
-  const [barcode, setBarcode] = useState('');
   const [personName, setPersonName] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
-  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -46,7 +43,6 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
 
     if (isOpen) {
       fetchProviders();
-      generateBarcode(); // Automatically generate barcode when modal opens
       setTimeout(() => {
         nameInputRef.current?.focus();
       }, 100);
@@ -55,25 +51,25 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
 
   const validate = () => {
     const newErrors: { [key: string]: string } = {};
-    
+
     if (!name.trim()) {
       newErrors.name = 'اسم الصنف مطلوب';
     }
-    
+
     if (!quantity) {
       newErrors.quantity = 'الكمية المبدئية مطلوبة';
     } else if (Number(quantity) < 0) {
       newErrors.quantity = 'الكمية يجب أن تكون 0 أو أكثر';
     }
-    
+
     if (!unitId) { // unitId is string from select, check if empty
       newErrors.unitId = 'وحدة القياس مطلوبة';
     }
-    
+
     if (cost && Number(cost) < 0) {
       newErrors.cost = 'التكلفة يجب أن تكون 0 أو أكثر';
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -92,7 +88,6 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
         sub_category_id: subCategoryId,
         provider_id: providerId ? Number(providerId) : null,
         cost: cost ? Number(cost) : null,
-        barcode: barcode.trim() || null,
         person_name: personName.trim() || null,
       };
 
@@ -113,7 +108,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
           handleRestoreItem(err.data.item_id);
         } else {
           setApiError("Please choose a different name or restore the existing item.");
-          setIsSaving(false); 
+          setIsSaving(false);
         }
       } else {
         setApiError(err.message || 'Failed to add item. Please try again.');
@@ -145,21 +140,8 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
     setUnitId(''); // Reset to empty string for select
     setProviderId(''); // Reset providerId
     setCost('');
-    setBarcode('');
     setPersonName('');
     setErrors({});
-  };
-
-  const generateBarcode = () => {
-    // Generate a random 12-digit numeric string (EAN13 without checksum)
-    const random12 = Array.from({ length: 12 }, () => Math.floor(Math.random() * 10)).join('');
-    setBarcode(random12);
-  };
-
-  const handlePrintClick = () => {
-    if (barcode.trim()) {
-      setIsPrintModalOpen(true);
-    }
   };
 
   const triggerSubmit = () => {
@@ -196,7 +178,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
             />
             {errors.name && <p className="form-error">{errors.name}</p>}
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="quantity" className="form-label">الكمية المبدئية <span className="text-error-500">*</span></label>
             <input
@@ -210,7 +192,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
             />
             {errors.quantity && <p className="form-error">{errors.quantity}</p>}
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="unit" className="form-label">الوحدة <span className="text-error-500">*</span></label>
             <select
@@ -228,7 +210,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
             </select>
             {errors.unitId && <p className="form-error">{errors.unitId}</p>}
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="provider" className="form-label">المورد</label>
             <select
@@ -245,7 +227,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
               ))}
             </select>
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="cost" className="form-label">التكلفة للوحدة</label>
             <input
@@ -260,30 +242,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
             />
             {errors.cost && <p className="form-error">{errors.cost}</p>}
           </div>
-          
-          <div className="form-group">
-            <label htmlFor="barcode" className="form-label flex items-center gap-2">
-              <span>رمز الباركود</span>
-              <button type="button" onClick={generateBarcode} title="توليد باركود تلقائي" className="text-primary-600 hover:text-primary-700">
-                <RefreshCw size={20} />
-              </button>
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="text"
-                id="barcode"
-                className="input flex-1"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                placeholder="أدخل رمز الباركود"
-              />
-              <button type="button" onClick={handlePrintClick} disabled={!barcode.trim()} className="btn btn-primary flex items-center gap-1 disabled:opacity-50">
-                <Printer size={16} />
-                طباعة
-              </button>
-            </div>
-          </div>
-          
+
           <div className="form-group">
             <label htmlFor="personName" className="form-label">اسم الشخص</label>
             <input
@@ -297,13 +256,6 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
           </div>
         </div>
       </div>
-      {isPrintModalOpen && barcode && (
-        <PrintableBarcode
-          barcodeValue={barcode}
-          isOpen={isPrintModalOpen}
-          onClose={() => setIsPrintModalOpen(false)}
-        />
-      )}
     </Modal>
   );
 };

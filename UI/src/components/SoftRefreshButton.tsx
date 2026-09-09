@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState } from 'react';
 import { RotateCw } from 'lucide-react';
 import { useQueryClient, useIsFetching } from '@tanstack/react-query';

@@ -12,7 +12,7 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 2
+CURRENT_SCHEMA_VERSION = 3
 
 class MigrationError(Exception):
     """Base exception for migration errors."""
@@ -212,17 +212,30 @@ def run_migrations(conn, migrations_dir: Path = None) -> list[int]:
         checksum = compute_checksum(content)
         statements = split_sql_statements(content)
         
+        foreign_keys_disabled = False
         try:
             # Transactional execution for this migration
+            # SQLite cannot toggle foreign_keys from inside an open transaction.
+            # Version 3 reconstructs tables, so disable it before BEGIN and restore it
+            # after the reconstruction has committed (or rolled back).
+            if version == 3:
+                cursor.execute("PRAGMA foreign_keys = OFF")
+                foreign_keys_disabled = True
             cursor.execute("BEGIN TRANSACTION")
             for stmt in statements:
                 cursor.execute(stmt)
-            
+            if foreign_keys_disabled:
+                cursor.execute("PRAGMA foreign_key_check")
+                violations = cursor.fetchall()
+                if violations:
+                    raise MigrationError(f"Foreign key validation failed after migration 3: {violations}")
             cursor.execute(
                 "INSERT INTO schema_migrations (version, name, checksum) VALUES (?, ?, ?)",
                 (version, name, checksum)
             )
             cursor.execute("COMMIT")
+            if foreign_keys_disabled:
+                cursor.execute("PRAGMA foreign_keys = ON")
             newly_applied.append(version)
             logger.info(f"Successfully applied migration {version}: {name}")
         except Exception as e:
@@ -230,6 +243,11 @@ def run_migrations(conn, migrations_dir: Path = None) -> list[int]:
                 cursor.execute("ROLLBACK")
             except Exception:
                 pass
+            if foreign_keys_disabled:
+                try:
+                    cursor.execute("PRAGMA foreign_keys = ON")
+                except Exception:
+                    pass
             logger.error(f"Migration {version} failed: {e}. Transaction rolled back.")
             raise MigrationError(f"Migration {version} ({name}) failed: {e}") from e
 
@@ -282,4 +300,3 @@ if __name__ == "__main__":
             print(f"Current schema version: {ver}")
     finally:
         conn.close()
-

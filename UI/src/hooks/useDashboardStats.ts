@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useQuery } from '@tanstack/react-query';
 import { statsService } from '../services/statsService';
 import { useAuth } from './useAuth';

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState } from 'react';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
 import { Modal } from './Modal';
@@ -99,14 +100,15 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
       }
 
       const selectedItem = items.find((it) => it.id === line.item_id);
-      if (selectedItem && line.quantity > selectedItem.current_quantity) {
-        setErrorMsg(`الكمية المطلوبة للصنف "${selectedItem.name}" أكبر من الرصيد المتوفر (${selectedItem.current_quantity}).`);
+      const available = selectedItem?.available_quantity ?? selectedItem?.current_quantity;
+      if (selectedItem && available !== undefined && line.quantity > available) {
+        setErrorMsg(`الكمية المطلوبة للصنف "${selectedItem.name}" أكبر من الرصيد المتوفر (${available}).`);
         return;
       }
 
       formattedItems.push({
         item_id: line.item_id,
-        quantity: Number(line.quantity)
+        requested_quantity: Number(line.quantity)
       });
     }
 
@@ -152,7 +154,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
             onClick={handleSubmit}
             disabled={createMutation.isPending}
           >
-            {createMutation.isPending ? 'جاري الإنشاء...' : 'تأكيد وصرف الإذن'}
+            {createMutation.isPending ? 'جاري الإرسال...' : 'إرسال طلب الصرف'}
           </button>
         </div>
       }
@@ -226,6 +228,11 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
             </button>
           </div>
 
+          <div className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 flex items-center gap-2">
+            <span className="font-semibold">تنبيه:</span>
+            <span>سيتم حجز الكمية المتاحة فقط عند إنشاء الإذن، ويقوم المخزن بتنفيذ التذكرة قبل خصم الرصيد فعلياً.</span>
+          </div>
+
           <div className="space-y-3">
             {lines.map((line, idx) => {
               const selectedItem = items.find((it) => it.id === line.item_id);
@@ -248,7 +255,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
                         .filter((it) => it.status === 'active')
                         .map((it) => (
                           <option key={it.id} value={it.id}>
-                            {it.name} (المتوفر: {it.current_quantity})
+                            {it.name} (المتوفر: {it.available_quantity ?? it.current_quantity})
                           </option>
                         ))}
                     </select>

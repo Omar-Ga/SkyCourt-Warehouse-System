@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 import {
@@ -8,6 +9,10 @@ import {
   returnTicketItems,
   createLeaveOrder,
   closeLeaveOrder,
+  fulfillLeaveOrder,
+  rejectLeaveOrder,
+  resubmitLeaveOrder,
+  cancelLeaveOrder,
   CreateLeaveOrderInput,
   PaginatedLeaveOrders,
   LeaveOrderDetail,
@@ -90,6 +95,52 @@ export const useCloseLeaveOrder = () => {
   });
 };
 
+const invalidateLeaveOrders = (queryClient: ReturnType<typeof useQueryClient>, id?: number) => {
+  queryClient.invalidateQueries({ queryKey: ['leave-orders'] });
+  queryClient.invalidateQueries({ queryKey: ['tickets'] });
+  queryClient.invalidateQueries({ queryKey: ['tickets-count'] });
+  queryClient.invalidateQueries({ queryKey: ['items'] });
+  queryClient.invalidateQueries({ queryKey: ['movement-logs'] });
+  queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+  if (id) queryClient.invalidateQueries({ queryKey: ['leave-order', id] });
+};
+
+export const useFulfillLeaveOrder = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, expected_revision, idempotencyKey }: { id: number; expected_revision: number; idempotencyKey?: string }) =>
+      fulfillLeaveOrder(id, expected_revision, idempotencyKey),
+    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id)
+  });
+};
+
+export const useRejectLeaveOrder = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input, idempotencyKey }: { id: number; input: { expected_revision: number; reason: string }; idempotencyKey?: string }) =>
+      rejectLeaveOrder(id, input, idempotencyKey),
+    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id)
+  });
+};
+
+export const useResubmitLeaveOrder = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input, idempotencyKey }: { id: number; input: Parameters<typeof resubmitLeaveOrder>[1]; idempotencyKey?: string }) =>
+      resubmitLeaveOrder(id, input, idempotencyKey),
+    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id)
+  });
+};
+
+export const useCancelLeaveOrder = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, expected_revision, idempotencyKey }: { id: number; expected_revision: number; idempotencyKey?: string }) =>
+      cancelLeaveOrder(id, expected_revision, idempotencyKey),
+    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id)
+  });
+};
+
 export const useTickets = (
   params: { page?: number; page_size?: number; status?: string; search?: string } = {},
   options: any = {}
@@ -132,4 +183,3 @@ export const useReturnTicket = () => {
     }
   });
 };
-

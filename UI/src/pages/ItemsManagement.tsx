@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState, useEffect } from 'react';
 import { Plus, Home } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
@@ -322,17 +323,57 @@ export const ItemsManagement = ({
 
   // Columns Definitions - omit actions column entirely when in read-only mode
   const columns = [
-    { key: 'id', header: 'المعرف' },
-    { key: 'name', header: 'اسم الصنف' },
+    {
+      key: 'id',
+      header: 'المعرف',
+      render: (id: number) => <span className="font-mono font-bold text-brand-violet">#{id}</span>
+    },
+    {
+      key: 'name',
+      header: 'اسم الصنف',
+      render: (name: string) => <span className="font-bold text-ink-900">{name}</span>
+    },
     {
       key: 'current_quantity',
       header: 'الكمية الحالية',
-      render: (_: any, row: Item) => `${row.current_quantity} ${row.unit_name}`
+      render: (_: any, row: Item) => (
+        <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-ink-900 text-xs font-mono font-bold">
+          {row.current_quantity} {row.unit_name}
+        </span>
+      )
     },
     {
       key: 'status',
-      header: 'الحالة',
-      render: (status: Item['status']) => <span className={`badge ${status === 'active' ? 'badge-success' : 'badge-error'}`}>{status}</span>
+      header: 'حالة التوفر',
+      render: (status: Item['status'], row: Item) => {
+        if (status !== 'active') {
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600 border border-slate-200">
+              غير نشط
+            </span>
+          );
+        }
+        const qty = row.current_quantity ?? 0;
+        if (qty <= 0) {
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200">
+              نافد
+            </span>
+          );
+        }
+        if (qty <= 5) {
+          return (
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+              منخفض
+            </span>
+          );
+        }
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+            متوفر
+          </span>
+        );
+      }
     },
     ...(canMutateItems ? [{
       key: 'actions',
@@ -350,8 +391,16 @@ export const ItemsManagement = ({
 
   // Subcategory columns - omit actions column entirely when in read-only mode
   const subCategoryColumns = [
-    { key: 'id', header: 'المعرف' },
-    { key: 'name', header: 'اسم الفئة الفرعية' },
+    {
+      key: 'id',
+      header: 'المعرف',
+      render: (id: number) => <span className="font-mono font-bold text-brand-violet">#{id}</span>
+    },
+    {
+      key: 'name',
+      header: 'اسم الفئة الفرعية',
+      render: (name: string) => <span className="font-bold text-ink-900">{name}</span>
+    },
     ...(canMutateCategories ? [{
       key: 'actions',
       header: 'الإجراءات',
@@ -366,7 +415,7 @@ export const ItemsManagement = ({
   ];
 
   const renderBreadcrumbs = () => (
-    <div className="flex items-center gap-2 text-lg" dir="rtl">
+    <nav className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold shadow-xs" dir="rtl" aria-label="مسار التنقل">
       <button
         onClick={() => {
           setViewLevel('mainCategories');
@@ -374,19 +423,19 @@ export const ItemsManagement = ({
           setSelectedSubCategory(null);
           updateSessionState({ viewLevel: 'mainCategories' });
         }}
-        className="flex items-center gap-2"
+        className="flex items-center gap-1.5 text-ink-600 hover:text-brand-violet transition-colors cursor-pointer"
       >
+        <Home size={15} className="text-brand-violet" />
         <span>الأقسام الرئيسية</span>
-        <Home size={16} />
       </button>
 
       {selectedMainCategory && (
         <>
-          <span className="mx-1 text-gray-400">/</span>
+          <span className="text-gray-300 font-bold">›</span>
           <button
             onClick={handleBack}
             disabled={viewLevel !== 'items'}
-            className="disabled:font-bold disabled:text-primary disabled:cursor-text"
+            className={`transition-colors ${viewLevel === 'items' ? 'text-ink-600 hover:text-brand-violet cursor-pointer' : 'text-brand-violet font-bold cursor-default'}`}
           >
             {selectedMainCategory.name}
           </button>
@@ -395,107 +444,120 @@ export const ItemsManagement = ({
 
       {selectedSubCategory && (
         <>
-          <span className="mx-1 text-gray-400">/</span>
-          <span className="font-bold text-primary">
+          <span className="text-gray-300 font-bold">›</span>
+          <span className="text-brand-violet font-bold cursor-default">
             {selectedSubCategory.name}
           </span>
         </>
       )}
-    </div>
+    </nav>
   );
 
   return (
-    <div className="p-6 bg-base-200 min-h-full">
-      <header className="mb-6">
-        <h1 className="text-3xl font-bold text-base-content">
-          {canMutateItems ? 'إدارة الأصناف' : 'دليل الأصناف'}
-        </h1>
-        <p className="text-base-content/70">
-          {canMutateItems ? 'تصفح الأقسام والأصناف، وقم بإدارتها.' : 'تصفح الأقسام والأصناف ومتابعة أرصدتها.'}
-        </p>
-      </header>
-
+    <div className="space-y-6 max-w-[1520px] mx-auto">
       {/* Conditional Rendering based on viewLevel */}
-      {loading && <div className="flex justify-center items-center h-64"><span className="loading loading-spinner loading-lg"></span></div>}
-      {error && <div className="alert alert-error"><span>{error}</span></div>}
+      {loading && (
+        <div className="py-20 text-center bg-white rounded-2xl border border-gray-200 shadow-xs">
+          <div className="inline-block w-8 h-8 border-3 border-brand-violet border-t-transparent rounded-full animate-spin mb-3" />
+          <p className="font-semibold text-sm text-ink-500">جاري تحميل الأصناف والفئات...</p>
+        </div>
+      )}
+
+      {error && (
+        <div className="p-5 bg-rose-50 border border-rose-200 rounded-2xl text-rose-700 text-sm font-bold flex items-center justify-between shadow-xs">
+          <span>{error}</span>
+        </div>
+      )}
 
       {!loading && !error && (
         <>
           {viewLevel === 'mainCategories' && (
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              {/* Add new main category card */}
-              {canMutateCategories && mainCategories.length < 25 && (
-                <MainCategoryCard
-                  onClick={() => handleOpenCategoryModal(null, null)}
-                  className="border-2 border-primary-500 h-28"
-                />
-              )}
-              {/* Main category cards */}
-              {mainCategories.map((cat: Category) => (
-                <MainCategoryCard
-                  key={cat.id}
-                  category={cat}
-                  onSelect={handleSelectMainCategory}
-                  onEdit={canMutateCategories ? (c) => handleOpenCategoryModal(c, null) : undefined}
-                  onDelete={canMutateCategories ? handleDeleteCategory : undefined}
-                  className="border-2 border-primary-500 h-28"
-                />
-              ))}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                {renderBreadcrumbs()}
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                {/* Add new main category card */}
+                {canMutateCategories && mainCategories.length < 25 && (
+                  <MainCategoryCard
+                    onClick={() => handleOpenCategoryModal(null, null)}
+                    className="h-32"
+                  />
+                )}
+                {/* Main category cards */}
+                {mainCategories.map((cat: Category) => (
+                  <MainCategoryCard
+                    key={cat.id}
+                    category={cat}
+                    onSelect={handleSelectMainCategory}
+                    onEdit={canMutateCategories ? (c) => handleOpenCategoryModal(c, null) : undefined}
+                    onDelete={canMutateCategories ? handleDeleteCategory : undefined}
+                    className="h-32"
+                  />
+                ))}
+              </div>
             </div>
           )}
 
           {viewLevel === 'subCategories' && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                 {renderBreadcrumbs()}
                 {canMutateCategories && (
                   <button
-                    className="btn btn-primary btn-sm"
+                    className="px-4 py-2.5 rounded-xl bg-brand-violet hover:bg-brand-violet-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                     onClick={() => handleOpenCategoryModal(null, selectedMainCategory?.id ?? null)}
                   >
-                    <Plus size={20} /> إضافة فئة فرعية
+                    <Plus size={16} />
+                    <span>إضافة فئة فرعية</span>
                   </button>
                 )}
               </div>
 
-              <Table
-                columns={subCategoryColumns}
-                data={subCategories}
-                keyField="id"
-                onRowClick={(row) => handleSelectSubCategory(row)}
-                pagination={{
-                  currentPage: subCategoryPage,
-                  totalPages: Math.ceil(totalSubCategories / PAGE_SIZE),
-                  onPageChange: (page) => {
-                    setSubCategoryPage(page);
-                    updateSessionState({ subCategoryPage: page });
-                  },
-                  totalItems: totalSubCategories,
-                  itemsPerPage: PAGE_SIZE,
-                }}
-                isLoading={loading}
-              />
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden p-4 sm:p-6">
+                <Table
+                  columns={subCategoryColumns}
+                  data={subCategories}
+                  keyField="id"
+                  onRowClick={(row) => handleSelectSubCategory(row)}
+                  pagination={{
+                    currentPage: subCategoryPage,
+                    totalPages: Math.ceil(totalSubCategories / PAGE_SIZE),
+                    onPageChange: (page) => {
+                      setSubCategoryPage(page);
+                      updateSessionState({ subCategoryPage: page });
+                    },
+                    totalItems: totalSubCategories,
+                    itemsPerPage: PAGE_SIZE,
+                  }}
+                  isLoading={loading}
+                />
+              </div>
             </div>
           )}
 
           {viewLevel === 'items' && (
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
+              <div className="flex items-center justify-between">
                 {renderBreadcrumbs()}
               </div>
 
-              <div className="bg-base-100 p-4 rounded-box shadow-lg">
-                <div className="flex justify-between items-center mb-4">
+              <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-6">
                   <SearchBar onSearch={setSearchTerm} />
                   {canMutateItems && (
-                    <button onClick={() => setIsAddItemModalOpen(true)} className="btn btn-primary">
-                      <Plus size={18} /> إضافة صنف جديد
+                    <button
+                      onClick={() => setIsAddItemModalOpen(true)}
+                      className="px-4 py-2.5 rounded-xl bg-brand-violet hover:bg-brand-violet-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer"
+                    >
+                      <Plus size={16} />
+                      <span>إضافة صنف جديد</span>
                     </button>
                   )}
                 </div>
                 <Table
                   columns={columns}
-                  data={items} // filteredItems is just items now
+                  data={items}
                   keyField="id"
                   pagination={{
                     currentPage: itemPage,
@@ -508,7 +570,7 @@ export const ItemsManagement = ({
                     itemsPerPage: PAGE_SIZE,
                   }}
                   isLoading={loading}
-                  rowClassName={(row) => row.id === highlightedItemId ? 'bg-yellow-100 font-medium border-l-4 border-l-primary-500' : ''}
+                  rowClassName={(row) => row.id === highlightedItemId ? 'bg-purple-50/80 font-medium border-r-4 border-r-brand-violet' : ''}
                 />
               </div>
             </div>

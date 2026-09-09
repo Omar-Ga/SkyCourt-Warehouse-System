@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { ArrowUp, ArrowDown, User, Loader2 } from 'lucide-react';

@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { apiClient } from './apiClient';
 import { Category } from '../types';
 

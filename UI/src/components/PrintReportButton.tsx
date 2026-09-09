@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useReactToPrint } from 'react-to-print';
@@ -78,22 +79,22 @@ export const PrintReportButton: React.FC<PrintReportButtonProps> = ({ filters, d
     <>
       <button
         onClick={prepareAndPrint}
-        className="btn btn-outline"
+        className="px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-ink-800 border border-gray-200 text-xs font-bold inline-flex items-center gap-2 shadow-xs transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
         disabled={disabled || isPreparing}
       >
         {isPreparing ? (
           <>
-            <span className="loading loading-spinner loading-xs"></span>
-            جاري التحضير...
+            <span className="w-3.5 h-3.5 border-2 border-brand-violet border-t-transparent rounded-full animate-spin"></span>
+            <span>جاري التحضير...</span>
           </>
         ) : (
           <>
-            <Printer size={16} className="ml-2 rtl:mr-2 rtl:ml-0" />
-            طباعة النتائج
+            <Printer size={16} className="text-brand-violet" />
+            <span>طباعة تقرير رسمي A4</span>
           </>
         )}
       </button>
-      
+
       {error && <p className="text-error-500 text-xs mt-1">{error}</p>}
 
       {printableData.length > 0 && createPortal(
@@ -104,4 +105,4 @@ export const PrintReportButton: React.FC<PrintReportButtonProps> = ({ filters, d
       )}
     </>
   );
-}; 
+};

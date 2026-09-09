@@ -10,7 +10,6 @@ import pytest
 from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-from app.services.barcode_service import get_resource_path, generate_barcode_base64
 from app.migrations import get_migrations_dir, verify_schema_version, IncompatibleSchemaError
 from app.models.db_utils import close_request_db, get_db
 from app.main import create_app
@@ -33,41 +32,10 @@ def test_run_spec_packaging_configuration():
     # Required hidden imports
     for module in [
         "libsql", "libsql_experimental", "certifi", "flask", "flask_cors",
-        "barcode", "barcode.writer", "escpos", "werkzeug", "werkzeug.security",
+        "werkzeug", "werkzeug.security",
         "app.staging", "app.migrations", "dotenv"
     ]:
         assert f"'{module}'" in spec_content, f"Missing required hiddenimport '{module}' in run.spec"
-
-
-def test_resource_path_and_font_resolution_dev_and_frozen():
-    """Verifies that font assets resolve properly in both developer and frozen PyInstaller environments."""
-    # 1. Dev mode
-    font_path_dev = get_resource_path(os.path.join("assets", "arial.ttf"))
-    assert os.path.exists(font_path_dev), f"Font file not found at dev path: {font_path_dev}"
-
-    # Barcode generation succeeds with dev font
-    result = generate_barcode_base64("TEST-12345")
-    assert result["barcodeValue"] == "TEST-12345"
-    assert len(result["imageData"]) > 0
-
-    # 2. Simulated PyInstaller frozen mode
-    with tempfile.TemporaryDirectory() as tmp_meipass:
-        app_assets = Path(tmp_meipass) / "app" / "assets"
-        app_assets.mkdir(parents=True)
-        # Copy font into simulated _MEIPASS/app/assets
-        real_font = Path(font_path_dev)
-        (app_assets / "arial.ttf").write_bytes(real_font.read_bytes())
-
-        with patch.object(sys, "frozen", True, create=True), \
-             patch.object(sys, "_MEIPASS", tmp_meipass, create=True):
-            resolved = get_resource_path(os.path.join("assets", "arial.ttf"))
-            assert os.path.exists(resolved)
-            assert resolved == str(app_assets / "arial.ttf")
-
-            # Barcode generation succeeds in frozen mode
-            frozen_result = generate_barcode_base64("FROZEN-67890")
-            assert frozen_result["barcodeValue"] == "FROZEN-67890"
-            assert len(frozen_result["imageData"]) > 0
 
 
 def test_migrations_dir_resolution_dev_and_frozen():
@@ -153,8 +121,8 @@ def test_startup_schema_version_verification_rejects_outdated_db():
     conn.row_factory = sqlite3.Row
 
     with pytest.raises(IncompatibleSchemaError) as exc:
-        verify_schema_version(conn, required_version=2)
-    assert "Database schema version is 0, but version 2 is required" in str(exc.value)
+        verify_schema_version(conn, required_version=3)
+    assert "Database schema version is 0, but version 3 is required" in str(exc.value)
 
     conn.close()
 

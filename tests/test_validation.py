@@ -216,20 +216,20 @@ def test_validate_line_ownership(migrated_db):
 
     # Create PO 1 and PO 2
     cursor.execute(
-        "INSERT INTO purchase_orders (po_number, barcode, provider_id, provider_name, created_by, expires_at) VALUES ('PO-001', 'BC-PO-1', ?, 'Test Supplier', ?, CURRENT_TIMESTAMP)",
+        "INSERT INTO purchase_orders (po_number, provider_id, provider_name, created_by, status) VALUES ('PO-001', ?, 'Test Supplier', ?, 'draft')",
         (prov_id, buyer_id)
     )
     po1_id = cursor.lastrowid
 
     cursor.execute(
-        "INSERT INTO purchase_orders (po_number, barcode, provider_id, provider_name, created_by, expires_at) VALUES ('PO-002', 'BC-PO-2', ?, 'Test Supplier', ?, CURRENT_TIMESTAMP)",
+        "INSERT INTO purchase_orders (po_number, provider_id, provider_name, created_by, status) VALUES ('PO-002', ?, 'Test Supplier', ?, 'draft')",
         (prov_id, buyer_id)
     )
     po2_id = cursor.lastrowid
 
     # Create line for PO 1
     cursor.execute(
-        "INSERT INTO purchase_order_items (po_id, item_id, item_name, unit_id, unit_name, ordered_quantity) VALUES (?, ?, 'Widget', ?, 'pcs', 5)",
+        "INSERT INTO purchase_order_items (po_id, item_id, item_name, unit_id, unit_name, requested_quantity, ordered_quantity) VALUES (?, ?, 'Widget', ?, 'pcs', 5, 5)",
         (po1_id, item_id, unit_id)
     )
     line1_id = cursor.lastrowid

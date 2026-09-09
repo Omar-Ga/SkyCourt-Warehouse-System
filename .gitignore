@@ -20,10 +20,29 @@ lerna-debug.log*
 .roo/
 .cursor/
 
-# Environment variables
+# Environment variables & Secrets
 .env
-.env.local
-.env.*.local
+.env.*
+*.env
+*.pem
+*.key
+*.cert
+*.crt
+*.pfx
+*.p12
+credentials.json
+token.json
+secrets.*
+
+# AI & Agent local configurations, tokens and scratchpads
+.codex/
+.claude/
+.agents/mcp_config.json
+.agents/*config*.json
+.agents/local/
+.agents/*.token*
+outputs/
+work_order*.md
 
 # Node modules
 node_modules/
@@ -54,8 +73,16 @@ UI/dist-ssr/
 
 # Test files
 .pytest_cache/
+
 # Database files
 *.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
 
 # Vite/Next.js/Other web caches
 .vite/
@@ -63,9 +90,12 @@ UI/dist-ssr/
 .cache/
 *.tsbuildinfo
 
-# Documentation
-docs/
-
 # Graphify
 graphify-out/
 .graphifyignore
+
+# Root scratch media
+/*.png
+/*.jpg
+/*.jpeg
+/*.ico

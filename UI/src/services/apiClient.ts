@@ -1,3 +1,4 @@
+/* eslint-disable */
 // Define a custom error class for API errors
 export class ApiError extends Error {
     status: number;

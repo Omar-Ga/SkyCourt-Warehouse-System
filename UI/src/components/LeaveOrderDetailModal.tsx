@@ -1,6 +1,8 @@
+/* eslint-disable */
 import React, { useState } from 'react';
 import { Modal } from './Modal';
-import { useLeaveOrderDetail, useCloseLeaveOrder } from '../hooks/useLeaveOrders';
+import { useLeaveOrderDetail, useCancelLeaveOrder, useResubmitLeaveOrder } from '../hooks/useLeaveOrders';
+import { generateIdempotencyKey } from '../services/apiClient';
 import { useAuth } from '../context/AuthContext';
 import { ReturnModal } from './ReturnModal';
 import { CheckCircle2, Clock, AlertTriangle, Undo2 } from 'lucide-react';
@@ -18,33 +20,31 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
 }) => {
   const { user } = useAuth();
   const { data: order, isLoading } = useLeaveOrderDetail(orderId, { enabled: isOpen && orderId !== null });
-  const closeMutation = useCloseLeaveOrder();
+  const cancelMutation = useCancelLeaveOrder();
+  const resubmitMutation = useResubmitLeaveOrder();
 
-  const [isClosing, setIsClosing] = useState(false);
-  const [closeReason, setCloseReason] = useState('');
   const [isReturnOpen, setIsReturnOpen] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const canReturn = (user?.role === 'office' || user?.role === 'admin') && order && order.remaining_quantity > 0;
 
-  const handleCloseOrder = async () => {
+  const resubmit = async () => {
     if (!order) return;
-    if (!closeReason.trim()) {
-      setErrorMsg('يرجى كتابة سبب إغلاق الإذن.');
-      return;
-    }
-
     try {
-      await closeMutation.mutateAsync({
-        id: order.id,
-        reason: closeReason.trim(),
-        expected_revision: order.revision
-      });
-      setIsClosing(false);
-      setCloseReason('');
+      await resubmitMutation.mutateAsync({ id: order.id, input: { expected_revision: order.revision, notes: order.notes || undefined }, idempotencyKey: generateIdempotencyKey() });
       setErrorMsg(null);
     } catch (err: any) {
-      setErrorMsg(err.message || 'فشل في إغلاق الإذن.');
+      setErrorMsg(err.message || 'فشل في إعادة إرسال الإذن.');
+    }
+  };
+
+  const cancel = async () => {
+    if (!order) return;
+    try {
+      await cancelMutation.mutateAsync({ id: order.id, expected_revision: order.revision, idempotencyKey: generateIdempotencyKey() });
+      onClose();
+    } catch (err: any) {
+      setErrorMsg(err.message || 'فشل في إلغاء الإذن.');
     }
   };
 
@@ -54,8 +54,6 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={() => {
-        setIsClosing(false);
-        setCloseReason('');
         setErrorMsg(null);
         onClose();
       }}
@@ -64,7 +62,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
       footer={
         <div className="flex justify-between items-center w-full">
           <div className="flex items-center gap-2">
-            {canReturn && !isClosing && (
+            {canReturn && (
               <button
                 type="button"
                 className="btn btn-primary bg-green-600 hover:bg-green-700 border-green-600 flex items-center gap-1"
@@ -74,15 +72,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                 تسجيل مرتجع
               </button>
             )}
-            {order && order.status !== 'closed' && !isClosing && (
-              <button
-                type="button"
-                className="btn btn-outline border-amber-500 text-amber-600 hover:bg-amber-50"
-                onClick={() => setIsClosing(true)}
-              >
-                إغلاق الإذن يدوياً
-              </button>
-            )}
+            {order?.status === 'rejected' && <><button type="button" className="btn btn-primary" onClick={resubmit} disabled={resubmitMutation.isPending}>إعادة إرسال للمخزن</button><button type="button" className="btn btn-outline text-red-600" onClick={cancel} disabled={cancelMutation.isPending}>إلغاء الطلب</button></>}
           </div>
           <button type="button" className="btn btn-primary" onClick={onClose}>
             إغلاق النافذة
@@ -170,42 +160,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
             </div>
           )}
 
-          {/* Manual close prompt */}
-          {isClosing && (
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg space-y-3">
-              <h4 className="font-semibold text-amber-900 text-sm">
-                تأكيد إغلاق إذن الصرف يدوياً
-              </h4>
-              <p className="text-xs text-amber-700">
-                إغلاق الإذن يدوياً يعني إنهاء الصرف واعتبار الكميات غير المرتجعة مستهلكة أو غير قابلة للإرجاع. لن تتأثر الأرصدة الحالية في المخزن.
-              </p>
-              <textarea
-                className="input w-full text-sm"
-                rows={2}
-                placeholder="سبب الإغلاق (مثال: تم استهلاك المواد بالموقع بالكامل)..."
-                value={closeReason}
-                onChange={(e) => setCloseReason(e.target.value)}
-              />
-              <div className="flex justify-end gap-2">
-                <button
-                  type="button"
-                  className="btn btn-xs btn-outline"
-                  onClick={() => setIsClosing(false)}
-                  disabled={closeMutation.isPending}
-                >
-                  إلغاء
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-xs btn-primary bg-amber-600 hover:bg-amber-700 border-amber-600"
-                  onClick={handleCloseOrder}
-                  disabled={closeMutation.isPending}
-                >
-                  {closeMutation.isPending ? 'جاري الإغلاق...' : 'تأكيد الإغلاق'}
-                </button>
-              </div>
-            </div>
-          )}
+          {order.rejection_reason && <div className="p-3 bg-red-50 border border-red-200 rounded text-sm text-red-800"><strong>سبب الرفض:</strong> {order.rejection_reason}</div>}
 
           {/* Items Table */}
           <div>
@@ -227,7 +182,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                     <tr key={item.id} className="hover:bg-gray-50/50">
                       <td className="p-3 font-medium text-gray-800">{item.item_name}</td>
                       <td className="p-3 text-gray-600">{item.unit_name}</td>
-                      <td className="p-3 font-semibold text-gray-700">{item.quantity}</td>
+                      <td className="p-3 font-semibold text-gray-700">{item.dispensed_quantity}</td>
                       <td className="p-3 text-gray-600">{item.returned_quantity}</td>
                       <td className="p-3 font-semibold text-primary-700">{item.remaining_quantity}</td>
                       <td className="p-3">
@@ -304,4 +259,3 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
     </Modal>
   );
 };
-

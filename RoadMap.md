@@ -8,7 +8,7 @@ This roadmap outlines the journey from the current "Digital Inventory Ledger" to
 - [ ] **User Authentication:** Implement a robust login system.
 - [ ] **Role-Based Access Control (RBAC):**
   - **Admin/Manager:** Full access (create items, view financial costs, manage users, generate reports).
-  - **Warehouse Worker:** Restricted access (scan barcodes, log additions/removals, view locations, cannot see wholesale costs).
+  - **Warehouse Worker:** Restricted access (process disbursement and purchase-order tickets, log additions/removals, view locations, cannot see wholesale costs).
   - **View Only:** Can check stock levels (useful for sales reps).
 - [ ] **Audit Trail Enhancement:** Bind all movement logs to the authenticated `user_id` rather than manual text entry of a "person name".
 
@@ -22,7 +22,7 @@ This roadmap outlines the journey from the current "Digital Inventory Ledger" to
   - Introduce a `reorder_point` (minimum quantity) column in the `items` table.
   - Create a dashboard widget for "Items Needing Reorder."
   - Implement automated in-app notifications when stock dips below the threshold.
-- [ ] **Product Variants & SKUs:** Graduate from simple names and barcodes to formal SKUs to handle sizes, colors, and specific variations.
+- [ ] **Product Variants & SKUs:** Graduate from simple names to formal SKUs to handle sizes, colors, and specific variations.
 
 ## Phase 3: Advanced Workflows (The True "WMS" Features)
 *Target: Move away from manual additions/subtractions to order-driven orchestration.*
@@ -46,7 +46,7 @@ This roadmap outlines the journey from the current "Digital Inventory Ledger" to
   - Track worker productivity (e.g., "Picks per hour").
   - Identify "dead stock" (items that haven't moved in months to avoid tying up capital).
   - Calculate inventory valuation dynamically based on current wholesale costs.
-- [ ] **Scanner-Friendly Mobile UI:** Optimize specific workflow views (picking, receiving) for rugged Android scanners or mobile phones.
+- [ ] **Mobile Warehouse UI:** Optimize ticket views (picking, receiving) for rugged Android devices or mobile phones.
 
 ## Phase 5: Cloud SaaS Transition (If Applicable)
 *Target: If pivoting from a local desktop app to a hosted web product sold to multiple businesses.*

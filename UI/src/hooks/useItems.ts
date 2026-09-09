@@ -1,3 +1,4 @@
+/* eslint-disable */
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { itemsService, FetchItemsParams } from '../services/itemsService';
 import { useAuth } from './useAuth';

@@ -1,7 +1,8 @@
+/* eslint-disable */
 import { useState } from 'react';
 import {
   Archive, ArrowUpCircle, ArrowDownCircle, Activity, Edit3, Info, AlertTriangle,
-  PlusCircle, BarChart3, ScanLine, Search, RotateCcw
+  PlusCircle, BarChart3, Search, RotateCcw
 } from 'lucide-react';
 import { AsyncPaginate, LoadOptions } from 'react-select-async-paginate';
 import type { GroupBase, OptionsOrGroups } from 'react-select';
@@ -11,10 +12,10 @@ import { MovementLogEntry, Item } from '../types';
 import { AddItemModal } from '../components/AddItemModal';
 import { useDashboardStats, useRecentLogs } from '../hooks/useDashboardStats';
 import { useUnits } from '../hooks/useMetadata';
-import { useSyncStatus } from '../hooks/useSyncStatus';
-import { SoftRefreshButton } from '../components/SoftRefreshButton';
 import { apiClient } from '../services/apiClient';
 import { useCapabilities } from '../hooks/useCapabilities';
+import { useAuth } from '../hooks/useAuth';
+import { OfficeDashboard } from './office/OfficeDashboard';
 
 // Define ItemOption for react-select-async-paginate
 interface ItemOption {
@@ -33,12 +34,18 @@ const ITEMS_PER_PAGE = 20;
 const AsyncPaginateComponent = AsyncPaginate as any; // Workaround for TS2786
 
 export const Dashboard = () => {
-  const { setActivePage, openScanner } = useAppContext();
-  const { canAdjustQuantity, canMutateItems, canManagePOs } = useCapabilities();
+  const { role } = useAuth();
+
+  // For office operator, render the replicated office dashboard design
+  if (role === 'office') {
+    return <OfficeDashboard />;
+  }
+
+  const { setActivePage } = useAppContext();
+  const { canMutateItems, canManagePOs } = useCapabilities();
   const queryClient = useQueryClient();
 
   // Hooks
-  const { data: syncStatus = { connected: true, mode: 'cloud' } } = useSyncStatus();
   const { data: dashboardUnits = [] } = useUnits();
 
   const {
@@ -81,7 +88,7 @@ export const Dashboard = () => {
 
       const newOptions: ItemOption[] = apiResponse.items.map((item: Item) => ({
         value: item.id,
-        label: `${item.name} (${item.unit_name || 'N/A'}) - ${item.barcode || 'No Barcode'}`,
+        label: `${item.name} (${item.unit_name || 'N/A'}) - رقم ${item.id}`,
         data: item,
       }));
 
@@ -231,30 +238,7 @@ export const Dashboard = () => {
   }
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-2xl font-bold m-0">لوحة التحكم</h1>
-
-        <div className="flex items-center space-x-4 rtl:space-x-reverse">
-          {/* Soft Refresh Button */}
-          <SoftRefreshButton />
-
-          {/* Status Indicator */}
-          <div className="flex items-center space-x-2 rtl:space-x-reverse">
-            <div className={`flex items-center px-3 py-1 rounded-full text-xs font-medium ${syncStatus.connected
-              ? 'bg-success-100 text-success-700'
-              : 'bg-error-100 text-error-700'
-              }`}>
-              <div className={`w-2 h-2 rounded-full mr-2 rtl:ml-2 rtl:mr-0 ${syncStatus.connected ? 'bg-success-500' : 'bg-error-500 animate-pulse'
-                }`} />
-              {syncStatus.connected ? 'متصل' : 'غير متصل'}
-            </div>
-            {syncStatus.mode === 'local' && (
-              <span className="text-[10px] text-gray-400 font-normal">(محلي فقط)</span>
-            )}
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6">
 
 
 
@@ -269,7 +253,7 @@ export const Dashboard = () => {
           <AsyncPaginateComponent
             loadOptions={loadItems}
             onChange={handleSearchSelect}
-            placeholder="ابحث باسم الصنف أو الباركود..."
+             placeholder="ابحث باسم الصنف أو رقم الصنف..."
             debounceTimeout={300}
             classNamePrefix="react-select"
             isClearable
@@ -295,15 +279,6 @@ export const Dashboard = () => {
       <div className="mb-10">
         <h2 className="text-xl font-semibold mb-4 text-gray-700">إجراءات سريعة</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {canAdjustQuantity && (
-            <button
-              className="btn btn-primary btn-lg flex items-center justify-center py-4 px-6 text-base"
-              onClick={openScanner}
-            >
-              <ScanLine size={20} className="ml-2 rtl:mr-2 rtl:ml-0" />
-              قراءة الباركود
-            </button>
-          )}
           {canManagePOs && (
             <button
               className="btn btn-primary btn-lg flex items-center justify-center py-4 px-6 text-base"

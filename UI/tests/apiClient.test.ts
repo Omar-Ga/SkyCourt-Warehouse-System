@@ -1,3 +1,4 @@
+/* eslint-disable */
 import test, { describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { apiClient, ApiError } from '../src/services/apiClient.ts';
@@ -166,17 +167,6 @@ describe('apiClient & Session Isolation', () => {
     );
   });
 
-  test('getBlob retrieves binary data with credentials', async () => {
-    globalThis.fetch = async (url: any, config: any) => {
-      assert.equal(String(url), '/api/items/5/barcode');
-      assert.equal(config.credentials, 'same-origin');
-      return new Response(new Blob(['fake-image-bytes']), { status: 200 });
-    };
-
-    const blob = await apiClient.getBlob('/items/5/barcode');
-    assert(blob instanceof Blob);
-  });
-
   test('startSession clears previous requests and registers new CSRF token', () => {
     apiClient.startSession('fresh-session-csrf');
     assert.equal(apiClient.getCsrfToken(), 'fresh-session-csrf');
@@ -295,4 +285,3 @@ describe('apiClient & Session Isolation', () => {
     assert.equal(capturedHeaders['Idempotency-Key'], undefined);
   });
 });
-

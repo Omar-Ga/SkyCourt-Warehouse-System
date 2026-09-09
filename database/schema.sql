@@ -64,9 +64,9 @@ CREATE TABLE IF NOT EXISTS items (
     sub_category_id INTEGER,
     provider_id INTEGER,
     current_quantity INTEGER NOT NULL DEFAULT 0,
+    reserved_quantity INTEGER NOT NULL DEFAULT 0 CHECK(reserved_quantity >= 0 AND reserved_quantity <= current_quantity),
     cost REAL,
     status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'archived')),
-    barcode TEXT UNIQUE,
     FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE RESTRICT,
     FOREIGN KEY (sub_category_id) REFERENCES categories(id) ON DELETE SET NULL,
     FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE SET NULL
@@ -98,14 +98,15 @@ CREATE INDEX IF NOT EXISTS idx_operations_actor_id ON operations (actor_id);
 CREATE TABLE IF NOT EXISTS purchase_orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     po_number TEXT UNIQUE NOT NULL,
-    barcode TEXT UNIQUE NOT NULL,
     provider_id INTEGER NOT NULL,
     provider_name TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'closed', 'void')),
+    status TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'open', 'closed', 'void', 'expired')),
     notes TEXT,
     created_by INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    expires_at TIMESTAMP NOT NULL,
+    expires_at TIMESTAMP,
+    dispatched_at TIMESTAMP,
+    dispatched_by INTEGER,
     revision INTEGER NOT NULL DEFAULT 0,
     received_by INTEGER,
     closed_at TIMESTAMP,
@@ -115,15 +116,20 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
     currency TEXT NOT NULL DEFAULT 'EGP',
     currency_scale INTEGER NOT NULL DEFAULT 2,
     total_amount INTEGER NOT NULL DEFAULT 0,
+    CHECK(status = 'draft' OR status = 'void' OR (expires_at IS NOT NULL AND dispatched_at IS NOT NULL)),
+    CHECK(status != 'draft' OR (expires_at IS NULL AND dispatched_at IS NULL)),
     FOREIGN KEY (provider_id) REFERENCES providers(id) ON DELETE RESTRICT,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
+    FOREIGN KEY (dispatched_by) REFERENCES users(id) ON DELETE RESTRICT,
     FOREIGN KEY (received_by) REFERENCES users(id) ON DELETE RESTRICT,
     FOREIGN KEY (voided_by) REFERENCES users(id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS idx_purchase_orders_status ON purchase_orders (status);
 CREATE INDEX IF NOT EXISTS idx_purchase_orders_created_at ON purchase_orders (created_at);
-CREATE INDEX IF NOT EXISTS idx_purchase_orders_barcode ON purchase_orders (barcode);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_status_created_at ON purchase_orders (status, created_at);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_status_dispatched_at ON purchase_orders (status, dispatched_at);
+CREATE INDEX IF NOT EXISTS idx_purchase_orders_provider_id ON purchase_orders (provider_id);
 
 -- Purchase Order Items Table
 CREATE TABLE IF NOT EXISTS purchase_order_items (
@@ -134,11 +140,11 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
     unit_id INTEGER NOT NULL,
     unit_name TEXT NOT NULL,
     line_description TEXT,
-    ordered_quantity INTEGER NOT NULL CHECK(ordered_quantity > 0),
+    requested_quantity INTEGER NOT NULL CHECK(requested_quantity >= 0),
+    ordered_quantity INTEGER NOT NULL CHECK(ordered_quantity >= 0),
     unit_price INTEGER NOT NULL DEFAULT 0 CHECK(unit_price >= 0),
     line_total INTEGER NOT NULL DEFAULT 0 CHECK(line_total >= 0),
-    received_quantity INTEGER CHECK(received_quantity IS NULL OR (received_quantity >= 0 AND received_quantity <= ordered_quantity)),
-    disposition TEXT NOT NULL DEFAULT 'pending' CHECK(disposition IN ('pending', 'received', 'struck_off')),
+    received_quantity INTEGER NOT NULL DEFAULT 0 CHECK(received_quantity >= 0 AND received_quantity <= ordered_quantity),
     FOREIGN KEY (po_id) REFERENCES purchase_orders(id) ON DELETE RESTRICT,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT,
     FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE RESTRICT,
@@ -155,7 +161,7 @@ CREATE TABLE IF NOT EXISTS leave_orders (
     employee_name TEXT NOT NULL,
     destination_id INTEGER NOT NULL,
     destination_name TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'partially_returned', 'closed')),
+    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'rejected', 'closed', 'partially_returned', 'cancelled')),
     notes TEXT,
     created_by INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -163,6 +169,10 @@ CREATE TABLE IF NOT EXISTS leave_orders (
     closed_by INTEGER,
     closed_at TIMESTAMP,
     close_reason TEXT,
+    rejection_reason TEXT,
+    rejected_by INTEGER,
+    rejected_at TIMESTAMP,
+    FOREIGN KEY (rejected_by) REFERENCES users(id) ON DELETE RESTRICT,
     FOREIGN KEY (destination_id) REFERENCES destinations(id) ON DELETE RESTRICT,
     FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE RESTRICT,
     FOREIGN KEY (closed_by) REFERENCES users(id) ON DELETE RESTRICT
@@ -179,8 +189,9 @@ CREATE TABLE IF NOT EXISTS leave_order_items (
     item_name TEXT NOT NULL,
     unit_id INTEGER NOT NULL,
     unit_name TEXT NOT NULL,
-    quantity INTEGER NOT NULL CHECK(quantity > 0),
-    returned_quantity INTEGER NOT NULL DEFAULT 0 CHECK(returned_quantity >= 0 AND returned_quantity <= quantity),
+    requested_quantity INTEGER NOT NULL CHECK(requested_quantity > 0),
+    dispensed_quantity INTEGER NOT NULL DEFAULT 0 CHECK(dispensed_quantity >= 0 AND dispensed_quantity <= requested_quantity),
+    returned_quantity INTEGER NOT NULL DEFAULT 0 CHECK(returned_quantity >= 0 AND returned_quantity <= dispensed_quantity),
     FOREIGN KEY (leave_order_id) REFERENCES leave_orders(id) ON DELETE RESTRICT,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT,
     FOREIGN KEY (unit_id) REFERENCES units(id) ON DELETE RESTRICT,
@@ -189,6 +200,19 @@ CREATE TABLE IF NOT EXISTS leave_order_items (
 
 CREATE INDEX IF NOT EXISTS idx_lo_items_order_id ON leave_order_items (leave_order_id);
 CREATE INDEX IF NOT EXISTS idx_lo_items_item_id ON leave_order_items (item_id);
+CREATE INDEX IF NOT EXISTS idx_lo_items_item_order ON leave_order_items (item_id, leave_order_id);
+
+CREATE TABLE IF NOT EXISTS leave_order_rejection_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    leave_order_id INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    rejected_by INTEGER NOT NULL,
+    rejected_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    revision INTEGER NOT NULL,
+    FOREIGN KEY (leave_order_id) REFERENCES leave_orders(id) ON DELETE RESTRICT,
+    FOREIGN KEY (rejected_by) REFERENCES users(id) ON DELETE RESTRICT
+);
+CREATE INDEX IF NOT EXISTS idx_leave_rejection_events_order ON leave_order_rejection_events (leave_order_id);
 
 -- Return Events Table
 CREATE TABLE IF NOT EXISTS return_events (

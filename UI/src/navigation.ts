@@ -1,10 +1,11 @@
+
 export type PageId =
   | 'Dashboard'
   | 'Items'
   | 'PurchaseOrders'
-  | 'Tickets'
+  | 'DisbursementTickets'
+  | 'POTickets'
   | 'LeaveOrders'
-  | 'POScan'
   | 'Logs'
   | 'Units'
   | 'Destinations'
@@ -15,9 +16,9 @@ export const PAGES: Record<string, PageId> = {
   DASHBOARD: 'Dashboard',
   ITEMS: 'Items',
   PURCHASE_ORDERS: 'PurchaseOrders',
-  TICKETS: 'Tickets',
+  DISBURSEMENT_TICKETS: 'DisbursementTickets',
+  PO_TICKETS: 'POTickets',
   LEAVE_ORDERS: 'LeaveOrders',
-  PO_SCAN: 'POScan',
   LOGS: 'Logs',
   UNITS: 'Units',
   DESTINATIONS: 'Destinations',
@@ -31,8 +32,8 @@ export const ROLE_PAGE_PERMISSIONS: Record<Role, PageId[]> = {
   warehouse: [
     'Dashboard',
     'Items',
-    'LeaveOrders',
-    'POScan',
+    'DisbursementTickets',
+    'POTickets',
     'Logs',
     'Units',
     'Destinations',
@@ -43,7 +44,7 @@ export const ROLE_PAGE_PERMISSIONS: Record<Role, PageId[]> = {
     'Dashboard',
     'Items',
     'PurchaseOrders',
-    'Tickets',
+    'LeaveOrders',
     'Logs',
     'Settings',
   ],
@@ -51,9 +52,9 @@ export const ROLE_PAGE_PERMISSIONS: Record<Role, PageId[]> = {
     'Dashboard',
     'Items',
     'PurchaseOrders',
-    'Tickets',
+    'DisbursementTickets',
     'LeaveOrders',
-    'POScan',
+    'POTickets',
     'Logs',
     'Units',
     'Destinations',
@@ -67,12 +68,12 @@ const PAGE_LOOKUP = Object.values(PAGES).reduce<Record<string, PageId>>(
     acc[p.toLowerCase()] = p;
     return acc;
   },
-  { poconfirm: 'POScan' }
+  {}
 );
 
 /**
  * Normalizes any page identifier string to its canonical PageId, supporting case-insensitivity
- * and aliases such as 'POConfirm' -> 'POScan'.
+ * Page IDs are case-insensitive so direct navigation remains predictable.
  */
 export const normalizePageId = (page?: string | null): PageId | null =>
   page ? PAGE_LOOKUP[page.trim().toLowerCase()] || null : null;
@@ -89,7 +90,7 @@ export const canAccessPage = (role?: Role | string | null, page?: string | null)
   return canonical ? allowed.includes(canonical) : false;
 };
 
-export const getDefaultPageForRole = (_role?: Role | string | null): PageId => 'Dashboard';
+export const getDefaultPageForRole = (): PageId => 'Dashboard';
 
 export interface RoleCapabilities {
   canAccessPage: (page: PageId | string) => boolean;
@@ -98,15 +99,15 @@ export interface RoleCapabilities {
   canAdjustQuantity: boolean;
   canManagePOs: boolean;
   canReceivePOs: boolean;
-  canManageTickets: boolean;
+  canManageDisbursementTickets: boolean;
   canManageLeaveOrders: boolean;
   canManageMetadata: boolean;
 }
 
 /**
  * Returns the capability flags for a given role.
- * Office has read-only access to items and dashboard, with no mutation controls.
- * Warehouse retains inventory mutation, metadata, leave orders, and PO receiving.
+ * Office owns leave-order and purchase-order preparation. Warehouse owns
+ * physical fulfillment and receiving.
  * Admin has access to both workflow groups.
  */
 export const getCapabilitiesForRole = (role?: Role | string | null): RoleCapabilities => {
@@ -122,8 +123,8 @@ export const getCapabilitiesForRole = (role?: Role | string | null): RoleCapabil
     canAdjustQuantity: isWarehouse,
     canManagePOs: isOffice,
     canReceivePOs: isWarehouse,
-    canManageTickets: isOffice,
-    canManageLeaveOrders: isWarehouse,
+    canManageDisbursementTickets: isWarehouse,
+    canManageLeaveOrders: isOffice,
     canManageMetadata: isWarehouse,
   };
 };

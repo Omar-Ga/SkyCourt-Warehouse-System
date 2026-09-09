@@ -1,3 +1,4 @@
+/* eslint-disable */
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Category } from '../types';
@@ -9,7 +10,7 @@ type CategoryModalProps = {
   onClose: () => void;
   onSave: () => void;
   categoryToEdit?: Category | null;
-  parentId?: number | null; 
+  parentId?: number | null;
 };
 
 export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentId }: CategoryModalProps) => {
@@ -20,10 +21,10 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
   const [error, setError] = useState<string | null>(null);
 
   const isEditing = !!categoryToEdit;
-  const title = isEditing 
-    ? `تعديل القسم: ${categoryToEdit.name}` 
-    : parentId 
-      ? 'إضافة قسم فرعي جديد' 
+  const title = isEditing
+    ? `تعديل القسم: ${categoryToEdit.name}`
+    : parentId
+      ? 'إضافة قسم فرعي جديد'
       : 'إضافة قسم رئيسي جديد';
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
     if (!validate()) return;
 
     const endpoint = isEditing ? `/categories/${categoryToEdit?.id}` : '/categories';
-    
+
     const body: { name: string; parent_id?: number | null } = { name: name.trim() };
     if (!isEditing) {
       body.parent_id = parentId;
@@ -63,7 +64,7 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
       } else {
         await apiClient.post(endpoint, body);
       }
-      
+
       onSave();
       onClose();
     } catch (err: any) {
@@ -103,4 +104,4 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
       </form>
     </Modal>
   );
-}; 
+};

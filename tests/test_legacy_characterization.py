@@ -2,7 +2,7 @@
 Legacy inventory characterization tests covering:
 - Item add/search/detail and both pagination styles
 - Duplicate/restore 409 conflict workflows
-- Barcode lookup, PNG, and base64 generation
+- Identifier-free item lookup and stock reporting
 - Unit-change confirmation and unresolved order guards
 - Category hierarchy, 25-main-category limit, and archive-on-delete
 - Metadata deletion guards (units, providers, destinations)
@@ -26,7 +26,6 @@ def test_item_creation_search_and_detail(client, sample_metadata):
         "sub_category_id": sub_cat_id,
         "initial_quantity": 25,
         "cost": 15.5,
-        "barcode": "WRENCH-10"
     })
     assert res.status_code == 201
     created = res.get_json()
@@ -47,10 +46,6 @@ def test_item_creation_search_and_detail(client, sample_metadata):
     assert res_get.status_code == 200
     assert res_get.get_json()["name"] == "مفتاح ربط 10 ملم"
 
-    # 4. Retrieve by barcode
-    res_bc = client.get("/api/items/by-barcode/WRENCH-10")
-    assert res_bc.status_code == 200
-    assert res_bc.get_json()["id"] == item_id
 
 
 def test_both_pagination_styles(client, sample_metadata):
@@ -65,7 +60,6 @@ def test_both_pagination_styles(client, sample_metadata):
             "unit_id": unit_id,
             "sub_category_id": sub_cat_id,
             "initial_quantity": i,
-            "barcode": f"BC-PAGE-{i:02d}"
         })
 
     # Standard pagination: page=1, page_size=10
@@ -190,35 +184,6 @@ def test_unit_change_confirmation_flow(client, sample_metadata):
     })
     assert res_force.status_code == 200
     assert res_force.get_json()["unit_id"] == unit2_id
-
-
-def test_barcode_png_and_base64_routes(client, sample_metadata):
-    """Tests barcode image generation endpoints."""
-    unit_id = sample_metadata["unit_id"]
-    sub_cat_id = sample_metadata["sub_category_id"]
-
-    res_item = client.post("/api/items/", json={
-        "name": "شريط قياس",
-        "unit_id": unit_id,
-        "sub_category_id": sub_cat_id,
-        "initial_quantity": 10,
-        "barcode": "TAPE-1234"
-    })
-    item_id = res_item.get_json()["id"]
-
-    # 1. Barcode PNG endpoint
-    res_png = client.get(f"/api/items/{item_id}/barcode")
-    assert res_png.status_code == 200
-    assert res_png.content_type == "image/png"
-    assert len(res_png.data) > 0
-
-    # 2. Barcode Base64 endpoint
-    res_b64 = client.get("/api/items/generate-barcode/TAPE-1234")
-    assert res_b64.status_code == 200
-    b64_json = res_b64.get_json()
-    assert b64_json["barcodeValue"] == "TAPE-1234"
-    assert b64_json["imageFormat"] == "png"
-    assert len(b64_json["imageData"]) > 0
 
 
 def test_category_hierarchy_and_archive_on_delete(client, sample_metadata):
@@ -556,8 +521,7 @@ def test_item_creation_idempotency_via_api(client, sample_metadata):
         "name": "صنف للتكرار الآمن",
         "unit_id": unit_id,
         "sub_category_id": sub_cat_id,
-        "initial_quantity": 15,
-        "barcode": "SAFE-REPLAY-1"
+        "initial_quantity": 15
     }
 
     # 1. Initial creation
@@ -586,4 +550,3 @@ def test_item_creation_idempotency_via_api(client, sample_metadata):
     }, headers={"Idempotency-Key": idem_key})
     assert res3.status_code == 409
     assert res3.get_json()["code"] == "IDEMPOTENCY_KEY_CONFLICT"
-

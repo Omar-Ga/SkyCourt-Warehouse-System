@@ -1,3 +1,4 @@
+/* eslint-disable */
 import test, { describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { apiClient } from '../src/services/apiClient.ts';

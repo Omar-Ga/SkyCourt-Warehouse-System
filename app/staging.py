@@ -2,7 +2,7 @@
 Staging inspection, backup, restore, and comparison module for SkyCourt Warehouse System.
 Provides tools to inspect, back up, restore, and qualify migrated staging copies
 against baseline row counts, stock balances, IDs, timestamps, foreign keys,
-barcodes, remote settings, and unknown-schema preservation.
+    inventory, remote settings, and unknown-schema preservation.
 """
 import logging
 import sqlite3
@@ -15,7 +15,7 @@ CORE_TABLES = {
     "units", "categories", "destinations", "providers", "items", "movement_logs",
     "schema_migrations", "users", "operations", "purchase_orders",
     "purchase_order_items", "leave_orders", "leave_order_items",
-    "return_events", "return_event_items"
+    "return_events", "return_event_items", "leave_order_rejection_events"
 }
 
 
@@ -24,7 +24,7 @@ def inspect_database(conn: Any) -> Dict[str, Any]:
     Inspects a database connection and captures an authoritative baseline snapshot:
     - Tables list and row counts
     - Stock balances and per-item quantities
-    - Item IDs and barcode preservation
+    - Item IDs and stock balance preservation
     - Movement logs summary and timestamps
     - Remote settings and unmanaged/unknown schema tables
     - Foreign key and integrity checks
@@ -60,10 +60,9 @@ def inspect_database(conn: Any) -> Dict[str, Any]:
     # 3. Items inspection
     items_summary = {}
     if "items" in tables:
-        cursor.execute("SELECT id, name, current_quantity, status, barcode FROM items ORDER BY id")
+        cursor.execute("SELECT id, name, current_quantity, status FROM items ORDER BY id")
         item_rows = cursor.fetchall()
         total_quantity = 0
-        barcodes = []
         item_balances = {}
         status_counts = {"active": 0, "inactive": 0, "archived": 0}
 
@@ -71,12 +70,9 @@ def inspect_database(conn: Any) -> Dict[str, Any]:
             i_id = r[0] if isinstance(r, (tuple, list)) else r["id"]
             qty = r[2] if isinstance(r, (tuple, list)) else r["current_quantity"]
             st = r[3] if isinstance(r, (tuple, list)) else r["status"]
-            bc = r[4] if isinstance(r, (tuple, list)) else r["barcode"]
 
             total_quantity += (qty or 0)
             item_balances[i_id] = qty
-            if bc:
-                barcodes.append(bc)
             if st in status_counts:
                 status_counts[st] += 1
             else:
@@ -87,8 +83,6 @@ def inspect_database(conn: Any) -> Dict[str, Any]:
             "total_quantity": total_quantity,
             "item_ids": sorted(list(item_balances.keys())),
             "item_balances": item_balances,
-            "barcodes_count": len(barcodes),
-            "barcodes": sorted(barcodes),
             "status_counts": status_counts
         }
 
@@ -319,7 +313,7 @@ def compare_database_snapshots(baseline: Dict[str, Any], post_migration: Dict[st
     Compares baseline and post-migration snapshots and reports discrepancies:
     - Baseline table existence and row preservation across all baseline tables
     - Stock balances and per-item quantity equality
-    - Item IDs and barcode preservation
+    - Item IDs and deliberate retirement of legacy identifiers
     - Master entity IDs preservation (units, categories, destinations, providers)
     - Movement logs row count, actions, IDs, and per-log timestamp integrity
     - Foreign key validity (0 violations)
@@ -378,15 +372,6 @@ def compare_database_snapshots(baseline: Dict[str, Any], post_migration: Dict[st
                     f"Item ID {item_id} quantity changed: baseline had {base_qty}, post-migration has {post_qty}."
                 )
 
-        # Barcode preservation
-        if b_items.get("barcodes_count") != p_items.get("barcodes_count"):
-            discrepancies.append(
-                f"Barcode count mismatch: baseline had {b_items.get('barcodes_count')}, "
-                f"post-migration has {p_items.get('barcodes_count')}."
-            )
-        for bc in b_items.get("barcodes", []):
-            if bc not in p_items.get("barcodes", []):
-                discrepancies.append(f"Barcode '{bc}' was lost during migration.")
 
     # 5. Master Entity IDs preservation (units, categories, destinations, providers)
     b_me = baseline.get("master_entity_ids", {})
