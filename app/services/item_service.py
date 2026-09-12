@@ -6,7 +6,6 @@ from app.models import item_model
 from app.models.movement_log_model import add_log_entry
 from app.models.category_model import get_category_by_id
 from app.validation import (
-    ValidationError,
     validate_positive_integer,
     validate_non_negative_integer,
     validate_string,

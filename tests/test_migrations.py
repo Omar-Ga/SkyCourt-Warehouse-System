@@ -11,13 +11,10 @@ import pytest
 from app.migrations import (
     run_migrations,
     verify_schema_version,
-    get_applied_migrations,
     get_available_migrations,
-    compute_checksum,
     IncompatibleSchemaError,
     MigrationError,
-    MigrationChecksumError,
-    CURRENT_SCHEMA_VERSION
+    MigrationChecksumError
 )
 
 

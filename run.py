@@ -35,7 +35,7 @@ def _query_remote_lock() -> bool:
             cursor = conn.cursor()
             cursor.execute("SELECT is_locked FROM app_remote_settings WHERE id = 1")
             row = cursor.fetchone()
-            if row and (row[0] == 1 or (hasattr(row, "__getitem__") and row.get("is_locked") == 1)):
+            if row and (row[0] == 1 or (isinstance(row, dict) and row.get("is_locked") == 1)):
                 return True
         finally:
             try:

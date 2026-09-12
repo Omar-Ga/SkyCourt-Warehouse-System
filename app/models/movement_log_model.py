@@ -1,7 +1,7 @@
 import logging
 import sqlite3
 import zoneinfo
-from datetime import datetime, date, timezone, time, timedelta
+from datetime import datetime, timezone, time, timedelta
 from typing import Optional, Any
 from .db_utils import get_db
 

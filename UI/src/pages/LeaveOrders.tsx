@@ -4,6 +4,7 @@ import { useLeaveOrders } from '../hooks/useLeaveOrders';
 import { useAuth } from '../context/AuthContext';
 import { CreateLeaveOrderModal } from '../components/CreateLeaveOrderModal';
 import { LeaveOrderDetailModal } from '../components/LeaveOrderDetailModal';
+import { formatSafeDate } from '../services/statsService';
 
 export const LeaveOrders: React.FC = () => {
   const { user } = useAuth();
@@ -129,7 +130,8 @@ export const LeaveOrders: React.FC = () => {
                   <th className="py-3.5 px-4">جهة الصرف</th>
                   <th className="py-3.5 px-4">الحالة</th>
                   <th className="py-3.5 px-4 text-center">عدد الأصناف</th>
-                  <th className="py-3.5 px-4 text-center">إجمالي المنصرف</th>
+                  <th className="py-3.5 px-4 text-center">الكمية المطلوبة</th>
+                  <th className="py-3.5 px-4 text-center">الكمية المصروفة</th>
                   <th className="py-3.5 px-4 text-center">المتبقي بالخارج</th>
                   <th className="py-3.5 px-4">تاريخ الإنشاء</th>
                   <th className="p-3 text-center">الإجراءات</th>
@@ -146,15 +148,15 @@ export const LeaveOrders: React.FC = () => {
                     <td className="p-3">
                       {order.status === 'open' && (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
-                          <Clock size={12} /> مفتوح
+                          <Clock size={12} /> مفتوح بالمخزن
                         </span>
                       )}
-                       {order.status === 'rejected' && (
-                         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
-                           <AlertTriangle size={12} /> مرفوض
-                         </span>
-                       )}
-                       {order.status === 'partially_returned' && (
+                      {order.status === 'rejected' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
+                          <AlertTriangle size={12} /> مرفوض
+                        </span>
+                      )}
+                      {order.status === 'partially_returned' && (
                         <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
                           <AlertTriangle size={12} /> مرتجع جزئياً
                         </span>
@@ -164,14 +166,20 @@ export const LeaveOrders: React.FC = () => {
                           <CheckCircle2 size={12} /> مغلق
                         </span>
                       )}
+                      {order.status === 'cancelled' && (
+                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-rose-50 text-rose-600 border border-rose-200">
+                          ملغي
+                        </span>
+                      )}
                     </td>
-                    <td className="p-3 text-gray-600">{order.items_count}</td>
-                    <td className="p-3 font-semibold text-gray-800">{order.total_quantity}</td>
-                    <td className="p-3 font-semibold text-primary-700">
+                    <td className="p-3 text-gray-600 text-center">{order.items_count}</td>
+                    <td className="p-3 font-semibold text-gray-800 text-center">{order.total_requested_quantity ?? order.total_quantity}</td>
+                    <td className="p-3 font-semibold text-emerald-700 text-center">{order.total_dispensed_quantity ?? 0}</td>
+                    <td className="p-3 font-semibold text-primary-700 text-center">
                       {order.remaining_quantity}
                     </td>
                     <td className="p-3 text-xs text-gray-500">
-                      {new Date(order.created_at).toLocaleDateString('ar-EG')}
+                      {formatSafeDate(order.created_at)}
                     </td>
                     <td className="p-3 text-center">
                       <button
@@ -225,7 +233,12 @@ export const LeaveOrders: React.FC = () => {
       <CreateLeaveOrderModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onSuccess={() => refetch()}
+        onSuccess={(created) => {
+          refetch();
+          if (created?.id) {
+            setSelectedOrderId(created.id);
+          }
+        }}
       />
 
       {/* Detail Modal */}

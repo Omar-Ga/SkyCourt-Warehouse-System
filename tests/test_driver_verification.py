@@ -17,10 +17,7 @@ import pytest
 from app.models.db_utils import (
     LibSQLRow,
     LibSQLConnectionWrapper,
-    LibSQLCursorWrapper,
     is_transient_error,
-    create_connection,
-    get_db,
 )
 
 try:

@@ -1,7 +1,6 @@
 """
 Tests for Validation: Shape, Types, Range, Booleans, Non-finite Numbers, Enums, Foreign Keys, Unique Lines.
 """
-import math
 import pytest
 
 from app.validation import (
@@ -13,7 +12,6 @@ from app.validation import (
     validate_positive_integer,
     validate_non_negative_integer,
     validate_number,
-    validate_string,
     validate_enum,
     validate_foreign_key,
     validate_unique_lines,

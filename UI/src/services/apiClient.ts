@@ -130,6 +130,12 @@ async function fetchWithProtection(endpoint: string, options: RequestOptions = {
         if (sessionEpoch !== thisEpoch) {
             throw new ApiError('انتهت صلاحية الجلسة.', 401, null, 'SESSION_ABORTED');
         }
+        if (err?.name === 'AbortError' || (typeof err?.message === 'string' && (err.message.includes('aborted') || err.message.includes('Pre-aborted')))) {
+            throw err;
+        }
+        if (err?.message === 'Failed to fetch' || err?.name === 'TypeError' || (typeof err?.message === 'string' && err.message.toLowerCase().includes('network'))) {
+            throw new ApiError('تعذر الاتصال بالخادم. يرجى التحقق من اتصال الشبكة والمحاولة مجدداً.', 0, null, 'NETWORK_ERROR');
+        }
         throw err;
     }
 

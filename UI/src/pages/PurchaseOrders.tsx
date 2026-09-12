@@ -14,6 +14,7 @@ import { useCapabilities } from '../hooks/useCapabilities';
 import { CreatePOModal } from '../components/CreatePOModal';
 import { PODetailModal } from '../components/PODetailModal';
 import { PurchaseOrderSummary } from '../services/poService';
+import { formatSafeDate } from '../services/statsService';
 
 export const PurchaseOrders: React.FC = () => {
   const capabilities = useCapabilities();
@@ -49,6 +50,13 @@ export const PurchaseOrders: React.FC = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
+      case 'draft':
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-700 border border-gray-200">
+            <Clock size={12} />
+            مسودة
+          </span>
+        );
       case 'open':
         return (
           <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
@@ -198,8 +206,8 @@ export const PurchaseOrders: React.FC = () => {
                     <td className="py-3.5 px-4 font-semibold text-ink-900">
                       {order.provider_name}
                     </td>
-                    <td className="py-3.5 px-4 text-ink-500">{order.created_at}</td>
-                    <td className="py-3.5 px-4 text-ink-500">{order.status === 'draft' ? 'لا يوجد' : order.expires_at || '—'}</td>
+                    <td className="py-3.5 px-4 text-ink-500">{formatSafeDate(order.created_at)}</td>
+                    <td className="py-3.5 px-4 text-ink-500">{order.status === 'draft' ? 'لا يوجد' : (order.expires_at ? formatSafeDate(order.expires_at) : '—')}</td>
                     <td className="py-3.5 px-4">{getStatusBadge(order.status)}</td>
                     <td className="py-3.5 px-4 text-center font-bold text-ink-800">
                       {order.line_count}
@@ -263,8 +271,11 @@ export const PurchaseOrders: React.FC = () => {
       <CreatePOModal
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
-        onCreated={() => {
+        onCreated={(createdPO) => {
           refetch();
+          if (createdPO?.id) {
+            setSelectedPoId(createdPO.id);
+          }
         }}
       />
 

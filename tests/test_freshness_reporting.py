@@ -6,10 +6,8 @@ normalization, error path status codes, sync-status and manual sync contracts.
 """
 import sqlite3
 import zoneinfo
-from datetime import datetime, date, timezone, time, timedelta
-import pytest
 from app.models.db_utils import get_sync_status, record_sync_success, record_sync_error
-from app.models.movement_log_model import get_daily_movement_summary, add_log_entry, get_movement_logs
+from app.models.movement_log_model import add_log_entry
 
 CAIRO_TZ = zoneinfo.ZoneInfo("Africa/Cairo")
 
@@ -235,7 +233,6 @@ def test_manual_sync_failure_reporting(client, monkeypatch):
     it returns 500 with error details and records last_error.
     """
     import app.main
-    from app.models import db_utils
 
     def broken_get_db():
         raise sqlite3.OperationalError("Simulated sync failure")

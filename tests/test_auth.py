@@ -8,12 +8,11 @@ Tests for SkyCourt authentication system covering:
 - Session invalidation (session version change, password reset, deactivation, logout)
 - Session-bound CSRF validation and allowed-origin checks
 """
-import json
 import sqlite3
 import pytest
 from app.models import user_model
 from app.services import user_service
-from app.auth import get_or_create_secret_key, login_rate_limiter
+from app.auth import login_rate_limiter
 from app.migrations import run_migrations
 from app.main import create_app
 

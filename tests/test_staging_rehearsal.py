@@ -3,8 +3,6 @@ Tests for Staging Inspection, Backup, Restore, and Parity Qualification.
 Validates Acceptance Criterion 1 and 2 for Issue #12.
 """
 import sqlite3
-import pytest
-from pathlib import Path
 
 from app.staging import (
     inspect_database,
@@ -14,9 +12,7 @@ from app.staging import (
     rehearse_staging_migration
 )
 from app.migrations import (
-    run_migrations,
     get_available_migrations,
-    verify_schema_version
 )
 from app.main import create_app
 

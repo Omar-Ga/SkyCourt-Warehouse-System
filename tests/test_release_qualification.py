@@ -2,7 +2,6 @@
 Tests for Two-Workstation Release Qualification and Frozen Windows Packaging.
 Validates Acceptance Criteria 2, 4, and 5 for Issue #12.
 """
-import os
 import sys
 import tempfile
 import sqlite3
@@ -24,7 +23,6 @@ def test_run_spec_packaging_configuration():
 
     # Required datas
     assert "('UI/dist', 'dist')" in spec_content
-    assert "('app/assets', 'app/assets')" in spec_content
     assert "('database/schema.sql', 'database')" in spec_content
     assert "('database/migrations', 'database/migrations')" in spec_content
     assert "(certifi.where(), '.')" in spec_content

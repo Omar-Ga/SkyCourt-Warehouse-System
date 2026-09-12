@@ -43,7 +43,9 @@ export const useLeaveOrderDetail = (id: number | null, options: any = {}) => {
     queryKey: ['leave-order', id],
     queryFn: () => getLeaveOrderDetail(id!),
     enabled: isAuthenticated && id !== null && options?.enabled !== false,
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 10,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
     ...options
   });
 };
@@ -65,7 +67,12 @@ export const useCreateLeaveOrder = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: CreateLeaveOrderInput) => createLeaveOrder(input),
+    mutationFn: (variables: { input: CreateLeaveOrderInput; idempotencyKey?: string } | CreateLeaveOrderInput) => {
+      if ('input' in variables) {
+        return createLeaveOrder(variables.input, variables.idempotencyKey);
+      }
+      return createLeaveOrder(variables);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-orders'] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
@@ -142,13 +149,14 @@ export const useCancelLeaveOrder = () => {
 };
 
 export const useTickets = (
-  params: { page?: number; page_size?: number; status?: string; search?: string } = {},
+  params: { page?: number; page_size?: number; status?: string; search?: string } | string = {},
   options: any = {}
 ) => {
   const { isAuthenticated } = useAuth();
+  const normalizedParams = typeof params === 'string' ? { status: params } : (params || {});
   return useQuery<PaginatedTickets>({
-    queryKey: ['tickets', params],
-    queryFn: () => getTickets(params),
+    queryKey: ['tickets', normalizedParams],
+    queryFn: () => getTickets(normalizedParams),
     placeholderData: (prev) => prev,
     staleTime: 1000 * 15,
     refetchInterval: 15000,

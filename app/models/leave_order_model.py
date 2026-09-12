@@ -1,5 +1,5 @@
 """Persistence helpers for reservation-based Leave Orders."""
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 
 def _row_to_dict(cursor: Any, row: Any) -> Optional[Dict[str, Any]]:

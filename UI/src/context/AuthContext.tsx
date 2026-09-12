@@ -39,6 +39,26 @@ type AuthProviderProps = {
   children: ReactNode;
 };
 
+function clearSessionPreservingPendingSubmissions() {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    const pendingEntries: [string, string][] = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith('skycourt_pending_')) {
+        const val = sessionStorage.getItem(key);
+        if (val) pendingEntries.push([key, val]);
+      }
+    }
+    sessionStorage.clear();
+    for (const [k, v] of pendingEntries) {
+      sessionStorage.setItem(k, v);
+    }
+  } catch {
+    // ignore environments where sessionStorage is not available
+  }
+}
+
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -65,11 +85,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     queryClient.clear();
     apiClient.resetSession();
 
-    try {
-      sessionStorage.clear();
-    } catch {
-      // ignore environments where sessionStorage is not available
-    }
+    clearSessionPreservingPendingSubmissions();
 
     setUser(null);
     toast.error('انتهت صلاحية الجلسة، يرجى تسجيل الدخول مجدداً.');
@@ -115,11 +131,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     );
 
     // 2. Clear old state, cancel old queries, and start fresh session
-    try {
-      sessionStorage.clear();
-    } catch {
-      // ignore
-    }
+    clearSessionPreservingPendingSubmissions();
     void queryClient.cancelQueries();
     queryClient.clear();
     apiClient.startSession(response.csrf_token);
@@ -140,11 +152,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       void queryClient.cancelQueries();
       queryClient.clear();
       apiClient.resetSession();
-      try {
-        sessionStorage.clear();
-      } catch {
-        // ignore
-      }
+      clearSessionPreservingPendingSubmissions();
       setUser(null);
       toast.success('تم تسجيل الخروج بنجاح.');
     }

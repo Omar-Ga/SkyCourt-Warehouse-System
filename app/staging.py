@@ -7,7 +7,7 @@ against baseline row counts, stock balances, IDs, timestamps, foreign keys,
 import logging
 import sqlite3
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 

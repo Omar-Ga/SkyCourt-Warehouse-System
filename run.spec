@@ -11,7 +11,6 @@ a = Analysis(
     binaries=[],
     datas=[
         ('UI/dist', 'dist'),
-        ('app/assets', 'app/assets'),
         ('database/schema.sql', 'database'),
         ('database/migrations', 'database/migrations'),
         (certifi.where(), '.'),

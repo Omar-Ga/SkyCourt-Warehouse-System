@@ -128,7 +128,7 @@ export const PrintableReport = React.forwardRef<HTMLDivElement, PrintableReportP
                   {log.resulting_quantity !== null && log.resulting_quantity !== undefined ? log.resulting_quantity : '-'}
                 </td>
                 <td style={{ border: '1px solid #E5E7EB', padding: '8px', color: '#374151' }}>
-                  {log.destination_name || log.provider_name || '-'}
+                  {log.destination_name || log.provider || '-'}
                 </td>
                 <td style={{ border: '1px solid #E5E7EB', padding: '8px', color: '#374151' }}>
                   {actor}

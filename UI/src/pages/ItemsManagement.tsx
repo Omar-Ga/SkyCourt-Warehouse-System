@@ -223,10 +223,10 @@ export const ItemsManagement = ({
 
     const isNewSubCategory = selectedSubCategory?.id !== category.id;
 
+    setSelectedSubCategory(category);
+    setViewLevel('items');
     if (isNewSubCategory) {
-      setSelectedSubCategory(category);
       setItemPage(1);
-      setViewLevel('items');
       updateSessionState({
         viewLevel: 'items',
         selectedSubCategory: category,
@@ -234,7 +234,11 @@ export const ItemsManagement = ({
       });
     } else {
       setItemPage(page);
-      updateSessionState({ itemPage: page });
+      updateSessionState({
+        viewLevel: 'items',
+        selectedSubCategory: category,
+        itemPage: page
+      });
     }
   };
 

@@ -4,9 +4,7 @@ Provides request-owned connections, transaction management, transient-conflict r
 and compatibility adapters for SQLite and LibSQL.
 """
 import logging
-import os
 import sqlite3
-import sys
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional

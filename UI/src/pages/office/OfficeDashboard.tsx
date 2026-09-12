@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import {
   Package, ArrowDown, RotateCcw, Settings,
-  PlusSquare, FileText, BarChart3, Bell, Clock
+  PlusSquare, FileText, BarChart3, Bell, Clock,
+  CheckCircle2
 } from 'lucide-react';
 import { AsyncPaginate, LoadOptions } from 'react-select-async-paginate';
 import type { GroupBase, OptionsOrGroups } from 'react-select';
@@ -10,9 +11,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '../../context/AppContext';
 import { useDashboardStats, useRecentLogs } from '../../hooks/useDashboardStats';
 import { usePurchaseOrders } from '../../hooks/usePurchaseOrders';
-import { useTickets } from '../../hooks/useLeaveOrders';
+import { useLeaveOrders } from '../../hooks/useLeaveOrders';
 import { CreatePOModal } from '../../components/CreatePOModal';
 import { CreateLeaveOrderModal } from '../../components/CreateLeaveOrderModal';
+import { LeaveOrderDetailModal } from '../../components/LeaveOrderDetailModal';
 import { apiClient } from '../../services/apiClient';
 import { Item, MovementLogEntry } from '../../types';
 
@@ -30,12 +32,13 @@ const ITEMS_PER_PAGE = 20;
 const AsyncPaginateComponent = AsyncPaginate as any;
 
 export const OfficeDashboard: React.FC = () => {
-  const { setActivePage, setSelectedPO, openPODetailModal } = useAppContext();
+  const { setActivePage, openPODetail } = useAppContext();
   const queryClient = useQueryClient();
 
   // State for modals
   const [isCreatePOOpen, setIsCreatePOOpen] = useState(false);
   const [isCreateLeaveOrderOpen, setIsCreateLeaveOrderOpen] = useState(false);
+  const [selectedLeaveOrderId, setSelectedLeaveOrderId] = useState<number | null>(null);
 
   // Live query hooks
   const {
@@ -46,9 +49,9 @@ export const OfficeDashboard: React.FC = () => {
     data: recentLogs = [],
   } = useRecentLogs(6);
 
-  // Actionable Follow-up items: pending POs and open tickets
-  const { data: poData } = usePurchaseOrders({ status: 'draft', page_size: 3 });
-  const { data: ticketsData } = useTickets('open');
+  // Actionable Follow-up items: pending draft POs and rejected leave orders
+  const { data: poData } = usePurchaseOrders({ status: 'draft', page_size: 5 });
+  const { data: leaveOrderData } = useLeaveOrders({ status: 'rejected', page_size: 5 });
 
   // Convert numbers to Arabic-Indic digits to match mockup styling
   const toArabicDigits = (num: number | string | undefined | null) => {
@@ -159,13 +162,56 @@ export const OfficeDashboard: React.FC = () => {
   };
 
   // Build actionable items list
-  const pendingPOs = (poData?.purchase_orders || []).slice(0, 2);
-  const openTickets = (ticketsData?.tickets || []).slice(0, 2);
+  const draftPOs = poData?.purchase_orders || [];
+  const rejectedLeaveOrders = leaveOrderData?.leave_orders || [];
+  const hasFollowUps = draftPOs.length > 0 || rejectedLeaveOrders.length > 0;
 
   return (
     <div className="w-full max-w-[1520px] mx-auto pb-12 font-sans" dir="rtl">
-      {/* Top Metric KPI Cards (4 Cards in a Row) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+      {/* 1. Header & Dedicated Search Bar */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-xl font-bold text-slate-900 tracking-tight m-0">لوحة تحكم المكتب</h1>
+          <p className="text-xs font-semibold text-slate-400 m-0 mt-1">
+            متابعة حركة المخزون، أوامر الشراء، وأذونات الصرف اليومية
+          </p>
+        </div>
+        <div className="w-full md:w-96 lg:w-[420px]">
+          <AsyncPaginateComponent
+            loadOptions={loadItems}
+            onChange={handleSearchSelect}
+            placeholder="🔍 بحث سريع عن صنف بالاسم أو الكود..."
+            debounceTimeout={300}
+            classNamePrefix="office-search"
+            isClearable
+            noOptionsMessage={() => 'لا توجد أصناف مطابقة'}
+            additional={{ offset: 0 }}
+            styles={{
+              control: (base: any) => ({
+                ...base,
+                borderRadius: '12px',
+                borderColor: '#e2e8f0',
+                boxShadow: 'none',
+                backgroundColor: '#f8fafc',
+                padding: '2px 6px',
+                fontSize: '13px',
+                fontFamily: 'Cairo',
+                '&:hover': {
+                  borderColor: '#cbd5e1'
+                }
+              }),
+              placeholder: (base: any) => ({
+                ...base,
+                color: '#94a3b8',
+                fontSize: '13px'
+              })
+            }}
+          />
+        </div>
+      </div>
+
+      {/* 2. Top Metric KPI Cards (3 Clean Cards in a Row) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
         {/* Card 1: إضافات اليوم */}
         <div className="bg-white rounded-2xl border border-slate-100/90 p-5 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
@@ -211,47 +257,6 @@ export const OfficeDashboard: React.FC = () => {
               {toArabicDigits(stats.returnsToday)}
             </div>
             <p className="text-xs font-semibold text-slate-400 m-0">صنف تم إرجاعه</p>
-          </div>
-        </div>
-
-        {/* Card 4: بحث سريع عن صنف */}
-        <div className="bg-white rounded-2xl border border-slate-100/90 p-5 shadow-xs flex flex-col justify-between hover:shadow-md transition-shadow">
-          <div className="mb-2">
-            <span className="text-base font-bold text-[#6b21a8] block">بحث سريع عن صنف</span>
-          </div>
-          <div className="mt-auto pt-2">
-            <div className="relative">
-              <AsyncPaginateComponent
-                loadOptions={loadItems}
-                onChange={handleSearchSelect}
-                placeholder="ابحث باسم الصنف أو الرقم..."
-                debounceTimeout={300}
-                classNamePrefix="office-search"
-                isClearable
-                noOptionsMessage={() => 'لا توجد نتائج'}
-                additional={{ offset: 0 }}
-                styles={{
-                  control: (base: any) => ({
-                    ...base,
-                    borderRadius: '12px',
-                    borderColor: '#e2e8f0',
-                    boxShadow: 'none',
-                    backgroundColor: '#ffffff',
-                    padding: '2px 4px',
-                    fontSize: '13px',
-                    fontFamily: 'Cairo',
-                    '&:hover': {
-                      borderColor: '#cbd5e1'
-                    }
-                  }),
-                  placeholder: (base: any) => ({
-                    ...base,
-                    color: '#94a3b8',
-                    fontSize: '13px'
-                  })
-                }}
-              />
-            </div>
           </div>
         </div>
       </div>
@@ -320,101 +325,79 @@ export const OfficeDashboard: React.FC = () => {
           </div>
 
           <div className="space-y-3 flex-1">
-            {pendingPOs.length > 0 ? (
-              pendingPOs.map((po) => (
-                <div
-                  key={po.id}
-                  className="bg-[#f8fafc] border border-slate-200/70 rounded-xl p-3.5 flex items-center justify-between hover:border-slate-300 transition-colors"
-                >
-                  <div className="flex items-start gap-3">
-                    <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 mt-1.5" />
-                    <div>
-                      <h4 className="text-sm font-bold text-slate-900 m-0">
-                        أمر شراء مفتوح
-                      </h4>
-                      <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mt-0.5">
-                        <span>{po.po_number}</span>
-                        <span>•</span>
-                        <span>بانتظار اعتماد الإدارة</span>
+            {hasFollowUps ? (
+              <>
+                {draftPOs.map((po) => (
+                  <div
+                    key={`po-${po.id}`}
+                    className="bg-[#f8fafc] border border-slate-200/70 rounded-xl p-3.5 flex items-center justify-between hover:border-slate-300 transition-colors"
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 m-0">
+                          أمر شراء مسودة ({po.po_number})
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mt-0.5">
+                          <span>المورد: {po.provider_name}</span>
+                          <span>•</span>
+                          <span>{toArabicDigits(po.line_count)} بنود</span>
+                          <span>•</span>
+                          <span>مسودة (بانتظار الإرسال)</span>
+                        </div>
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => openPODetail(po as any)}
+                      className="px-4 py-1.5 rounded-lg bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1967d2] font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      عرض وتعديل
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedPO(po as any);
-                      openPODetailModal();
-                    }}
-                    className="px-4 py-1.5 rounded-lg bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1967d2] font-bold text-xs transition-colors cursor-pointer"
+                ))}
+
+                {rejectedLeaveOrders.map((order) => (
+                  <div
+                    key={`lo-${order.id}`}
+                    className="bg-[#fff5f5] border border-red-200/70 rounded-xl p-3.5 flex items-center justify-between hover:border-red-300 transition-colors"
                   >
-                    عرض
-                  </button>
-                </div>
-              ))
-            ) : (
-              <div className="bg-[#f8fafc] border border-slate-200/70 rounded-xl p-3.5 flex items-center justify-between hover:border-slate-300 transition-colors">
-                <div className="flex items-start gap-3">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 shrink-0 mt-1.5" />
-                  <div>
-                    <h4 className="text-sm font-bold text-slate-900 m-0">أمر شراء مفتوح</h4>
-                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mt-0.5">
-                      <span>PO-2024-0159</span>
-                      <span>•</span>
-                      <span>بانتظار اعتماد الإدارة</span>
+                    <div className="flex items-start gap-3">
+                      <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0 mt-1.5" />
+                      <div>
+                        <h4 className="text-sm font-bold text-slate-900 m-0">
+                          إذن صرف مرفوض ({order.order_number})
+                        </h4>
+                        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 mt-0.5">
+                          <span>المستلم: {order.employee_name}</span>
+                          <span>•</span>
+                          <span>{order.destination_name}</span>
+                          {order.rejection_reason && (
+                            <>
+                              <span>•</span>
+                              <span className="text-red-600 font-medium truncate max-w-xs">{order.rejection_reason}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedLeaveOrderId(order.id)}
+                      className="px-4 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors cursor-pointer border border-rose-200"
+                    >
+                      تصحيح وإعادة إرسال
+                    </button>
                   </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setActivePage('PurchaseOrders')}
-                  className="px-4 py-1.5 rounded-lg bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1967d2] font-bold text-xs transition-colors cursor-pointer"
-                >
-                  عرض
-                </button>
+                ))}
+              </>
+            ) : (
+              <div className="py-12 px-4 text-center text-slate-500 flex flex-col items-center justify-center h-full">
+                <CheckCircle2 size={36} className="text-emerald-500 mb-2 opacity-80" />
+                <p className="font-bold text-slate-700 text-sm">لا توجد طلبات معلقة تتطلب المتابعة حالياً</p>
+                <p className="text-xs text-slate-400 mt-1">جميع أوامر الشراء وأذونات الصرف مكتملة ومحدّثة.</p>
               </div>
             )}
-
-            <div className="bg-[#f8fafc] border border-slate-200/70 rounded-xl p-3.5 flex items-center justify-between hover:border-slate-300 transition-colors">
-              <div className="flex items-start gap-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 m-0">أمر شراء قاربت على الانتهاء</h4>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mt-0.5">
-                    <span>PO-2024-0147</span>
-                    <span>•</span>
-                    <span>ينتهي خلال يومين</span>
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActivePage('PurchaseOrders')}
-                className="px-4 py-1.5 rounded-lg bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1967d2] font-bold text-xs transition-colors cursor-pointer"
-              >
-                عرض
-              </button>
-            </div>
-
-            <div className="bg-[#f8fafc] border border-slate-200/70 rounded-xl p-3.5 flex items-center justify-between hover:border-slate-300 transition-colors">
-              <div className="flex items-start gap-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-500 shrink-0 mt-1.5" />
-                <div>
-                  <h4 className="text-sm font-bold text-slate-900 m-0">إذن صرف به مرتجعات جزئية</h4>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 mt-0.5">
-                    <span>ISS-2024-0068</span>
-                    <span>•</span>
-                    <span>يوجد مرتجعات غير مكتملة</span>
-                  </div>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActivePage('LeaveOrders')}
-                className="px-4 py-1.5 rounded-lg bg-[#e8f0fe] hover:bg-[#d2e3fc] text-[#1967d2] font-bold text-xs transition-colors cursor-pointer"
-              >
-                عرض
-              </button>
-            </div>
           </div>
         </div>
 
@@ -432,121 +415,71 @@ export const OfficeDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Table Header */}
-          <div className="grid grid-cols-12 gap-2 bg-[#f1f5f9] text-slate-700 font-bold text-xs py-2.5 px-4 rounded-xl mb-2">
-            <div className="col-span-3 text-right">المستخدم</div>
-            <div className="col-span-6 text-right">النشاط</div>
-            <div className="col-span-3 text-left">الوقت</div>
-          </div>
+          {recentLogs.length > 0 ? (
+            <>
+              {/* Table Header */}
+              <div className="grid grid-cols-12 gap-2 bg-[#f1f5f9] text-slate-700 font-bold text-xs py-2.5 px-4 rounded-xl mb-2">
+                <div className="col-span-3 text-right">المستخدم</div>
+                <div className="col-span-6 text-right">النشاط</div>
+                <div className="col-span-3 text-left">الوقت</div>
+              </div>
 
-          {/* Table Rows */}
-          <div className="divide-y divide-slate-100 flex-1">
-            {recentLogs.length > 0 ? (
-              recentLogs.slice(0, 4).map((log) => {
-                const formatted = formatLogRow(log);
-                return (
-                  <div key={log.id} className="grid grid-cols-12 gap-2 items-center py-3 px-3 hover:bg-slate-50/70 rounded-lg transition-colors">
-                    {/* User */}
-                    <div className="col-span-3 text-sm font-bold text-slate-800 truncate">
-                      {formatted.user}
-                    </div>
+              {/* Table Rows */}
+              <div className="divide-y divide-slate-100 flex-1">
+                {recentLogs.slice(0, 5).map((log) => {
+                  const formatted = formatLogRow(log);
+                  return (
+                    <div key={log.id} className="grid grid-cols-12 gap-2 items-center py-3 px-3 hover:bg-slate-50/70 rounded-lg transition-colors">
+                      {/* User */}
+                      <div className="col-span-3 text-sm font-bold text-slate-800 truncate">
+                        {formatted.user}
+                      </div>
 
-                    {/* Activity */}
-                    <div className="col-span-6 flex items-center gap-2.5">
-                      {formatted.badgeType === 'addition' && (
-                        <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 font-bold text-sm">
-                          +
-                        </div>
-                      )}
-                      {formatted.badgeType === 'removal' && (
-                        <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 text-xs">
-                          ➜
-                        </div>
-                      )}
-                      {formatted.badgeType === 'return' && (
-                        <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 text-xs font-bold">
-                          ↺
-                        </div>
-                      )}
-                      <div className="overflow-hidden">
-                        <p className="text-xs font-bold text-slate-800 truncate m-0">
-                          {formatted.actionText}
-                        </p>
-                        {formatted.refText && (
-                          <p className="text-[11px] font-semibold text-slate-400 truncate m-0">
-                            {formatted.refText}
-                          </p>
+                      {/* Activity */}
+                      <div className="col-span-6 flex items-center gap-2.5">
+                        {formatted.badgeType === 'addition' && (
+                          <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 font-bold text-sm">
+                            +
+                          </div>
                         )}
+                        {formatted.badgeType === 'removal' && (
+                          <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 text-xs">
+                            ➜
+                          </div>
+                        )}
+                        {formatted.badgeType === 'return' && (
+                          <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 text-xs font-bold">
+                            ↺
+                          </div>
+                        )}
+                        <div className="overflow-hidden">
+                          <p className="text-xs font-bold text-slate-800 truncate m-0">
+                            {formatted.actionText}
+                          </p>
+                          {formatted.refText && (
+                            <p className="text-[11px] font-semibold text-slate-400 truncate m-0">
+                              {formatted.refText}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Time */}
+                      <div className="col-span-3 text-xs font-medium text-slate-400 text-left">
+                        {formatTimeAgo(log.timestamp)}
                       </div>
                     </div>
-
-                    {/* Time */}
-                    <div className="col-span-3 text-xs font-medium text-slate-400 text-left">
-                      {formatTimeAgo(log.timestamp)}
-                    </div>
-                  </div>
-                );
-              })
-            ) : (
-              <>
-                <div className="grid grid-cols-12 gap-2 items-center py-3 px-3 hover:bg-slate-50/70 rounded-lg transition-colors">
-                  <div className="col-span-3 text-sm font-bold text-slate-800">أحمد سالم</div>
-                  <div className="col-span-6 flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 font-bold text-sm">
-                      +
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800 m-0">أضاف ١٠ من ورق تصوير A4</p>
-                      <p className="text-[11px] font-semibold text-slate-400 m-0">أمر شراء PO-0158</p>
-                    </div>
-                  </div>
-                  <div className="col-span-3 text-xs font-medium text-slate-400 text-left">منذ ١٥ دقيقة</div>
-                </div>
-
-                <div className="grid grid-cols-12 gap-2 items-center py-3 px-3 hover:bg-slate-50/70 rounded-lg transition-colors">
-                  <div className="col-span-3 text-sm font-bold text-slate-800">منى إبراهيم</div>
-                  <div className="col-span-6 flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0 text-xs">
-                      ➜
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800 m-0">أنشأ إذن صرف لوازم مكتبية</p>
-                      <p className="text-[11px] font-semibold text-slate-400 m-0">رقم ISS-0073</p>
-                    </div>
-                  </div>
-                  <div className="col-span-3 text-xs font-medium text-slate-400 text-left">منذ ٤٢ دقيقة</div>
-                </div>
-
-                <div className="grid grid-cols-12 gap-2 items-center py-3 px-3 hover:bg-slate-50/70 rounded-lg transition-colors">
-                  <div className="col-span-3 text-sm font-bold text-slate-800">محمد علي</div>
-                  <div className="col-span-6 flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center shrink-0 text-xs font-bold">
-                      ↺
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800 m-0">قام بإرجاع ٦ من أقلام جاف</p>
-                      <p className="text-[11px] font-semibold text-slate-400 m-0">رقم RTN-0021</p>
-                    </div>
-                  </div>
-                  <div className="col-span-3 text-xs font-medium text-slate-400 text-left">منذ ساعة</div>
-                </div>
-
-                <div className="grid grid-cols-12 gap-2 items-center py-3 px-3 hover:bg-slate-50/70 rounded-lg transition-colors">
-                  <div className="col-span-3 text-sm font-bold text-slate-800">سارة خالد</div>
-                  <div className="col-span-6 flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 font-bold text-sm">
-                      +
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800 m-0">أضاف ٣ من ملفات حفظ</p>
-                      <p className="text-[11px] font-semibold text-slate-400 m-0">أمر شراء PO-0156</p>
-                    </div>
-                  </div>
-                  <div className="col-span-3 text-xs font-medium text-slate-400 text-left">منذ ساعتين</div>
-                </div>
-              </>
-            )}
-          </div>
+                  );
+                })}
+              </div>
+            </>
+          ) : (
+            <div className="py-12 px-4 text-center text-slate-500 flex flex-col items-center justify-center h-full">
+              <Clock size={36} className="text-slate-300 mb-2" />
+              <p className="font-bold text-slate-700 text-sm">لا توجد حركات مسجلة مؤخراً</p>
+              <p className="text-xs text-slate-400 mt-1">ستظهر هنا أحدث عمليات الإضافة والصرف والإرجاع تلقائياً فور تسجيلها.</p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -570,6 +503,19 @@ export const OfficeDashboard: React.FC = () => {
           onClose={() => setIsCreateLeaveOrderOpen(false)}
           onSuccess={() => {
             setIsCreateLeaveOrderOpen(false);
+            queryClient.invalidateQueries({ queryKey: ['leave-orders'] });
+            queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+            queryClient.invalidateQueries({ queryKey: ['recent-logs'] });
+          }}
+        />
+      )}
+
+      {selectedLeaveOrderId && (
+        <LeaveOrderDetailModal
+          orderId={selectedLeaveOrderId}
+          isOpen={!!selectedLeaveOrderId}
+          onClose={() => setSelectedLeaveOrderId(null)}
+          onSuccess={() => {
             queryClient.invalidateQueries({ queryKey: ['leave-orders'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
             queryClient.invalidateQueries({ queryKey: ['recent-logs'] });

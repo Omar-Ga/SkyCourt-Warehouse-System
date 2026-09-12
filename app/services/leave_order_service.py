@@ -1,7 +1,7 @@
 """Reservation, fulfillment, rejection, and return operations for Leave Orders."""
 import math
 import uuid
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 from app.models.db_utils import get_db, check_stock_mutation_allowed
 from app.models import leave_order_model
@@ -111,7 +111,7 @@ def fulfill_leave_order_service(order_id, expected_revision, actor_id, actor_nam
                     destination_id=order["destination_id"], user_id=actor_id, actor_name=actor_name,
                     operation_key=key, leave_line_id=line["id"], unit_name=line["unit_name"], db=conn,
                 )
-            if conn.cursor().execute("UPDATE leave_orders SET status = 'closed', closed_by = ?, closed_at = CURRENT_TIMESTAMP, close_reason = 'Fulfilled by warehouse', revision = revision + 1 WHERE id = ? AND revision = ?", (actor_id, order_id, expected_revision)).rowcount != 1:
+            if conn.cursor().execute("UPDATE leave_orders SET status = 'closed', closed_by = ?, closed_at = CURRENT_TIMESTAMP, close_reason = 'تم التنفيذ والتسليم من قِبل المخزن', revision = revision + 1 WHERE id = ? AND revision = ?", (actor_id, order_id, expected_revision)).rowcount != 1:
                 raise StateConflictError("Fulfillment conflict", "REVISION_CONFLICT")
         result = _transition(conn, order_id, expected_revision, actor_id, key, "leave_order_fulfill", {"order_id": order_id, "expected_revision": expected_revision}, action)
         if owned: conn.commit()

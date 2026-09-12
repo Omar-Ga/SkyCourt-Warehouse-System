@@ -1,81 +1,230 @@
 /* eslint-disable */
-import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, AlertCircle, ShoppingCart } from 'lucide-react';
-import { useCreatePurchaseOrder } from '../hooks/usePurchaseOrders';
+import React, { useState, useEffect, useRef } from 'react';
+import { Plus, Trash2, AlertCircle } from 'lucide-react';
+import { AsyncPaginate, LoadOptions } from 'react-select-async-paginate';
+import type { GroupBase, OptionsOrGroups } from 'react-select';
+import { useCreatePurchaseOrder, useEditPurchaseOrder } from '../hooks/usePurchaseOrders';
 import { useProviders } from '../hooks/useMetadata';
-import { useItems } from '../hooks/useItems';
+import { apiClient, generateIdempotencyKey } from '../services/apiClient';
+import { PurchaseOrderDetail } from '../services/poService';
+import { useAuth } from '../context/AuthContext';
 import { Item } from '../types';
+import { Modal } from './Modal';
 
 interface CreatePOModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreated: () => void;
+  onCreated: (createdPO?: any) => void;
+  initialPO?: PurchaseOrderDetail | null;
+}
+
+interface ItemOption {
+  value: number;
+  label: string;
+  item: Item;
 }
 
 interface LineState {
-  item_id: number | '';
+  item: Item | null;
   quantity: number | '';
   unit_price: string;
   line_description: string;
 }
 
-export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, onCreated }) => {
-  const [providerId, setProviderId] = useState<number | ''>('');
-  const [notes, setNotes] = useState('');
-  const [lines, setLines] = useState<LineState[]>([
-    { item_id: '', quantity: '', unit_price: '', line_description: '' }
-  ]);
+const ITEMS_PER_PAGE = 20;
+const AsyncPaginateComponent = AsyncPaginate as any;
+
+export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, onCreated, initialPO }) => {
+  const { user } = useAuth();
+  const [providerId, setProviderId] = useState<number | ''>(() => (initialPO ? initialPO.provider_id : ''));
+  const [notes, setNotes] = useState(() => (initialPO?.notes || ''));
+  const [lines, setLines] = useState<LineState[]>(() =>
+    initialPO && initialPO.items && initialPO.items.length > 0
+      ? initialPO.items.map((i) => ({
+          item: {
+            id: i.item_id,
+            name: i.item_name,
+            unit_name: i.unit_name,
+            cost: i.unit_price ? parseFloat(i.unit_price) : undefined,
+            status: 'active'
+          } as Item,
+          quantity: i.ordered_quantity,
+          unit_price: i.unit_price,
+          line_description: i.line_description || ''
+        }))
+      : [{ item: null, quantity: '', unit_price: '', line_description: '' }]
+  );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // F01: Track idempotency key and submitted payload across retries, form modifications, and page reloads
+  // Scoped to current authenticated user to prevent account leakage across logout / account switching
+  const userPrefix = user?.id ? `user_${user.id}_` : '';
+  const STORAGE_KEY = initialPO
+    ? `skycourt_pending_${userPrefix}po_edit_${initialPO.id}`
+    : `skycourt_pending_${userPrefix}purchase_order`;
+
+  const loadStoredPendingSubmission = () => {
+    try {
+      const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(STORAGE_KEY) : null;
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && (parsed.userId === undefined || parsed.userId === user?.id)) {
+          return parsed;
+        }
+      }
+    } catch {}
+    return null;
+  };
+
+  const [pendingSubmission, setPendingSubmission] = useState<{
+    userId?: number;
+    key: string;
+    payload: any;
+    serialized: string;
+    isEdit: boolean;
+  } | null>(() => loadStoredPendingSubmission());
+  const [hasUncertainSubmission, setHasUncertainSubmission] = useState(() => !!loadStoredPendingSubmission());
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const isSubmittingRef = useRef(false);
+
   const { data: providers = [], isLoading: loadingProviders } = useProviders({ enabled: isOpen });
-  const { data: itemsData, isLoading: loadingItems } = useItems({ page_size: 100 }, { enabled: isOpen });
-
-  const items: Item[] = (
-    Array.isArray(itemsData)
-      ? itemsData
-      : (itemsData && 'items' in (itemsData as any) ? (itemsData as any).items : [])
-  ).filter((i: Item) => i.status === 'active' || !i.status);
-
-  const loadingMetadata = loadingProviders || loadingItems;
   const createPOMutation = useCreatePurchaseOrder();
+  const editPOMutation = useEditPurchaseOrder();
 
-  // Reset state when modal closes
+  const resetForm = () => {
+    setErrorMessage(null);
+    setProviderId('');
+    setNotes('');
+    setLines([{ item: null, quantity: '', unit_price: '', line_description: '' }]);
+    setPendingSubmission(null);
+    setHasUncertainSubmission(false);
+    setIsSubmitting(false);
+    isSubmittingRef.current = false;
+    try {
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem(STORAGE_KEY);
+      }
+    } catch {}
+  };
+
+  // Reset or initialize state when modal opens/closes
   useEffect(() => {
     if (!isOpen) {
-      setErrorMessage(null);
-      setProviderId('');
-      setNotes('');
-      setLines([{ item_id: '', quantity: '', unit_price: '', line_description: '' }]);
+      if (!hasUncertainSubmission) {
+        resetForm();
+      }
+    } else if (initialPO) {
+      setProviderId(initialPO.provider_id);
+      setNotes(initialPO.notes || '');
+      setLines(
+        initialPO.items && initialPO.items.length > 0
+          ? initialPO.items.map((i) => ({
+              item: {
+                id: i.item_id,
+                name: i.item_name,
+                unit_name: i.unit_name,
+                cost: i.unit_price ? parseFloat(i.unit_price) : undefined,
+                status: 'active'
+              } as Item,
+              quantity: i.ordered_quantity,
+              unit_price: i.unit_price,
+              line_description: i.line_description || ''
+            }))
+          : [{ item: null, quantity: '', unit_price: '', line_description: '' }]
+      );
+      const stored = loadStoredPendingSubmission();
+      if (stored) {
+        setPendingSubmission(stored);
+        setHasUncertainSubmission(true);
+      } else {
+        setPendingSubmission(null);
+        setHasUncertainSubmission(false);
+      }
+    } else {
+      const stored = loadStoredPendingSubmission();
+      if (stored) {
+        setPendingSubmission(stored);
+        setHasUncertainSubmission(true);
+      } else {
+        setPendingSubmission(null);
+        setHasUncertainSubmission(false);
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, initialPO, user]);
+
+  const handleClose = () => {
+    if (!hasUncertainSubmission) {
+      resetForm();
+    }
+    onClose();
+  };
 
   if (!isOpen) return null;
 
   const handleAddLine = () => {
-    setLines([...lines, { item_id: '', quantity: '', unit_price: '', line_description: '' }]);
+    setLines([...lines, { item: null, quantity: '', unit_price: '', line_description: '' }]);
   };
 
   const handleRemoveLine = (index: number) => {
     if (lines.length <= 1) {
-      setLines([{ item_id: '', quantity: '', unit_price: '', line_description: '' }]);
+      setLines([{ item: null, quantity: '', unit_price: '', line_description: '' }]);
       return;
     }
     setLines(lines.filter((_, idx) => idx !== index));
   };
 
-  const handleLineChange = (index: number, field: keyof LineState, value: any) => {
+  const handleItemSelect = (index: number, item: Item | null) => {
+    const updated = [...lines];
+    let price = updated[index].unit_price;
+    if (item && item.cost !== null && item.cost !== undefined && !price) {
+      price = Number(item.cost).toFixed(2);
+    }
+    updated[index] = {
+      ...updated[index],
+      item,
+      unit_price: price
+    };
+    setLines(updated);
+  };
+
+  const handleLineFieldChange = (index: number, field: 'quantity' | 'unit_price' | 'line_description', value: any) => {
     const updated = [...lines];
     updated[index] = { ...updated[index], [field]: value };
-
-    // Auto-populate price if item selected and has cost
-    if (field === 'item_id') {
-      const selectedItem = items.find((i) => i.id === Number(value));
-      if (selectedItem && selectedItem.cost !== null && selectedItem.cost !== undefined) {
-        updated[index].unit_price = Number(selectedItem.cost).toFixed(2);
-      }
-    }
-
     setLines(updated);
+  };
+
+  // F02: Async item loader
+  const loadItemOptions: LoadOptions<ItemOption, GroupBase<ItemOption>, { offset: number } | undefined> = async (
+    searchQuery: string,
+    _loadedOptions: OptionsOrGroups<ItemOption, GroupBase<ItemOption>>,
+    additional?: { offset: number }
+  ) => {
+    const offset = additional?.offset || 0;
+    try {
+      const params = new URLSearchParams();
+      params.append('offset', String(offset));
+      params.append('limit', String(ITEMS_PER_PAGE));
+      if (searchQuery) {
+        params.append('q', searchQuery);
+      }
+
+      const res = await apiClient.get<{ items: Item[]; total_count: number }>(`/items?${params.toString()}`);
+      const activeItems = (res.items || []).filter((it: Item) => it.status === 'active' || !it.status);
+      const options: ItemOption[] = activeItems.map((it: Item) => ({
+        value: it.id,
+        label: `${it.name} (${it.unit_name || 'وحدة'}) - #${it.id}`,
+        item: it
+      }));
+
+      const newOffset = offset + options.length;
+      return {
+        options,
+        hasMore: newOffset < res.total_count,
+        additional: { offset: newOffset }
+      };
+    } catch {
+      return { options: [], hasMore: false, additional: { offset } };
+    }
   };
 
   // Calculations
@@ -97,14 +246,14 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
       return;
     }
 
-    const validLines = lines.filter((l) => l.item_id !== '');
+    const validLines = lines.filter((l) => l.item !== null);
     if (validLines.length === 0) {
       setErrorMessage('يجب إضافة صنف واحد على الأقل.');
       return;
     }
 
     // Check duplicate items
-    const itemIds = validLines.map((l) => Number(l.item_id));
+    const itemIds = validLines.map((l) => l.item!.id);
     const uniqueIds = new Set(itemIds);
     if (uniqueIds.size !== itemIds.length) {
       setErrorMessage('لا يمكن تكرار نفس الصنف في أكثر من بند.');
@@ -127,7 +276,6 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
         return;
       }
 
-      // Check scale (at most 2 decimals)
       if (pStr.includes('.')) {
         const decimals = pStr.split('.')[1];
         if (decimals && decimals.length > 2) {
@@ -137,60 +285,198 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
       }
     }
 
-    const idempotencyKey =
-      typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `po-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const currentPayload = {
+      provider_id: Number(providerId),
+      notes: notes.trim() || undefined,
+      items: validLines.map((l) => ({
+        item_id: Number(l.item!.id),
+        requested_quantity: Number(l.quantity),
+        ordered_quantity: Number(l.quantity),
+        unit_price: parseFloat(l.unit_price).toFixed(2),
+        line_description: l.line_description.trim() || undefined
+      }))
+    };
+    const serializedPayload = JSON.stringify(currentPayload);
+
+    // If an uncertain submission already exists, never create a second PO on edit
+    if (hasUncertainSubmission && pendingSubmission) {
+      await handleCheckPreviousSubmission();
+      return;
+    }
+
+    const keyToUse = pendingSubmission ? pendingSubmission.key : generateIdempotencyKey();
+    const submission = {
+      userId: user?.id,
+      key: keyToUse,
+      payload: currentPayload,
+      serialized: serializedPayload,
+      isEdit: !!initialPO
+    };
+    setPendingSubmission(submission);
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    setErrorMessage(null);
 
     try {
-      await createPOMutation.mutateAsync({
-        input: {
-          provider_id: Number(providerId),
-          notes: notes.trim() || undefined,
-          items: validLines.map((l) => ({
-            item_id: Number(l.item_id),
-             requested_quantity: Number(l.quantity),
-             ordered_quantity: Number(l.quantity),
-            unit_price: parseFloat(l.unit_price).toFixed(2),
-            line_description: l.line_description.trim() || undefined
-          }))
-        },
-        idempotencyKey
-      });
+      let result;
+      if (initialPO) {
+        result = await editPOMutation.mutateAsync({
+          id: initialPO.id,
+          input: {
+            expected_revision: initialPO.revision,
+            provider_id: currentPayload.provider_id,
+            notes: currentPayload.notes,
+            items: currentPayload.items
+          },
+          idempotencyKey: keyToUse
+        });
+      } else {
+        result = await createPOMutation.mutateAsync({
+          input: currentPayload,
+          idempotencyKey: keyToUse
+        });
+      }
 
-      onCreated();
+      resetForm();
+      onCreated(result);
       onClose();
     } catch (err: any) {
-      setErrorMessage(err.message || 'فشل في إنشاء أمر الشراء.');
+      const isCertainRejection = err?.status && err.status >= 400 && err.status < 500 && err.status !== 408 && err.status !== 409;
+      if (!isCertainRejection) {
+        setHasUncertainSubmission(true);
+        try {
+          if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.setItem(STORAGE_KEY, JSON.stringify(submission));
+          }
+        } catch {}
+        setErrorMessage('تعذر تأكيد استلام أمر الشراء من الخادم. قد يكون تم تنفيذه بالفعل بالخادم.');
+      } else {
+        setErrorMessage(err.message || 'حدث خطأ أثناء معالجة أمر الشراء.');
+      }
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
     }
   };
 
+  const handleCheckPreviousSubmission = async () => {
+    if (!pendingSubmission || isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    setErrorMessage(null);
+
+    try {
+      let result;
+      if (pendingSubmission.isEdit && initialPO) {
+        result = await editPOMutation.mutateAsync({
+          id: initialPO.id,
+          input: {
+            expected_revision: initialPO.revision,
+            provider_id: pendingSubmission.payload.provider_id,
+            notes: pendingSubmission.payload.notes,
+            items: pendingSubmission.payload.items
+          },
+          idempotencyKey: pendingSubmission.key
+        });
+      } else {
+        result = await createPOMutation.mutateAsync({
+          input: pendingSubmission.payload,
+          idempotencyKey: pendingSubmission.key
+        });
+      }
+
+      resetForm();
+      onCreated(result);
+      onClose();
+    } catch (err: any) {
+      setErrorMessage(err.message || 'تعذر تأكيد استلام أمر الشراء من الخادم. يرجى التحقق من اتصال الشبكة والمحاولة مجدداً.');
+    } finally {
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
+    }
+  };
+
+  const currentPayloadComparison = JSON.stringify({
+    provider_id: Number(providerId),
+    notes: notes.trim() || undefined,
+    items: lines.filter((l) => l.item && l.quantity).map((l) => ({
+      item_id: Number(l.item!.id),
+      requested_quantity: Number(l.quantity),
+      ordered_quantity: Number(l.quantity),
+      unit_price: parseFloat(l.unit_price || '0').toFixed(2),
+      line_description: l.line_description.trim() || undefined
+    }))
+  });
+  const isFormModifiedAfterAttempt = !!(pendingSubmission && pendingSubmission.serialized !== currentPayloadComparison);
+  const isPending = isSubmitting || createPOMutation.isPending || editPOMutation.isPending;
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
-        {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary-50 text-primary-600">
-              <ShoppingCart size={20} />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-800">إنشاء أمر شراء جديد</h2>
-              <p className="text-xs text-gray-500">تجهيز طلب توريد أصناف من مورد محدد</p>
-            </div>
-          </div>
+    <Modal
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={initialPO ? `تعديل أمر الشراء: ${initialPO.po_number}` : 'إنشاء أمر شراء جديد'}
+      size="xl"
+      footer={
+        <div className="flex justify-end gap-3 w-full">
           <button
             type="button"
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-100"
+            onClick={handleClose}
+            className="btn btn-outline"
+            disabled={isPending}
           >
-            <X size={20} />
+            إلغاء
           </button>
+          {hasUncertainSubmission ? (
+            <button
+              type="button"
+              className="btn btn-primary bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center gap-1.5"
+              onClick={handleCheckPreviousSubmission}
+              disabled={isPending}
+            >
+              {isPending ? 'جاري التحقق...' : 'التحقق من الإرسال السابق'}
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleSubmit}
+              disabled={isPending || loadingProviders}
+            >
+              {isPending ? 'جاري الحفظ...' : initialPO ? 'حفظ تعديلات أمر الشراء' : 'حفظ مسودة أمر الشراء'}
+            </button>
+          )}
         </div>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-6">
+          {hasUncertainSubmission && (
+            <div className="p-4 bg-amber-50 border border-amber-300 rounded-xl space-y-2 text-sm text-amber-900">
+              <div className="flex items-start gap-2">
+                <AlertCircle size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold m-0">تعذر التأكد من استلام الخادم لأمر الشراء السابق</p>
+                  <p className="text-xs text-amber-800 mt-1 m-0">
+                    {isFormModifiedAfterAttempt
+                      ? 'تنبيه: تم تعديل بيانات النموذج بعد محاولة الإرسال السابقة. لمنع تكرار أوامر الشراء، تم الاحتفاظ بالطلب الأصلي ومفتاح العملية. يرجى استخدام إجراء "التحقق من الإرسال السابق" لفحص حالة الطلب الأصلي أولاً.'
+                      : 'قد يكون أمر الشراء قد تم حفظه بالفعل بالخادم قبل انقطاع الاتصال. يرجى استخدام زر "التحقق من الإرسال السابق" لفحص وتأكيد حالة الطلب دون تكرار.'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  className="btn btn-sm bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center gap-1.5"
+                  onClick={handleCheckPreviousSubmission}
+                  disabled={isPending}
+                >
+                  {isPending ? 'جاري الفحص...' : 'التحقق من الإرسال السابق'}
+                </button>
+              </div>
+            </div>
+          )}
 
-        {/* Modal Body */}
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-6">
-          {errorMessage && (
+          {errorMessage && !hasUncertainSubmission && (
             <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg text-sm flex items-center gap-2">
               <AlertCircle size={18} className="flex-shrink-0" />
               <span>{errorMessage}</span>
@@ -207,7 +493,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                 className="input w-full text-sm"
                 value={providerId}
                 onChange={(e) => setProviderId(e.target.value ? Number(e.target.value) : '')}
-                disabled={loadingMetadata}
+                disabled={loadingProviders}
                 required
               >
                 <option value="">-- اختر المورد --</option>
@@ -253,7 +539,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                 <thead className="bg-gray-50 text-gray-600 border-b border-gray-200">
                   <tr>
                     <th className="py-2 px-3 w-8">#</th>
-                    <th className="py-2 px-3 w-48">الصنف *</th>
+                    <th className="py-2 px-3 w-64">الصنف *</th>
                     <th className="py-2 px-3 w-20">الوحدة</th>
                     <th className="py-2 px-3 w-24">الكمية *</th>
                     <th className="py-2 px-3 w-28">السعر (ج.م) *</th>
@@ -264,35 +550,44 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {lines.map((line, index) => {
-                    const selectedItem = items.find((i) => i.id === Number(line.item_id));
+                    const selectedOption = line.item
+                      ? {
+                          value: line.item.id,
+                          label: `${line.item.name} (${line.item.unit_name || 'وحدة'}) - #${line.item.id}`,
+                          item: line.item
+                        }
+                      : null;
                     const lineTotal = calculateLineTotal(line);
 
                     return (
                       <tr key={index} className="hover:bg-gray-50/50">
                         <td className="py-2 px-3 text-center text-gray-400">{index + 1}</td>
                         <td className="py-2 px-3">
-                          <select
-                            className="input w-full text-xs py-1 px-2"
-                            value={line.item_id}
-                            onChange={(e) =>
-                              handleLineChange(
-                                index,
-                                'item_id',
-                                e.target.value ? Number(e.target.value) : ''
-                              )
-                            }
-                            required
-                          >
-                            <option value="">-- اختر الصنف --</option>
-                            {items.map((i) => (
-                              <option key={i.id} value={i.id}>
-                                {i.name} ({i.unit_name || 'غير محدد'})
-                              </option>
-                            ))}
-                          </select>
+                          <AsyncPaginateComponent
+                            loadOptions={loadItemOptions}
+                            value={selectedOption}
+                            onChange={(opt: ItemOption | null) => handleItemSelect(index, opt ? opt.item : null)}
+                            placeholder="ابحث واختر الصنف..."
+                            debounceTimeout={300}
+                            isClearable
+                            noOptionsMessage={() => 'لا توجد نتائج'}
+                            additional={{ offset: 0 }}
+                            menuPortalTarget={typeof document !== 'undefined' ? document.body : undefined}
+                            styles={{
+                              control: (base: any) => ({
+                                ...base,
+                                minHeight: '32px',
+                                borderRadius: '6px',
+                                borderColor: '#e2e8f0',
+                                fontSize: '12px',
+                                fontFamily: 'Cairo, sans-serif'
+                              }),
+                              menuPortal: (base: any) => ({ ...base, zIndex: 9999 })
+                            }}
+                          />
                         </td>
                         <td className="py-2 px-3 text-gray-500">
-                          {selectedItem?.unit_name || '-'}
+                          {line.item?.unit_name || '-'}
                         </td>
                         <td className="py-2 px-3">
                           <input
@@ -303,7 +598,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                             placeholder="1"
                             value={line.quantity}
                             onChange={(e) =>
-                              handleLineChange(
+                              handleLineFieldChange(
                                 index,
                                 'quantity',
                                 e.target.value ? Number(e.target.value) : ''
@@ -320,7 +615,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                             className="input w-full text-xs py-1 px-2 text-left font-mono"
                             placeholder="0.00"
                             value={line.unit_price}
-                            onChange={(e) => handleLineChange(index, 'unit_price', e.target.value)}
+                            onChange={(e) => handleLineFieldChange(index, 'unit_price', e.target.value)}
                             required
                           />
                         </td>
@@ -331,7 +626,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                             placeholder="ملاحظة للبند..."
                             value={line.line_description}
                             onChange={(e) =>
-                              handleLineChange(index, 'line_description', e.target.value)
+                              handleLineFieldChange(index, 'line_description', e.target.value)
                             }
                             maxLength={500}
                           />
@@ -361,7 +656,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 flex flex-col md:flex-row justify-between items-center gap-4">
             <div className="flex gap-6 text-sm text-gray-600">
               <div>
-                عدد البنود: <strong className="text-gray-900">{lines.filter((l) => l.item_id !== '').length}</strong>
+                عدد البنود: <strong className="text-gray-900">{lines.filter((l) => l.item !== null).length}</strong>
               </div>
               <div>
                 إجمالي الكميات: <strong className="text-gray-900">{totalQuantity}</strong>
@@ -374,26 +669,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
             </div>
           </div>
 
-          {/* Modal Footer Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-            <button
-              type="button"
-              onClick={onClose}
-              className="btn btn-outline"
-              disabled={createPOMutation.isPending}
-            >
-              إلغاء
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={createPOMutation.isPending || loadingMetadata}
-            >
-               {createPOMutation.isPending ? 'جاري الحفظ...' : 'حفظ مسودة أمر الشراء'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+      </form>
+    </Modal>
   );
 };

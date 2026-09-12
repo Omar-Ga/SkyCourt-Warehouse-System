@@ -5,11 +5,8 @@ import os
 import sqlite3
 import tempfile
 import pytest
-from pathlib import Path
-
 from app.main import create_app
-from app.migrations import run_migrations, get_migrations_dir
-from app.models.db_utils import LibSQLRow, LibSQLConnectionWrapper
+from app.migrations import run_migrations
 
 
 @pytest.fixture

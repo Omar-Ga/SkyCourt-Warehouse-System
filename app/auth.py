@@ -10,7 +10,7 @@ import os
 import secrets
 import threading
 import time
-from typing import Optional, Set
+from typing import Optional
 from urllib.parse import urlparse
 
 from flask import current_app, g, jsonify, request, session

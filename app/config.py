@@ -2,13 +2,25 @@ import os
 import sys
 import logging
 
+try:
+    from dotenv import load_dotenv
+    # Ensure .env from project root is loaded even if run from another cwd
+    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    _dotenv_path = os.path.join(_project_root, '.env')
+    if os.path.exists(_dotenv_path):
+        load_dotenv(_dotenv_path)
+    else:
+        load_dotenv()
+except ImportError:
+    pass
+
 logger = logging.getLogger(__name__)
 
-# --- HARDCODED CREDENTIALS ---
-# These are baked into the app for seamless company-wide connection.
-TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL", "https://warehouse-db-islo.aws-eu-west-1.turso.io")
-TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3NjYzMzg3MDcsImlkIjoiMzYwMmQxMGItMDYwMi00ZDc5LTkwYWEtNjVlZTkxNDhiZmI5IiwicmlkIjoiNWNjOTFkZjEtZWNkMC00YTZkLWI3MzktNjY4ZTU3MzBmN2Q3In0.h4VvTCUQV1e0PuuOyztdZkCORhphmiMJVDwJaF7lThRQ6KAHttAkmo_0MMjmhdsHH9D0bABNy4LLj-n8FK-MCw")
-# -----------------------------
+# --- TURSO CREDENTIALS ---
+# Read from environment (.env via load_dotenv)
+TURSO_DATABASE_URL = os.environ.get("TURSO_DATABASE_URL", "")
+TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "")
+# -------------------------
 
 # Configure SSL for Frozen App (Fix for "Invalid Peer Certificate")
 if getattr(sys, 'frozen', False):

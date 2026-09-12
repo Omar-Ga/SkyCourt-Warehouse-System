@@ -34,6 +34,8 @@ export interface LeaveOrderSummary {
   rejection_reason?: string | null;
   rejected_at?: string | null;
   items_count: number;
+  total_requested_quantity?: number;
+  total_dispensed_quantity?: number;
   total_quantity: number;
   total_returned: number;
   remaining_quantity: number;
@@ -88,9 +90,21 @@ export const getTicketsCount = async (): Promise<{ count: number }> => {
   return apiClient.get<{ count: number }>('/leave-orders/tickets/count');
 };
 
-export const createLeaveOrder = async (input: CreateLeaveOrderInput): Promise<LeaveOrderDetail> => {
+export const formatCloseReason = (reason?: string | null): string => {
+  if (!reason) return '';
+  if (reason === 'Fulfilled by warehouse') {
+    return 'تم التنفيذ والتسليم من قِبل المخزن';
+  }
+  return reason;
+};
+
+export const createLeaveOrder = async (
+  input: CreateLeaveOrderInput,
+  idempotencyKey?: string
+): Promise<LeaveOrderDetail> => {
+  const key = idempotencyKey || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `lo-${Date.now()}-${Math.random()}`);
   return apiClient.post<LeaveOrderDetail>('/leave-orders', input, {
-    headers: { 'Idempotency-Key': crypto.randomUUID() }
+    headers: { 'Idempotency-Key': key }
   });
 };
 
@@ -161,8 +175,8 @@ export const getTickets = async (params?: {
   const query = new URLSearchParams();
   if (params?.page) query.set('page', params.page.toString());
   if (params?.page_size) query.set('page_size', params.page_size.toString());
-  if (params?.status) query.set('status', params.status);
-  if (params?.search) query.set('search', params.search);
+  if (typeof params?.status === 'string' && params.status.trim()) query.set('status', params.status.trim());
+  if (typeof params?.search === 'string' && params.search.trim()) query.set('search', params.search.trim());
 
   const qs = query.toString();
   return apiClient.get<PaginatedTickets>(`/tickets${qs ? `?${qs}` : ''}`);

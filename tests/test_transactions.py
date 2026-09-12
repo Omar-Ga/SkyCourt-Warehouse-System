@@ -4,7 +4,7 @@ Tests for Atomic Transactions, Conditional Stock Updates, Rollback on Failure, a
 import concurrent.futures
 import sqlite3
 import pytest
-from app.services.item_service import adjust_stock_primitive, record_quantity_adjustment
+from app.services.item_service import adjust_stock_primitive
 from app.models.db_utils import run_in_transaction
 from app.models import item_model
 

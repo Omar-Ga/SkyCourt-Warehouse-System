@@ -1,4 +1,3 @@
-import sqlite3
 from .db_utils import get_db
 
 # Read Methods (Mostly Unchanged, but ensure they don't do business logic)
@@ -128,10 +127,6 @@ def update_item_details(cursor, item_id, name, unit_id, sub_category_id):
     """Updates basic item details."""
     cursor.execute("UPDATE items SET name = ?, unit_id = ?, sub_category_id = ? WHERE id = ?",
                    (name, unit_id, sub_category_id, item_id))
-
-def update_quantity(cursor, item_id, new_quantity):
-    """Updates item quantity directly."""
-    cursor.execute("UPDATE items SET current_quantity = ? WHERE id = ?", (new_quantity, item_id))
 
 def add_item_quantity_conditional(cursor, item_id: int, amount: int, active_only: bool = True) -> int:
     """

@@ -1,5 +1,5 @@
 import flask
-from flask import g, jsonify, send_from_directory, request
+from flask import jsonify, send_from_directory, request
 import logging
 import sqlite3
 import sys

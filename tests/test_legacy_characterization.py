@@ -8,10 +8,7 @@ Legacy inventory characterization tests covering:
 - Metadata deletion guards (units, providers, destinations)
 - Manual adjustments and movement log filters
 """
-import io
-import json
-import pytest
-from app.models import category_model, unit_model, provider_model, destination_model, item_model
+
 
 
 def test_item_creation_search_and_detail(client, sample_metadata):

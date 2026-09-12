@@ -23,6 +23,7 @@ lerna-debug.log*
 # Environment variables & Secrets
 .env
 .env.*
+!.env.example
 *.env
 *.pem
 *.key
@@ -38,11 +39,15 @@ secrets.*
 .codex/
 .claude/
 .agents/mcp_config.json
+.agents/**/mcp_config.json
 .agents/*config*.json
+.agents/**/*config*.json
 .agents/local/
 .agents/*.token*
+.playwright-mcp/
 outputs/
-work_order*.md
+/work_order*.md
+docs/archive/audits/
 
 # Node modules
 node_modules/

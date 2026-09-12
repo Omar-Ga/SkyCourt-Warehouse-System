@@ -38,8 +38,8 @@ A modern, efficient warehouse management system built with a React frontend and 
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/your-username/skycourt-warehouse-system.git
-cd skycourt-warehouse-system
+git clone https://github.com/Omar-Ga/SkyCourt-Warehouse-System.git
+cd SkyCourt-Warehouse-System
 ```
 
 ### 2. Backend Setup
@@ -90,4 +90,4 @@ npm run build
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+Proprietary software - All rights reserved to SkyCourt Trading & Distribution (شركة سكاي كورت للتجارة والتوزيع).

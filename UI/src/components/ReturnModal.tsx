@@ -19,10 +19,11 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
   onClose,
   onSuccess
 }) => {
-  const [returnDeltas, setReturnDeltas] = useState<Record<number, number | ''>>({});
+  const [returnDeltas, setReturnDeltas] = useState<Record<number, string>>({});
   const [notes, setNotes] = useState('');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [submissionKey, setSubmissionKey] = useState<string>(() => generateIdempotencyKey());
+  const [lastSubmittedPayload, setLastSubmittedPayload] = useState<string | null>(null);
 
   const returnMutation = useReturnTicket();
 
@@ -33,43 +34,65 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
     setNotes('');
     setErrorMsg(null);
     setSubmissionKey(generateIdempotencyKey());
+    setLastSubmittedPayload(null);
     onClose();
   };
 
   const returnableLines = order ? order.items.filter((item) => item.remaining_quantity > 0) : [];
 
-  const handleDeltaChange = (lineId: number, maxQty: number, val: string) => {
-    if (val === '') {
-      setReturnDeltas((prev) => ({ ...prev, [lineId]: '' }));
-      return;
-    }
-    const num = parseInt(val, 10);
-    if (isNaN(num) || num < 0) return;
-    if (num > maxQty) {
-      setReturnDeltas((prev) => ({ ...prev, [lineId]: maxQty }));
-      return;
-    }
-    setReturnDeltas((prev) => ({ ...prev, [lineId]: num }));
+  const handleDeltaChange = (lineId: number, val: string) => {
+    setReturnDeltas((prev) => ({ ...prev, [lineId]: val }));
   };
 
   const handleReturnAll = () => {
-    const allDeltas: Record<number, number> = {};
+    const allDeltas: Record<number, string> = {};
     returnableLines.forEach((item) => {
-      allDeltas[item.id] = item.remaining_quantity;
+      allDeltas[item.id] = String(item.remaining_quantity);
     });
     setReturnDeltas(allDeltas);
   };
+
+  const lineValidation: Record<number, { error?: string; qty: number }> = {};
+  let hasLineErrors = false;
+  let validLineCount = 0;
+
+  for (const line of returnableLines) {
+    const raw = (returnDeltas[line.id] ?? '').trim();
+    if (!raw || raw === '0') {
+      lineValidation[line.id] = { qty: 0 };
+      continue;
+    }
+    const num = Number(raw);
+    if (!Number.isInteger(num) || num < 0) {
+      lineValidation[line.id] = { error: 'يجب إدخال عدد صحيح موجب', qty: 0 };
+      hasLineErrors = true;
+    } else if (num > line.remaining_quantity) {
+      lineValidation[line.id] = {
+        error: `الكمية (${num}) تتجاوز المتبقي (${line.remaining_quantity})`,
+        qty: num
+      };
+      hasLineErrors = true;
+    } else {
+      lineValidation[line.id] = { qty: num };
+      validLineCount += 1;
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!order) return;
     setErrorMsg(null);
 
+    if (hasLineErrors) {
+      setErrorMsg('يرجى تصحيح أخطاء الكميات المدخلة قبل المتابعة.');
+      return;
+    }
+
     const itemsToReturn: { line_id: number; quantity: number }[] = [];
     for (const line of returnableLines) {
-      const delta = returnDeltas[line.id];
-      if (typeof delta === 'number' && delta > 0) {
-        itemsToReturn.push({ line_id: line.id, quantity: delta });
+      const val = lineValidation[line.id];
+      if (val && val.qty > 0 && !val.error) {
+        itemsToReturn.push({ line_id: line.id, quantity: val.qty });
       }
     }
 
@@ -77,6 +100,14 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
       setErrorMsg('يرجى تحديد كمية مرتجعة واحدة على الأقل أكبر من صفر.');
       return;
     }
+
+    const payloadString = JSON.stringify({ items: itemsToReturn, notes: notes.trim() });
+    let currentKey = submissionKey;
+    if (lastSubmittedPayload && lastSubmittedPayload !== payloadString) {
+      currentKey = generateIdempotencyKey();
+      setSubmissionKey(currentKey);
+    }
+    setLastSubmittedPayload(payloadString);
 
     try {
       await returnMutation.mutateAsync({
@@ -86,7 +117,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
           items: itemsToReturn,
           notes: notes.trim() || undefined
         },
-        idempotencyKey: submissionKey
+        idempotencyKey: currentKey
       });
       handleClose();
       if (onSuccess) onSuccess();
@@ -124,7 +155,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
               type="button"
               className="btn btn-sm btn-primary flex items-center gap-1"
               onClick={handleSubmit}
-              disabled={returnMutation.isPending || !order}
+              disabled={returnMutation.isPending || !order || hasLineErrors || validLineCount === 0}
             >
               <Undo2 size={16} />
               {returnMutation.isPending ? 'جاري التسجيل...' : 'تأكيد تسجيل المرتجع'}
@@ -162,12 +193,14 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
                   <th className="p-3">المصروف أصلاً</th>
                   <th className="p-3">المرتجع سابقاً</th>
                   <th className="p-3">المتبقي بالخارج</th>
-                  <th className="p-3 w-32">الكمية المرجعة الآن</th>
+                  <th className="p-3 w-36">الكمية المرجعة الآن</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {returnableLines.map((line) => {
                   const currentVal = returnDeltas[line.id] !== undefined ? returnDeltas[line.id] : '';
+                  const lineVal = lineValidation[line.id];
+                  const hasError = !!lineVal?.error;
                   return (
                     <tr key={line.id} className="hover:bg-gray-50/50">
                       <td className="p-3 font-medium text-gray-800">{line.item_name}</td>
@@ -176,16 +209,24 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
                       <td className="p-3 text-gray-600">{line.returned_quantity}</td>
                       <td className="p-3 font-bold text-primary-700">{line.remaining_quantity}</td>
                       <td className="p-3">
-                        <input
-                          type="number"
-                          step="1"
-                          min="0"
-                          max={line.remaining_quantity}
-                          className="input w-24 text-center py-1 text-sm font-semibold"
-                          placeholder="0"
-                          value={currentVal}
-                          onChange={(e) => handleDeltaChange(line.id, line.remaining_quantity, e.target.value)}
-                        />
+                        <div className="flex flex-col items-start gap-1">
+                          <input
+                            type="number"
+                            step="1"
+                            min="0"
+                            className={`input w-28 text-center py-1 text-sm font-semibold ${
+                              hasError ? 'border-red-500 text-red-700 focus:border-red-500 focus:ring-red-500' : ''
+                            }`}
+                            placeholder="0"
+                            value={currentVal}
+                            onChange={(e) => handleDeltaChange(line.id, e.target.value)}
+                          />
+                          {hasError && (
+                            <span className="text-[11px] text-red-600 font-medium">
+                              {lineVal.error}
+                            </span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );

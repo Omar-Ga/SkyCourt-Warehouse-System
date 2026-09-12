@@ -1,13 +1,8 @@
 import React from 'react';
 import { PurchaseOrderDetail } from '../services/poService';
+import { formatSafeDate } from '../services/statsService';
 
 export const PrintablePurchaseOrder = React.forwardRef<HTMLDivElement, { order: PurchaseOrderDetail }>(({ order }, ref) => {
-  const toArabicDigits = (num: number | string | undefined | null) => {
-    if (num === undefined || num === null) return '٠';
-    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-    return String(num).replace(/[0-9]/g, (w) => arabicDigits[+w]);
-  };
-
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'open': return 'مفتوح بانتظار الاستلام بالمخزن';
@@ -59,11 +54,11 @@ export const PrintablePurchaseOrder = React.forwardRef<HTMLDivElement, { order: 
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
             <span style={{ color: '#6B7280', fontWeight: 'bold' }}>تاريخ الإرسال:</span>
-            <span style={{ fontWeight: '600', color: '#111827' }}>{order.dispatched_at || 'قيد الإعداد (مسودة)'}</span>
+            <span style={{ fontWeight: '600', color: '#111827' }}>{order.dispatched_at ? formatSafeDate(order.dispatched_at) : 'قيد الإعداد (مسودة)'}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
             <span style={{ color: '#6B7280', fontWeight: 'bold' }}>تاريخ الانتهاء:</span>
-            <span style={{ fontWeight: '600', color: '#111827' }}>{order.expires_at || 'غير محدد'}</span>
+            <span style={{ fontWeight: '600', color: '#111827' }}>{order.expires_at ? formatSafeDate(order.expires_at) : 'غير محدد'}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
             <span style={{ color: '#6B7280', fontWeight: 'bold' }}>حالة الأمر:</span>

@@ -84,18 +84,23 @@ describe('Freshness, Polling, and Sync Status Unit Tests', () => {
     assert.equal(computeBadge({ count: 5 }, true), '!');
   });
 
-  test('Timestamp normalization preserves legacy Cairo local strings and formats UTC strings in Cairo time', () => {
-    // Legacy naive timestamp: 2026-01-15 14:30:00 (recorded in Cairo local time)
-    const legacy = formatMovementTimestamp('2026-01-15 14:30:00');
-    assert.equal(legacy.isUtc, false);
-    assert.equal(legacy.displayDate, '15/01/2026');
-    assert.equal(legacy.displayTime, '14:30:00');
-    assert.equal(formatSafeDate('2026-01-15 14:30:00'), '15/01/2026 14:30:00');
+  test('Timestamp normalization converts server UTC strings (including SQLite naive formats) to Cairo time', () => {
+    // SQLite naive UTC timestamp: 2026-01-15 14:30:00 -> In Cairo winter time (UTC+2), this is 16:30:00
+    const sqliteWinter = formatMovementTimestamp('2026-01-15 14:30:00');
+    assert.equal(sqliteWinter.isUtc, true);
+    assert.equal(sqliteWinter.displayDate, '15/01/2026');
+    assert.equal(sqliteWinter.displayTime, '16:30:00');
+    assert.equal(formatSafeDate('2026-01-15 14:30:00'), '15/01/2026 16:30:00');
 
-    // Modern UTC timestamp: 2026-09-06T15:00:00Z -> In Cairo (UTC+3 summer time), this is 18:00:00
+    // Modern ISO UTC timestamp: 2026-09-06T15:00:00Z -> In Cairo summer time (UTC+3), this is 18:00:00
     const modern = formatMovementTimestamp('2026-09-06T15:00:00Z');
     assert.equal(modern.isUtc, true);
     assert.equal(modern.displayTime, '18:00:00');
+
+    // SQLite naive summer timestamp: 2026-09-06 15:00:00 -> In Cairo summer time (UTC+3), this is 18:00:00
+    const sqliteSummer = formatMovementTimestamp('2026-09-06 15:00:00');
+    assert.equal(sqliteSummer.isUtc, true);
+    assert.equal(sqliteSummer.displayTime, '18:00:00');
 
     // Winter UTC timestamp: 2026-01-14T22:30:00Z -> In Cairo (UTC+2 winter time), this is 00:30:00
     const winter = formatMovementTimestamp('2026-01-14T22:30:00Z');

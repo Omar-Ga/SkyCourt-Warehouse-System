@@ -28,33 +28,19 @@ export interface NormalizedTimestamp {
 
 export function formatMovementTimestamp(dateString: string): NormalizedTimestamp {
     if (!dateString) return { isUtc: false, displayDate: '-', displayTime: '-' };
-    const isUtc = dateString.endsWith('Z') || dateString.endsWith('z') || dateString.includes('+');
 
-    if (!isUtc) {
-        // Legacy naive Cairo timestamp: preserve original text without UTC shifting
-        const parts = dateString.replace('T', ' ').split(' ');
-        const datePart = parts[0] || '';
-        const timePart = parts[1] ? parts[1].split('.')[0] : '';
-        let formattedDate = datePart;
-        try {
-            const [year, month, day] = datePart.split('-');
-            if (year && month && day) {
-                formattedDate = `${day}/${month}/${year}`;
-            }
-        } catch {
-            // fallback
-        }
-        return {
-            isUtc: false,
-            displayDate: formattedDate,
-            displayTime: timePart || '-'
-        };
+    let isoString = dateString.trim();
+    // Normalize SQLite CURRENT_TIMESTAMP "YYYY-MM-DD HH:MM:SS" or "YYYY-MM-DDTHH:MM:SS" (naive UTC from server) to ISO UTC
+    if (/^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}/.test(isoString) && !isoString.endsWith('Z') && !isoString.includes('+')) {
+        isoString = isoString.replace(' ', 'T') + 'Z';
     }
 
-    // New UTC timestamp: format in Africa/Cairo
     try {
-        const date = new Date(dateString);
-        const formattedDate = date.toLocaleDateString('ar-EG', {
+        const date = new Date(isoString);
+        if (isNaN(date.getTime())) {
+            return { isUtc: false, displayDate: dateString, displayTime: '-' };
+        }
+        const formattedDate = date.toLocaleDateString('en-GB', {
             timeZone: 'Africa/Cairo',
             year: 'numeric',
             month: '2-digit',

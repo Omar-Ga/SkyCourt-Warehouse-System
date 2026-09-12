@@ -8,10 +8,8 @@ from flask import g
 
 from app.models.db_utils import (
     get_db,
-    create_connection,
     LibSQLRow,
-    LibSQLConnectionWrapper,
-    LibSQLCursorWrapper
+    LibSQLConnectionWrapper
 )
 
 

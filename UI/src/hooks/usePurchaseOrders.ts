@@ -39,7 +39,9 @@ export const usePurchaseOrderDetail = (id: number | null, options: any = {}) => 
     queryKey: ['purchase-order', id],
     queryFn: () => getPurchaseOrderDetail(id!),
     enabled: isAuthenticated && id !== null && options?.enabled !== false,
-    staleTime: 1000 * 30,
+    staleTime: 1000 * 10,
+    refetchInterval: 10000,
+    refetchIntervalInBackground: false,
     ...options
   });
 };

@@ -3,7 +3,7 @@ User model for SkyCourt Warehouse System.
 Provides database access for user records, session versions, and role constraints.
 """
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any
 from .db_utils import get_db
 
 logger = logging.getLogger(__name__)

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Eye, PackageCheck, Truck, Calendar, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Eye, PackageCheck, Truck, Calendar, Clock, CheckCircle2 } from 'lucide-react';
 import { usePurchaseOrders, usePurchaseOrderDetail } from '../hooks/usePurchaseOrders';
 import { POReceiptModal } from '../components/POReceiptModal';
 import { PODetailModal } from '../components/PODetailModal';

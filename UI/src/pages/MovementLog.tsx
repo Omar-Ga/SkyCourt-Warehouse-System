@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState } from 'react';
-import { Filter, ArrowDown, ArrowUp, Package, User, Trash2, RotateCcw } from 'lucide-react';
+import { Filter, ArrowDown, ArrowUp, Package, User, Trash2, RotateCcw, PlusCircle } from 'lucide-react';
 import { Table } from '../components/Table';
 import { AsyncPaginate, LoadOptions } from 'react-select-async-paginate';
 import type { GroupBase, OptionsOrGroups } from 'react-select';
@@ -194,25 +194,32 @@ export const MovementLog = () => {
       key: 'action_type',
       header: 'نوع الحركة',
       render: (value: string) => {
-        if (value === 'Addition') {
+        if (value === 'Addition' || value === 'إضافة') {
           return (
             <div className="flex items-center text-success-600 font-medium">
               <ArrowUp size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
               <span>إضافة</span>
             </div>
           );
-        } else if (value === 'Removal') {
+        } else if (value === 'Removal' || value === 'سحب' || value === 'صرف') {
           return (
             <div className="flex items-center text-error-600 font-medium">
               <ArrowDown size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
-              <span>سحب</span>
+              <span>صرف</span>
             </div>
           );
-        } else if (value === 'Return') {
+        } else if (value === 'Return' || value === 'مرتجع') {
           return (
             <div className="flex items-center text-amber-600 font-medium">
               <RotateCcw size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
               <span>مرتجع</span>
+            </div>
+          );
+        } else if (value === 'Creation' || value === 'إنشاء' || value === 'إنشاء صنف') {
+          return (
+            <div className="flex items-center text-brand-violet font-medium">
+              <PlusCircle size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
+              <span>إنشاء صنف</span>
             </div>
           );
         } else {
@@ -240,7 +247,18 @@ export const MovementLog = () => {
     {
       key: 'quantity_changed',
       header: 'الكمية',
-      render: (value?: number | null) => (value !== null && value !== undefined ? Math.abs(value) : '-'),
+      render: (value?: number | null, row?: MovementLogEntry) => {
+        if (value === null || value === undefined) return '-';
+        const isRemoval = row?.action_type === 'Removal' || row?.action_type === 'سحب' || row?.action_type === 'صرف';
+        const isAddition = row?.action_type === 'Addition' || row?.action_type === 'إضافة';
+        const prefix = isRemoval ? '-' : isAddition ? '+' : '';
+        const color = isRemoval ? 'text-error-600' : isAddition ? 'text-success-600' : 'text-ink-900';
+        return (
+          <span dir="ltr" className={`inline-block font-mono font-bold ${color}`}>
+            {prefix}{Math.abs(value)}
+          </span>
+        );
+      },
       width: 'w-1/12 md:w-1/12'
     },
     {
@@ -258,13 +276,25 @@ export const MovementLog = () => {
     {
       key: 'cost_per_item',
       header: 'التكلفة',
-      render: (value?: number | null) => (value !== null && value !== undefined ? value.toFixed(2) : '-'),
+      render: (value?: number | null) => (
+        value !== null && value !== undefined ? (
+          <span dir="ltr" className="inline-block font-mono">
+            {value.toFixed(2)}
+          </span>
+        ) : '-'
+      ),
       width: 'w-1/12 md:w-1/12 hidden sm:table-cell'
     },
     {
       key: 'resulting_quantity',
       header: 'الرصيد',
-      render: (value?: number | null) => value ?? '-',
+      render: (value?: number | null) => (
+        value !== null && value !== undefined ? (
+          <span dir="ltr" className="inline-block font-mono font-semibold">
+            {value}
+          </span>
+        ) : '-'
+      ),
       width: 'w-1/12 md:w-1/12'
     }
   ];
@@ -319,6 +349,7 @@ export const MovementLog = () => {
               <option value="Addition">توريد وارد (إضافة)</option>
               <option value="Removal">صرف صادر (سحب)</option>
               <option value="Return">مرتجع للمخزن</option>
+              <option value="Creation">إنشاء صنف جديد</option>
             </select>
           </div>
 

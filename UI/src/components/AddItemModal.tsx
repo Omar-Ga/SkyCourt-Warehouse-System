@@ -104,14 +104,14 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
       return;
     } catch (err: any) {
       if (err instanceof ApiError && err.status === 409 && err.data?.type === 'item_conflict') {
-        if (window.confirm(`An item named "${payload.name}" is inactive or archived. Would you like to restore it to this category?`)) {
+        if (window.confirm(`يوجد صنف بهذا الاسم "${payload.name}" وهو غير نشط أو مؤرشف. هل ترغب في استعادته وتفعيله لهذا القسم؟`)) {
           handleRestoreItem(err.data.item_id);
         } else {
-          setApiError("Please choose a different name or restore the existing item.");
+          setApiError("يرجى اختيار اسم مختلف أو استعادة الصنف الحالي.");
           setIsSaving(false);
         }
       } else {
-        setApiError(err.message || 'Failed to add item. Please try again.');
+        setApiError(err.message || 'فشلت إضافة الصنف. يرجى المحاولة مرة أخرى.');
         setIsSaving(false);
       }
     }
@@ -129,7 +129,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
       resetForm();
       onClose();
     } catch (err: any) {
-      setApiError(err.message || 'Failed to restore item.');
+      setApiError(err.message || 'فشلت استعادة الصنف.');
       setIsSaving(false);
     }
   };
@@ -156,7 +156,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
       isOpen={isOpen}
       onClose={onClose}
       title="إضافة صنف جديد"
-      primaryActionText="إضافة الصنف"
+      primaryActionText={isSaving ? "جارٍ الحفظ..." : "إضافة الصنف"}
       onPrimaryAction={triggerSubmit}
       isPrimaryActionDisabled={isSaving}
       secondaryActionText="إلغاء"
@@ -203,7 +203,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
             >
               <option value="">اختر وحدة</option>
               {units.map((u) => (
-                <option key={u.id} value={u.id}>
+                <option key={u.id} value={String(u.id)}>
                   {u.name}
                 </option>
               ))}
@@ -221,7 +221,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
             >
               <option value="">اختر موردًا (اختياري)</option>
               {providers.map((p) => (
-                <option key={p.id} value={p.id}>
+                <option key={p.id} value={String(p.id)}>
                   {p.name}
                 </option>
               ))}
