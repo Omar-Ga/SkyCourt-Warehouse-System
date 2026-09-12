@@ -49,7 +49,12 @@ HOST = "127.0.0.1"
 
 # Determine the path to the UI build directory
 if getattr(sys, "frozen", False):
-    UI_BUILD_DIR = os.path.join(sys._MEIPASS, "dist")
+    bundle_root = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+    UI_BUILD_DIR = os.path.join(bundle_root, "dist")
+    if not os.path.exists(UI_BUILD_DIR):
+        alt_dist = os.path.join(os.path.dirname(sys.executable), "_internal", "dist")
+        if os.path.exists(alt_dist):
+            UI_BUILD_DIR = alt_dist
 else:
     script_dir = os.path.dirname(os.path.abspath(__file__))
     UI_BUILD_DIR = os.path.abspath(os.path.join(script_dir, "..", "UI", "dist"))

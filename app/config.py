@@ -4,13 +4,28 @@ import logging
 
 try:
     from dotenv import load_dotenv
-    # Ensure .env from project root is loaded even if run from another cwd
-    _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    _dotenv_path = os.path.join(_project_root, '.env')
-    if os.path.exists(_dotenv_path):
-        load_dotenv(_dotenv_path)
+    if getattr(sys, 'frozen', False):
+        _exe_dir = os.path.dirname(sys.executable)
+        _exe_dotenv = os.path.join(_exe_dir, '.env')
+        _bundle_dotenv = os.path.join(getattr(sys, '_MEIPASS', ''), '.env')
+        _internal_dotenv = os.path.join(_exe_dir, '_internal', '.env')
+
+        if os.path.exists(_exe_dotenv):
+            load_dotenv(_exe_dotenv)
+        elif os.path.exists(_bundle_dotenv):
+            load_dotenv(_bundle_dotenv)
+        elif os.path.exists(_internal_dotenv):
+            load_dotenv(_internal_dotenv)
+        else:
+            load_dotenv()
     else:
-        load_dotenv()
+        # Ensure .env from project root is loaded even if run from another cwd
+        _project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        _dotenv_path = os.path.join(_project_root, '.env')
+        if os.path.exists(_dotenv_path):
+            load_dotenv(_dotenv_path)
+        else:
+            load_dotenv()
 except ImportError:
     pass
 
@@ -24,9 +39,15 @@ TURSO_AUTH_TOKEN = os.environ.get("TURSO_AUTH_TOKEN", "")
 
 # Configure SSL for Frozen App (Fix for "Invalid Peer Certificate")
 if getattr(sys, 'frozen', False):
-    cert_path = os.path.join(sys._MEIPASS, 'cacert.pem')
-    os.environ['SSL_CERT_FILE'] = cert_path
-    os.environ['REQUESTS_CA_BUNDLE'] = cert_path
+    bundle_root = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+    cert_path = os.path.join(bundle_root, 'cacert.pem')
+    if not os.path.exists(cert_path):
+        alt_cert = os.path.join(os.path.dirname(sys.executable), '_internal', 'cacert.pem')
+        if os.path.exists(alt_cert):
+            cert_path = alt_cert
+    if os.path.exists(cert_path):
+        os.environ['SSL_CERT_FILE'] = cert_path
+        os.environ['REQUESTS_CA_BUNDLE'] = cert_path
 
 # Try to import libsql
 try:

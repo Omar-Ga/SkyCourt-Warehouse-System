@@ -5,16 +5,21 @@ import os
 
 block_cipher = None
 
+datas = [
+    ('UI/dist', 'dist'),
+    ('database/schema.sql', 'database'),
+    ('database/migrations', 'database/migrations'),
+    (certifi.where(), '.'),
+]
+
+if os.path.exists('.env'):
+    datas.append(('.env', '.'))
+
 a = Analysis(
     ['run.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('UI/dist', 'dist'),
-        ('database/schema.sql', 'database'),
-        ('database/migrations', 'database/migrations'),
-        (certifi.where(), '.'),
-    ],
+    datas=datas,
     hiddenimports=[
         'dotenv',
         'libsql',
@@ -26,6 +31,9 @@ a = Analysis(
         'werkzeug.security',
         'app.staging',
         'app.migrations',
+        'webview',
+        'webview.platforms.winforms',
+        'webview.platforms.edgechromium',
     ],
     hookspath=[],
     hooksconfig={},
@@ -54,6 +62,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon='UI/public/assets/favicon.ico',
 )
 coll = COLLECT(
     exe,
