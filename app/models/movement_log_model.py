@@ -6,7 +6,12 @@ from typing import Optional, Any
 from .db_utils import get_db
 
 logger = logging.getLogger(__name__)
-CAIRO_TZ = zoneinfo.ZoneInfo("Africa/Cairo")
+
+try:
+    CAIRO_TZ = zoneinfo.ZoneInfo("Africa/Cairo")
+except Exception:
+    # Fallback for Windows systems without tzdata package
+    CAIRO_TZ = timezone(timedelta(hours=2))
 
 
 def add_log_entry(

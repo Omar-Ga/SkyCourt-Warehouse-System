@@ -34,6 +34,7 @@ a = Analysis(
         'webview',
         'webview.platforms.winforms',
         'webview.platforms.edgechromium',
+        'tzdata',
     ],
     hookspath=[],
     hooksconfig={},

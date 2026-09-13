@@ -4,3 +4,4 @@ Flask-Cors==4.0.1
 python-dotenv
 libsql
 certifi
+tzdata
