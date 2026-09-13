@@ -61,6 +61,50 @@ jobs:
         run: |
           Copy-Item -Path .env -Destination dist/WarehouseApp/.env -Force
 
+      - name: Live Smoke Test WarehouseApp.exe on Windows
+        shell: pwsh
+        run: |
+          Write-Host "Launching WarehouseApp.exe in Windows test environment..."
+          $proc = Start-Process -FilePath "dist\WarehouseApp\WarehouseApp.exe" -PassThru -NoNewWindow
+          Write-Host "Started process PID: $($proc.Id)"
+
+          $ready = $false
+          for ($i = 1; $i -le 15; $i++) {
+              Start-Sleep -Seconds 1
+              if ($proc.HasExited) {
+                  Write-Host "ERROR: WarehouseApp.exe exited prematurely with code $($proc.ExitCode)!"
+                  if (Test-Path "dist\WarehouseApp\crash.log") {
+                      Write-Host "=== CRASH.LOG CONTENT ==="
+                      Get-Content "dist\WarehouseApp\crash.log"
+                  }
+                  exit 1
+              }
+              try {
+                  $resp = Invoke-WebRequest -Uri "http://127.0.0.1:5070/api/sync-status" -UseBasicParsing -TimeoutSec 2
+                  if ($resp.StatusCode -eq 200) {
+                      Write-Host "SUCCESS! Local Flask server on port 5070 returned HTTP 200:"
+                      Write-Host $resp.Content
+                      $ready = $true
+                      break
+                  }
+              } catch {
+                  Write-Host "Waiting for backend on port 5070... ($i/15)"
+              }
+          }
+
+          if (-not $ready) {
+              Write-Host "ERROR: Application did not respond on port 5070 within 15 seconds."
+              if (Test-Path "dist\WarehouseApp\crash.log") {
+                  Write-Host "=== CRASH.LOG CONTENT ==="
+                  Get-Content "dist\WarehouseApp\crash.log"
+              }
+              Stop-Process -Id $proc.Id -Force
+              exit 1
+          }
+
+          Write-Host "Smoke test PASSED! Shutting down test process..."
+          Stop-Process -Id $proc.Id -Force
+
       - name: Compress Distribution to Zip
         shell: pwsh
         run: |
