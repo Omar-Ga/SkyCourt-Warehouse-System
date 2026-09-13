@@ -270,3 +270,171 @@ def test_api_route_idempotency_replay(client, sample_metadata):
     assert res_cross.status_code == 409
     assert res_cross.get_json()["code"] == "IDEMPOTENCY_KEY_CONFLICT"
 
+
+def test_category_creation_idempotency(client, migrated_db):
+    """Verifies that category creation requests carrying an Idempotency-Key are idempotent."""
+    idem_key = "cat-create-key-001"
+    payload = {"name": "فئة تجريبية فريدة"}
+
+    # 1. Initial creation
+    res1 = client.post("/api/categories", json=payload, headers={"Idempotency-Key": idem_key})
+    assert res1.status_code == 201
+    created_cat = res1.get_json()
+    assert created_cat["name"] == payload["name"]
+    cat_id = created_cat["id"]
+
+    # 2. Duplicate submission with same key & payload -> replays exact 201 response
+    res2 = client.post("/api/categories", json=payload, headers={"Idempotency-Key": idem_key})
+    assert res2.status_code == 201
+    assert res2.get_json()["id"] == cat_id
+    assert res2.get_json()["name"] == payload["name"]
+
+    # Verify only ONE category exists in DB with this name
+    cursor = migrated_db.cursor()
+    cursor.execute("SELECT COUNT(*) FROM categories WHERE name = ?", (payload["name"],))
+    assert cursor.fetchone()[0] == 1
+
+    # 3. Conflict: same key with different payload -> 409
+    res3 = client.post("/api/categories", json={"name": "فئة تجريبية مختلفة"}, headers={"Idempotency-Key": idem_key})
+    assert res3.status_code == 409
+    assert res3.get_json()["code"] == "IDEMPOTENCY_KEY_CONFLICT"
+
+
+def test_provider_destination_unit_creation_idempotency(client, migrated_db):
+    """Verifies that provider, destination, and unit creations support Idempotency-Key replay."""
+    # Provider
+    prov_key = "prov-create-key-001"
+    p_res1 = client.post("/api/providers", json={"name": "مورد اختباري"}, headers={"Idempotency-Key": prov_key})
+    assert p_res1.status_code == 201
+    p_id = p_res1.get_json()["id"]
+
+    p_res2 = client.post("/api/providers", json={"name": "مورد اختباري"}, headers={"Idempotency-Key": prov_key})
+    assert p_res2.status_code == 201
+    assert p_res2.get_json()["id"] == p_id
+
+    # Destination
+    dest_key = "dest-create-key-001"
+    d_res1 = client.post("/api/destinations", json={"name": "وجهة اختبارية"}, headers={"Idempotency-Key": dest_key})
+    assert d_res1.status_code == 201
+    d_id = d_res1.get_json()["id"]
+
+    d_res2 = client.post("/api/destinations", json={"name": "وجهة اختبارية"}, headers={"Idempotency-Key": dest_key})
+    assert d_res2.status_code == 201
+    assert d_res2.get_json()["id"] == d_id
+
+    # Unit
+    unit_key = "unit-create-key-001"
+    u_res1 = client.post("/api/units", json={"name": "وحدة اختبارية"}, headers={"Idempotency-Key": unit_key})
+    assert u_res1.status_code == 201
+    u_id = u_res1.get_json()["id"]
+
+    u_res2 = client.post("/api/units", json={"name": "وحدة اختبارية"}, headers={"Idempotency-Key": unit_key})
+    assert u_res2.status_code == 201
+    assert u_res2.get_json()["id"] == u_id
+
+
+def test_category_creation_with_x_idempotency_key_and_subcategories(client, migrated_db):
+    """Verifies X-Idempotency-Key header support and subcategory idempotency."""
+    # 1. Main category with X-Idempotency-Key
+    main_key = "cat-main-xkey-001"
+    main_res = client.post("/api/categories", json={"name": "فئة رئيسية X"}, headers={"X-Idempotency-Key": main_key})
+    assert main_res.status_code == 201
+    parent_id = main_res.get_json()["id"]
+
+    # Replay main category
+    main_replay = client.post("/api/categories", json={"name": "فئة رئيسية X"}, headers={"X-Idempotency-Key": main_key})
+    assert main_replay.status_code == 201
+    assert main_replay.get_json()["id"] == parent_id
+
+    # 2. Subcategory with Idempotency-Key and parent_id
+    sub_key = "cat-sub-key-002"
+    sub_payload = {"name": "فئة فرعية تابعة", "parent_id": parent_id}
+    sub_res = client.post("/api/categories", json=sub_payload, headers={"Idempotency-Key": sub_key})
+    assert sub_res.status_code == 201
+    sub_id = sub_res.get_json()["id"]
+    assert sub_res.get_json()["parent_id"] == parent_id
+
+    # Replay subcategory
+    sub_replay = client.post("/api/categories", json=sub_payload, headers={"Idempotency-Key": sub_key})
+    assert sub_replay.status_code == 201
+    assert sub_replay.get_json()["id"] == sub_id
+    assert sub_replay.get_json()["parent_id"] == parent_id
+
+
+def test_category_creation_in_progress_returns_409(client, migrated_db):
+    """Verifies that attempting an operation while it is still in_progress returns 409 IDEMPOTENCY_IN_PROGRESS."""
+    in_prog_key = "cat-in-prog-001"
+    cursor = migrated_db.cursor()
+    cursor.execute("SELECT id FROM users WHERE username = 'default_warehouse'")
+    actor_id = cursor.fetchone()[0]
+
+    cursor.execute(
+        """
+        INSERT INTO operations (operation_key, actor_id, operation_type, request_hash, status)
+        VALUES (?, ?, 'create_category', ?, 'in_progress')
+        """,
+        (in_prog_key, actor_id, compute_request_hash({"name": "فئة قيد التنفيذ"}))
+    )
+    migrated_db.commit()
+
+    res = client.post("/api/categories", json={"name": "فئة قيد التنفيذ"}, headers={"Idempotency-Key": in_prog_key})
+    assert res.status_code == 409
+    assert res.get_json()["code"] == "IDEMPOTENCY_IN_PROGRESS"
+
+
+def test_put_and_delete_with_idempotency_headers(client):
+    """
+    Verifies that PUT and DELETE routes for categories, providers, destinations, and units
+    handle requests carrying Idempotency-Key or X-Idempotency-Key without errors.
+    """
+    # 1. Category
+    c_res = client.post("/api/categories", json={"name": "فئة للتعديل والحذف"}, headers={"Idempotency-Key": "c-init"})
+    assert c_res.status_code == 201
+    cat_id = c_res.get_json()["id"]
+
+    put_cat = client.put(f"/api/categories/{cat_id}", json={"name": "فئة بعد التعديل"}, headers={"Idempotency-Key": "c-put"})
+    assert put_cat.status_code == 200
+    assert put_cat.get_json()["name"] == "فئة بعد التعديل"
+
+    del_cat = client.delete(f"/api/categories/{cat_id}", headers={"Idempotency-Key": "c-del"})
+    assert del_cat.status_code == 200
+
+    # 2. Provider
+    p_res = client.post("/api/providers", json={"name": "مورد للتعديل"}, headers={"Idempotency-Key": "p-init"})
+    assert p_res.status_code == 201
+    p_id = p_res.get_json()["id"]
+
+    put_p = client.put(f"/api/providers/{p_id}", json={"name": "مورد معدل"}, headers={"X-Idempotency-Key": "p-put"})
+    assert put_p.status_code == 200
+    assert put_p.get_json()["name"] == "مورد معدل"
+
+    del_p = client.delete(f"/api/providers/{p_id}", headers={"Idempotency-Key": "p-del"})
+    assert del_p.status_code == 200
+
+    # 3. Destination
+    d_res = client.post("/api/destinations", json={"name": "وجهة للتعديل"}, headers={"Idempotency-Key": "d-init"})
+    assert d_res.status_code == 201
+    d_id = d_res.get_json()["id"]
+
+    put_d = client.put(f"/api/destinations/{d_id}", json={"name": "وجهة معدلة"}, headers={"Idempotency-Key": "d-put"})
+    assert put_d.status_code == 200
+    assert put_d.get_json()["name"] == "وجهة معدلة"
+
+    del_d = client.delete(f"/api/destinations/{d_id}", headers={"X-Idempotency-Key": "d-del"})
+    assert del_d.status_code == 200
+
+    # 4. Unit
+    u_res = client.post("/api/units", json={"name": "وحدة للتعديل"}, headers={"Idempotency-Key": "u-init"})
+    assert u_res.status_code == 201
+    u_id = u_res.get_json()["id"]
+
+    put_u = client.put(f"/api/units/{u_id}", json={"name": "وحدة معدلة"}, headers={"Idempotency-Key": "u-put"})
+    assert put_u.status_code == 200
+    assert put_u.get_json()["name"] == "وحدة معدلة"
+
+    del_u = client.delete(f"/api/units/{u_id}", headers={"Idempotency-Key": "u-del"})
+    assert del_u.status_code == 200
+
+
+
+

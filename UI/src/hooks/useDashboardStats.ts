@@ -1,4 +1,3 @@
-/* eslint-disable */
 import { useQuery } from '@tanstack/react-query';
 import { statsService } from '../services/statsService';
 import { useAuth } from './useAuth';
@@ -23,16 +22,6 @@ export const useDashboardStats = () => {
         },
         enabled: isAuthenticated,
         staleTime: 1000 * 30, // 30 seconds
-        refetchInterval: (query) => {
-            if (!isAuthenticated) return false;
-            const err = query.state.error;
-            const status = (err as any)?.status;
-            if (status === 401 || status === 403) {
-                return false;
-            }
-            return 1000 * 30; // Polling every 30 seconds
-        },
-        refetchIntervalInBackground: false,
     });
 };
 
@@ -44,7 +33,5 @@ export const useRecentLogs = (limit: number = 5) => {
         queryFn: ({ signal }) => statsService.fetchRecentLogs(limit, signal),
         enabled: isAuthenticated,
         staleTime: 1000 * 30,
-        refetchInterval: 1000 * 30,
-        refetchIntervalInBackground: false,
     });
 };

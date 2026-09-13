@@ -184,6 +184,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setErrorMsg(null);
 
     if (!employeeName.trim()) {

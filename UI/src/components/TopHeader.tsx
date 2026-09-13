@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { SoftRefreshButton } from './SoftRefreshButton';
 import { useSyncStatus } from '../hooks/useSyncStatus';
 import { useAppContext } from '../context/AppContext';
@@ -18,6 +18,7 @@ import {
   Settings as SettingsIcon,
   Cloud,
   CloudOff,
+  PanelRightClose,
 } from 'lucide-react';
 
 interface PageMeta {
@@ -95,6 +96,51 @@ export const TopHeader: React.FC = () => {
   const { role } = useAuth();
   const { data: syncStatus = { connected: true, mode: 'cloud' } } = useSyncStatus();
 
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('skycourt_sidebar_collapsed') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    const handleCustomToggle = (e: Event) => {
+      const custom = e as CustomEvent<{ isCollapsed?: boolean }>;
+      if (typeof custom.detail?.isCollapsed === 'boolean') {
+        setIsSidebarCollapsed(custom.detail.isCollapsed);
+      } else {
+        setIsSidebarCollapsed((prev) => !prev);
+      }
+    };
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'skycourt_sidebar_collapsed') {
+        setIsSidebarCollapsed(e.newValue === 'true');
+      }
+    };
+
+    window.addEventListener('skycourt_sidebar_collapse', handleCustomToggle);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('skycourt_sidebar_collapse', handleCustomToggle);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
+
+  const toggleSidebar = () => {
+    const next = !isSidebarCollapsed;
+    setIsSidebarCollapsed(next);
+    try {
+      localStorage.setItem('skycourt_sidebar_collapsed', String(next));
+    } catch {
+      // ignore
+    }
+    window.dispatchEvent(
+      new CustomEvent('skycourt_sidebar_collapse', { detail: { isCollapsed: next } })
+    );
+  };
+
   const meta = PAGE_META[activePage] || PAGE_META.Dashboard;
   const displayTitle = (role === 'office' && meta.officeTitle) ? meta.officeTitle : meta.title;
   const displaySubtitle = (role === 'office' && meta.officeSubtitle) ? meta.officeSubtitle : meta.subtitle;
@@ -103,6 +149,19 @@ export const TopHeader: React.FC = () => {
     <header className="bg-white border-b border-gray-200 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4 shrink-0 shadow-xs">
       {/* Title and Context */}
       <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          title={isSidebarCollapsed ? 'توسيع القائمة الجانبية' : 'طي القائمة الجانبية'}
+          aria-label={isSidebarCollapsed ? 'توسيع القائمة الجانبية' : 'طي القائمة الجانبية'}
+          className="w-10 h-10 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-brand-violet flex items-center justify-center shrink-0 transition-colors shadow-2xs cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-brand-violet/20"
+        >
+          <PanelRightClose
+            size={20}
+            className={`transition-transform duration-200 ${isSidebarCollapsed ? 'rotate-180' : ''}`}
+          />
+        </button>
+
         <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 flex items-center justify-center shrink-0">
           {meta.icon}
         </div>

@@ -1,6 +1,7 @@
 /* eslint-disable */
 import React from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { EmptyState } from './EmptyState';
 
 type TableProps = {
   columns: {
@@ -21,9 +22,10 @@ type TableProps = {
   };
   isLoading?: boolean;
   rowClassName?: (row: any) => string;
+  emptyState?: React.ReactNode;
 };
 
-export const Table = ({ columns, data, keyField, onRowClick, pagination, isLoading, rowClassName }: TableProps) => {
+export const Table = ({ columns, data, keyField, onRowClick, pagination, isLoading, rowClassName, emptyState }: TableProps) => {
   return (
     <div className="bg-white rounded-lg shadow overflow-hidden">
       <div className="overflow-x-auto">
@@ -56,8 +58,13 @@ export const Table = ({ columns, data, keyField, onRowClick, pagination, isLoadi
             )}
             {!isLoading && data.length === 0 && (
               <tr>
-                <td colSpan={columns.length} className="text-center py-8 text-gray-500">
-                  لا توجد بيانات للعرض
+                <td colSpan={columns.length} className="p-0 border-none">
+                  {emptyState || (
+                    <EmptyState
+                      title="لا توجد بيانات للعرض"
+                      description="لم يتم العثور على أي عناصر مسجلة في هذا الجدول."
+                    />
+                  )}
                 </td>
               </tr>
             )}

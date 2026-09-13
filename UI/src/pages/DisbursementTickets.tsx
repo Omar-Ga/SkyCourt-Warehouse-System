@@ -23,7 +23,7 @@ export const DisbursementTickets: React.FC = () => {
   const tickets = data?.tickets || [];
 
   const handleConfirmFulfill = async () => {
-    if (!fulfillingOrder) return;
+    if (!fulfillingOrder || fulfill.isPending) return;
     setFulfillError(null);
     try {
       await fulfill.mutateAsync({
@@ -40,7 +40,7 @@ export const DisbursementTickets: React.FC = () => {
 
   const rejectTicket = async (event?: React.FormEvent) => {
     if (event) event.preventDefault();
-    if (!rejectingOrder || !reason.trim()) return;
+    if (!rejectingOrder || !reason.trim() || reject.isPending) return;
     await reject.mutateAsync({
       id: rejectingOrder.id,
       input: { expected_revision: rejectingOrder.revision, reason: reason.trim() },
@@ -322,6 +322,7 @@ export const DisbursementTickets: React.FC = () => {
                   setRejectingId(null);
                   setReason('');
                 }}
+                disabled={reject.isPending}
               >
                 إلغاء
               </button>

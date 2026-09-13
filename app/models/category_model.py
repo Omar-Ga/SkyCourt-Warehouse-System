@@ -1,16 +1,18 @@
+from typing import Any
 from .db_utils import get_db
 import logging
 
 logger = logging.getLogger(__name__)
 
-def add_category(name: str, parent_id: int | None = None) -> dict | None:
+def add_category(name: str, parent_id: int | None = None, db: Any = None) -> dict | None:
     """Adds a new category to the database.
     Can be a main category (parent_id is None) or a sub-category.
     Returns the newly added category as a dictionary.
     Raises ValueError if the category limit is reached.
     """
-    db = get_db()
-    cursor = db.cursor()
+    conn = db if db is not None else get_db()
+    caller_owned = db is not None
+    cursor = conn.cursor()
     try:
         if parent_id is None:
             cursor.execute("SELECT COUNT(*) FROM categories WHERE parent_id IS NULL")
@@ -21,14 +23,16 @@ def add_category(name: str, parent_id: int | None = None) -> dict | None:
             "INSERT INTO categories (name, parent_id) VALUES (?, ?)",
             (name, parent_id)
         )
-        db.commit()
+        if not caller_owned:
+            conn.commit()
         new_category_id = cursor.lastrowid
         
         if new_category_id:
             return {"id": new_category_id, "name": name, "parent_id": parent_id}
         return None
     except Exception as e:
-        db.rollback()
+        if not caller_owned:
+            conn.rollback()
         raise e
 
 def get_categories(

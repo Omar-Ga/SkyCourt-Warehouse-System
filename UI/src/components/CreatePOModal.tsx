@@ -239,6 +239,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current || isSubmitting) return;
     setErrorMessage(null);
 
     if (!providerId) {

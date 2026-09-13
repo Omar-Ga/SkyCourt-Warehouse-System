@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ".agents/scripts/sync-graphify.sh",
+            "command": "/bin/sh \"/home/omar/Code Projects/SkyCourt-Warehouse-System/.agents/scripts/sync-graphify.sh\"",
             "timeout": 30
           }
         ]

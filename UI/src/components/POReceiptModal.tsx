@@ -10,6 +10,7 @@ export const POReceiptModal: React.FC<{ order: PurchaseOrderDetail | null; isOpe
   if (!isOpen || !order) return null;
 
   const submit = async () => {
+    if (mutation.isPending || !order) return;
     const response = await mutation.mutateAsync({
       id: order.id,
       input: { expected_revision: order.revision },

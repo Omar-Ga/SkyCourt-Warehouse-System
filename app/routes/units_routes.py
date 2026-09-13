@@ -1,5 +1,13 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app.models import unit_model
+from app.models.db_utils import get_db
+from app.services.idempotency_service import (
+    compute_request_hash,
+    reserve_operation,
+    complete_operation,
+    IdempotencyError
+)
+from sqlite3 import IntegrityError
 from app.auth import require_role
 import logging
 
@@ -19,8 +27,44 @@ def create_unit():
     if not name:
         return jsonify({'error': 'Unit name cannot be empty.'}), 400
 
-    new_unit = unit_model.add_unit(name)
-    return jsonify(new_unit), 201
+    idempotency_key = request.headers.get("Idempotency-Key") or request.headers.get("X-Idempotency-Key")
+    db = get_db()
+    actor_id = g.current_user["id"] if hasattr(g, "current_user") and g.current_user else None
+
+    try:
+        if idempotency_key:
+            req_hash = compute_request_hash(data)
+            res = reserve_operation(
+                conn=db,
+                operation_key=idempotency_key,
+                operation_type="create_unit",
+                actor_id=actor_id,
+                request_hash=req_hash
+            )
+            if res.get("replayed"):
+                return jsonify(res["response_body"]), res["response_status"]
+
+        new_unit = unit_model.add_unit(name, db=db)
+        if new_unit:
+            if idempotency_key:
+                complete_operation(db, idempotency_key, 201, new_unit)
+            db.commit()
+            return jsonify(new_unit), 201
+        else:
+            db.rollback()
+            return jsonify({'error': 'Failed to create unit.'}), 500
+    except IdempotencyError as e:
+        db.rollback()
+        return jsonify(e.to_dict()), e.status_code
+    except ValueError as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 400
+    except IntegrityError as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 409
+    except Exception as e:
+        db.rollback()
+        raise e
 
 @bp.route('', methods=['GET'], strict_slashes=False)
 @bp.route('/', methods=['GET'], strict_slashes=False)

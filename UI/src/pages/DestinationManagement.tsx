@@ -29,6 +29,7 @@ const DestinationModal = ({ isOpen, onClose, destination, onSave, initialName, i
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     if (!name.trim()) {
       setError('اسم الوجهة مطلوب');
       return;
@@ -120,6 +121,7 @@ export const DestinationManagement = () => {
 
 
   const handleAddDestination = async (destinationData: { name: string }) => {
+    if (isSaving) return;
     setIsSaving(true);
     setModalApiError(null);
     try {
@@ -141,7 +143,7 @@ export const DestinationManagement = () => {
   };
 
   const handleEditDestination = async (destinationData: { id?: number; name: string }) => {
-    if (destinationData.id === undefined) return;
+    if (destinationData.id === undefined || isSaving) return;
     setIsSaving(true);
     setModalApiError(null);
     try {
@@ -164,7 +166,7 @@ export const DestinationManagement = () => {
   };
 
   const handleDeleteDestination = async () => {
-    if (!destinationToDelete) return;
+    if (!destinationToDelete || isDeleting) return;
     setIsDeleting(true);
     setModalApiError(null);
     try {

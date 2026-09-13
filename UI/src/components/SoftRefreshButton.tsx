@@ -49,10 +49,9 @@ export const SoftRefreshButton: React.FC<SoftRefreshButtonProps> = ({
             ];
 
             await Promise.all(
-                keysToInvalidate.map((queryKey) => queryClient.invalidateQueries({ queryKey }))
+                keysToInvalidate.map((queryKey) => queryClient.invalidateQueries({ queryKey, refetchType: 'active' }))
             );
 
-            await queryClient.refetchQueries({ type: 'active' });
             toast.success('تم تحديث البيانات بنجاح.');
         } catch (err: any) {
             clearTimeout(timeoutId);
@@ -62,9 +61,8 @@ export const SoftRefreshButton: React.FC<SoftRefreshButtonProps> = ({
                 : (err?.message || 'فشل تحديث البيانات.');
             toast.error(errorMsg);
 
-            // Even on error, invalidate sync-status and active views to reflect real state
-            queryClient.invalidateQueries({ queryKey: ['sync-status'] });
-            queryClient.refetchQueries({ type: 'active' });
+            // Even on error, invalidate sync-status to reflect real state without double-fetching
+            queryClient.invalidateQueries({ queryKey: ['sync-status'], refetchType: 'active' });
         } finally {
             setIsSyncing(false);
         }

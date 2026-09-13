@@ -113,7 +113,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
   };
 
   const handleResubmitAsIs = async () => {
-    if (!order) return;
+    if (!order || resubmitMutation.isPending || cancelMutation.isPending) return;
     try {
       await resubmitMutation.mutateAsync({
         id: order.id,
@@ -132,7 +132,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
   };
 
   const handleSaveCorrectionAndResubmit = async () => {
-    if (!order) return;
+    if (!order || resubmitMutation.isPending || cancelMutation.isPending) return;
     setErrorMsg(null);
 
     const validLines = editLines.filter((l) => l.item !== null);
@@ -180,7 +180,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
   };
 
   const handleCancelOrder = async () => {
-    if (!order) return;
+    if (!order || cancelMutation.isPending || resubmitMutation.isPending) return;
     try {
       await cancelMutation.mutateAsync({
         id: order.id,
@@ -233,17 +233,17 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                   type="button"
                   className="btn btn-outline"
                   onClick={handleResubmitAsIs}
-                  disabled={resubmitMutation.isPending}
+                  disabled={resubmitMutation.isPending || cancelMutation.isPending}
                 >
-                  إعادة إرسال كما هو
+                  {resubmitMutation.isPending ? 'جاري إعادة الإرسال...' : 'إعادة إرسال كما هو'}
                 </button>
                 <button
                   type="button"
                   className="btn btn-outline text-red-600 hover:bg-red-50"
                   onClick={handleCancelOrder}
-                  disabled={cancelMutation.isPending}
+                  disabled={cancelMutation.isPending || resubmitMutation.isPending}
                 >
-                  إلغاء الطلب
+                  {cancelMutation.isPending ? 'جاري الإلغاء...' : 'إلغاء الطلب'}
                 </button>
               </>
             )}

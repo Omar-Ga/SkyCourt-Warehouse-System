@@ -43,16 +43,6 @@ export const useSyncStatus = () => {
             }
         },
         enabled: isAuthenticated,
-        refetchInterval: (query) => {
-            if (!isAuthenticated) return false;
-            const err = query.state.error;
-            const status = (err as any)?.status;
-            if (status === 401 || status === 403) {
-                return false;
-            }
-            return 5000;
-        },
-        refetchIntervalInBackground: false,
         staleTime: 4000,
         placeholderData: { connected: false, mode: 'cloud' },
     });

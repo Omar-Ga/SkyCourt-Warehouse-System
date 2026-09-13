@@ -38,8 +38,6 @@ export const useMovementLogs = (params: FetchLogsParams = {}, options: any = {})
         },
         placeholderData: (previousData) => previousData, // Keep previous data while fetching new page
         staleTime: 1000 * 30,
-        refetchInterval: 15000,
-        refetchIntervalInBackground: false,
         enabled: isAuthenticated && (options?.enabled !== false),
         ...options
     });

@@ -1,5 +1,13 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app.models import destination_model
+from app.models.db_utils import get_db
+from app.services.idempotency_service import (
+    compute_request_hash,
+    reserve_operation,
+    complete_operation,
+    IdempotencyError
+)
+from sqlite3 import IntegrityError
 from app.auth import require_role
 
 bp = Blueprint('destination_routes', __name__, url_prefix='/api/destinations')
@@ -16,11 +24,41 @@ def create_destination():
     if not name:
         return jsonify({'error': 'Destination name cannot be empty.'}), 400
 
-    new_destination = destination_model.add_destination(name)
-    if new_destination:
-        return jsonify(new_destination), 201
-    else:
+    idempotency_key = request.headers.get("Idempotency-Key") or request.headers.get("X-Idempotency-Key")
+    db = get_db()
+    actor_id = g.current_user["id"] if hasattr(g, "current_user") and g.current_user else None
+
+    try:
+        if idempotency_key:
+            req_hash = compute_request_hash(data)
+            res = reserve_operation(
+                conn=db,
+                operation_key=idempotency_key,
+                operation_type="create_destination",
+                actor_id=actor_id,
+                request_hash=req_hash
+            )
+            if res.get("replayed"):
+                return jsonify(res["response_body"]), res["response_status"]
+
+        new_destination = destination_model.add_destination(name, db=db)
+        if new_destination:
+            if idempotency_key:
+                complete_operation(db, idempotency_key, 201, new_destination)
+            db.commit()
+            return jsonify(new_destination), 201
+        else:
+            db.rollback()
+            return jsonify({'error': f"Failed to create destination. A destination with name '{name}' might already exist."}), 409
+    except IdempotencyError as e:
+        db.rollback()
+        return jsonify(e.to_dict()), e.status_code
+    except IntegrityError as e:
+        db.rollback()
         return jsonify({'error': f"Failed to create destination. A destination with name '{name}' might already exist."}), 409
+    except Exception as e:
+        db.rollback()
+        raise e
 
 @bp.route('', methods=['GET'], strict_slashes=False)
 @bp.route('/', methods=['GET'], strict_slashes=False)

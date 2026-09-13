@@ -1,21 +1,25 @@
+from typing import Any
 from .db_utils import get_db
 import logging
 
 logger = logging.getLogger(__name__)
 
-def add_destination(name: str) -> dict | None:
+def add_destination(name: str, db: Any = None) -> dict | None:
     """Adds a new destination to the database."""
-    db = get_db()
-    cursor = db.cursor()
+    conn = db if db is not None else get_db()
+    caller_owned = db is not None
+    cursor = conn.cursor()
     try:
         cursor.execute("INSERT INTO destinations (name) VALUES (?)", (name,))
-        db.commit()
+        if not caller_owned:
+            conn.commit()
         new_id = cursor.lastrowid
         if new_id:
             return {"id": new_id, "name": name}
         return None
     except Exception as e:
-        db.rollback()
+        if not caller_owned:
+            conn.rollback()
         logger.error(f"Database error in add_destination: {e}")
         raise e
 

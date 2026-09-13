@@ -1,26 +1,31 @@
+from typing import Any
 from .db_utils import get_db
 from sqlite3 import IntegrityError, Error
 import logging
 
 logger = logging.getLogger(__name__)
 
-def add_unit(name: str) -> dict | None:
+def add_unit(name: str, db: Any = None) -> dict | None:
     """Adds a new unit to the database.
     Returns the newly added unit as a dictionary (id, name) or None if error."""
-    db = get_db()
-    cursor = db.cursor()
+    conn = db if db is not None else get_db()
+    caller_owned = db is not None
+    cursor = conn.cursor()
     try:
         cursor.execute("INSERT INTO units (name) VALUES (?)", (name,))
-        db.commit()
+        if not caller_owned:
+            conn.commit()
         new_unit_id = cursor.lastrowid
         if new_unit_id:
             return {"id": new_unit_id, "name": name}
         return None
     except IntegrityError:
-        db.rollback()
+        if not caller_owned:
+            conn.rollback()
         raise ValueError(f"A unit with the name '{name}' already exists.")
     except Error as e:
-        db.rollback()
+        if not caller_owned:
+            conn.rollback()
         logger.error(f"Database error in add_unit: {e}")
         raise e
 

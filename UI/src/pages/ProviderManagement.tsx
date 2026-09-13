@@ -29,6 +29,7 @@ const ProviderModal: React.FC<ProviderModalProps> = ({ isOpen, onClose, provider
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     if (!name.trim()) {
       setError('اسم المورد مطلوب');
       return;
@@ -140,6 +141,7 @@ export const ProviderManagement: React.FC = () => {
   };
 
   const handleAddProvider = async (providerData: { name: string }) => {
+    if (isSaving) return;
     setIsSaving(true);
     setModalApiError(null);
     try {
@@ -160,7 +162,7 @@ export const ProviderManagement: React.FC = () => {
   };
 
   const handleEditProvider = async (providerData: { id?: number; name: string }) => {
-    if (providerData.id === undefined) return;
+    if (providerData.id === undefined || isSaving) return;
     setIsSaving(true);
     setModalApiError(null);
     try {
@@ -182,7 +184,7 @@ export const ProviderManagement: React.FC = () => {
   };
 
   const handleDeleteProvider = async () => {
-    if (!providerToDelete) return;
+    if (!providerToDelete || isDeleting) return;
     setIsDeleting(true);
     setModalApiError(null);
     try {

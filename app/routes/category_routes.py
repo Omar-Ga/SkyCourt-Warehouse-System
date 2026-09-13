@@ -1,5 +1,13 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 from app.models import category_model
+from app.models.db_utils import get_db
+from app.services.idempotency_service import (
+    compute_request_hash,
+    reserve_operation,
+    complete_operation,
+    IdempotencyError
+)
+from sqlite3 import IntegrityError
 from app.auth import require_role
 import logging
 logger = logging.getLogger(__name__)
@@ -20,19 +28,49 @@ def create_category():
 
     parent_id = data.get('parent_id')
 
-    
     if parent_id is not None and parent_id != '':
         parent_id = int(parent_id)
     else:
         parent_id = None
 
-    new_category = category_model.add_category(name, parent_id)
-    if new_category:
-        return jsonify(new_category), 201
-    else:
-        # DB Error handled in model or returns None if no ID (rare case, usually raises error)
-        # If None is returned but no error raised, assume DB issue
-        return jsonify({'error': 'Failed to create category.'}), 500
+    idempotency_key = request.headers.get("Idempotency-Key") or request.headers.get("X-Idempotency-Key")
+    db = get_db()
+    actor_id = g.current_user["id"] if hasattr(g, "current_user") and g.current_user else None
+
+    try:
+        if idempotency_key:
+            req_hash = compute_request_hash(data)
+            res = reserve_operation(
+                conn=db,
+                operation_key=idempotency_key,
+                operation_type="create_category",
+                actor_id=actor_id,
+                request_hash=req_hash
+            )
+            if res.get("replayed"):
+                return jsonify(res["response_body"]), res["response_status"]
+
+        new_category = category_model.add_category(name, parent_id, db=db)
+        if new_category:
+            if idempotency_key:
+                complete_operation(db, idempotency_key, 201, new_category)
+            db.commit()
+            return jsonify(new_category), 201
+        else:
+            db.rollback()
+            return jsonify({'error': 'Failed to create category.'}), 500
+    except IdempotencyError as e:
+        db.rollback()
+        return jsonify(e.to_dict()), e.status_code
+    except ValueError as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 400
+    except IntegrityError as e:
+        db.rollback()
+        return jsonify({'error': str(e)}), 409
+    except Exception as e:
+        db.rollback()
+        raise e
 
 @bp.route('/<int:category_id>', methods=['GET'])
 @require_role('office', 'warehouse')

@@ -280,8 +280,55 @@ describe('apiClient & Session Isolation', () => {
     });
     assert.equal(capturedHeaders['Idempotency-Key'], 'caller-provided-key-99');
 
+    // 7b. Case-insensitive caller header (lowercase or X-Idempotency-Key) is preserved
+    await apiClient.post('/items', { name: 'Lower Key' }, {
+      headers: { 'idempotency-key': 'lower-key-123' }
+    });
+    assert.equal(capturedHeaders['idempotency-key'], 'lower-key-123');
+    assert.equal(capturedHeaders['Idempotency-Key'], undefined);
+
+    await apiClient.post('/items', { name: 'X Key' }, {
+      headers: { 'X-Idempotency-Key': 'x-key-456' }
+    });
+    assert.equal(capturedHeaders['X-Idempotency-Key'], 'x-key-456');
+    assert.equal(capturedHeaders['Idempotency-Key'], undefined);
+
     // 8. Non-mutation route does NOT carry Idempotency-Key
     await apiClient.post('/auth/login', { username: 'user', password: 'pw' });
     assert.equal(capturedHeaders['Idempotency-Key'], undefined);
+
+    // 9. Categories, Providers, Destinations, Units carry Idempotency-Key on POST, PUT, DELETE
+    await apiClient.post('/categories', { name: 'New Cat' });
+    assert.ok(capturedHeaders['Idempotency-Key']);
+
+    await apiClient.put('/categories/5', { name: 'Updated Cat' });
+    assert.ok(capturedHeaders['Idempotency-Key']);
+
+    await apiClient.delete('/categories/5');
+    assert.ok(capturedHeaders['Idempotency-Key']);
+
+    await apiClient.post('/providers', { name: 'New Prov' });
+    assert.ok(capturedHeaders['Idempotency-Key']);
+
+    await apiClient.post('/destinations', { name: 'New Dest' });
+    assert.ok(capturedHeaders['Idempotency-Key']);
+
+    await apiClient.post('/units', { name: 'New Unit' });
+    assert.ok(capturedHeaders['Idempotency-Key']);
+  });
+
+  test('generateIdempotencyKey produces valid UUID even when crypto.randomUUID is absent', async () => {
+    const originalRandomUUID = crypto.randomUUID;
+    try {
+      // Temporarily unset randomUUID to force fallback
+      (crypto as any).randomUUID = undefined;
+      const { generateIdempotencyKey } = await import('../src/services/apiClient.ts');
+      const fallbackKey = generateIdempotencyKey();
+      assert.ok(fallbackKey);
+      // Valid RFC4122 v4 UUID format regex: 8-4-4-4-12 hex chars
+      assert.match(fallbackKey, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i);
+    } finally {
+      (crypto as any).randomUUID = originalRandomUUID;
+    }
   });
 });

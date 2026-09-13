@@ -33,6 +33,7 @@ const UnitModal = ({ isOpen, onClose, unit, onSave, initialName, isSaving, apiEr
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     if (!name.trim()) {
       setError('اسم الوحدة مطلوب');
       return;
@@ -168,6 +169,7 @@ export const UnitManagement = () => {
   };
 
   const handleAddUnit = async (unitData: { name: string }) => {
+    if (isSaving) return;
     setIsSaving(true);
     setModalApiError(null);
     try {
@@ -189,7 +191,7 @@ export const UnitManagement = () => {
   };
 
   const handleEditUnit = async (unitData: { id?: number; name: string }) => {
-    if (unitData.id === undefined) return;
+    if (unitData.id === undefined || isSaving) return;
     setIsSaving(true);
     setModalApiError(null);
     try {
@@ -212,7 +214,7 @@ export const UnitManagement = () => {
   };
 
   const handleDeleteUnit = async () => {
-    if (!unitToDelete) return;
+    if (!unitToDelete || isDeleting) return;
     setIsDeleting(true);
     setModalApiError(null);
     try {

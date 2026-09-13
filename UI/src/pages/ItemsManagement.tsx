@@ -17,8 +17,18 @@ import { categoryService, CategoriesResponse } from '../services/categoryService
 import { useUnits, useCategories } from '../hooks/useMetadata';
 import { useItems } from '../hooks/useItems';
 import { useCapabilities } from '../hooks/useCapabilities';
+import { useAuth } from '../hooks/useAuth';
+import { Breadcrumb } from '../components/Breadcrumb';
+import { FilterTabs } from '../components/FilterTabs';
+import { EmptyState } from '../components/EmptyState';
+import {
+  buildBreadcrumbs,
+  transitionNavigateToLevel,
+  ItemsViewLevel,
+} from '../utils/breadcrumbNavigation';
+import toast from 'react-hot-toast';
 
-type ViewLevel = 'mainCategories' | 'subCategories' | 'items';
+type ViewLevel = ItemsViewLevel;
 
 export interface ItemsManagementProps {
   canMutateItems?: boolean;
@@ -29,6 +39,7 @@ export const ItemsManagement = ({
   canMutateItems: propCanMutateItems,
   canMutateCategories: propCanMutateCategories,
 }: ItemsManagementProps = {}) => {
+  const { role } = useAuth();
   const capabilities = useCapabilities();
   const canMutateItems = propCanMutateItems ?? capabilities.canMutateItems;
   const canMutateCategories = propCanMutateCategories ?? capabilities.canMutateCategories;
@@ -79,6 +90,7 @@ export const ItemsManagement = ({
 
   // UI State
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'in_stock' | 'low_stock' | 'out_of_stock'>('all');
 
   // Modals
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
@@ -90,6 +102,7 @@ export const ItemsManagement = ({
   const [categoryToEdit, setCategoryToEdit] = useState<Category | null>(null);
   const [currentParentId, setCurrentParentId] = useState<number | null>(null);
   const [highlightedItemId, setHighlightedItemId] = useState<number | null>(null);
+  const [isActionPending, setIsActionPending] = useState(false);
 
   // Auto-Navigation Logic
   useEffect(() => {
@@ -201,6 +214,20 @@ export const ItemsManagement = ({
   const items = (itemsData as ItemsResponse)?.items || [];
   const totalItems = (itemsData as ItemsResponse)?.total_count || 0;
 
+  const filteredItems = items.filter((item: Item) => {
+    if (statusFilter === 'in_stock') return (item.current_quantity ?? 0) > 5;
+    if (statusFilter === 'low_stock') return (item.current_quantity ?? 0) > 0 && (item.current_quantity ?? 0) <= 5;
+    if (statusFilter === 'out_of_stock') return (item.current_quantity ?? 0) <= 0;
+    return true;
+  });
+
+  const filterCounts = {
+    all: items.length,
+    in_stock: items.filter((i: Item) => (i.current_quantity ?? 0) > 5).length,
+    low_stock: items.filter((i: Item) => (i.current_quantity ?? 0) > 0 && (i.current_quantity ?? 0) <= 5).length,
+    out_of_stock: items.filter((i: Item) => (i.current_quantity ?? 0) <= 0).length,
+  };
+
   // Combined Loading/Error
   const loading = loadingMain || loadingSub || loadingItems;
   const errorObj = errorMain || errorSub || errorItems;
@@ -263,26 +290,31 @@ export const ItemsManagement = ({
     }
   };
 
-  const invalidateData = (keys: string[]) => {
+  const invalidateData = (keys: string[], includeStatsAndLogs: boolean = false) => {
     keys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
-    // Invalidate dashboard stats and logs on stock/item mutations
-    queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
-    queryClient.invalidateQueries({ queryKey: ['recent-logs'] });
-    queryClient.invalidateQueries({ queryKey: ['movement-logs'] });
+    if (includeStatsAndLogs) {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-logs'] });
+      queryClient.invalidateQueries({ queryKey: ['movement-logs'] });
+    }
   };
 
   const handleItemAdded = () => {
     setIsAddItemModalOpen(false);
-    invalidateData(['items']);
+    invalidateData(['items'], true);
+  };
+
+  const handleItemAdjusted = () => {
+    invalidateData(['items'], true);
   };
 
   const handleItemUpdated = () => {
-    invalidateData(['items']);
+    invalidateData(['items'], false);
   };
 
   const handleCategorySaved = () => {
-    // Invalidate both because it could be main or sub
-    invalidateData(['categories']);
+    // Invalidate categories only - stats and logs are not affected by category edits
+    invalidateData(['categories'], false);
   };
 
   const handleOpenCategoryModal = (category: Category | null, parentId: number | null = null) => {
@@ -293,22 +325,26 @@ export const ItemsManagement = ({
   };
 
   const handleDeleteCategory = async (category: Category) => {
-    if (!canMutateCategories) return;
+    if (!canMutateCategories || isActionPending) return;
     if (!window.confirm(`هل أنت متأكد من رغبتك في حذف الفئة "${category.name}"؟ لا يمكن التراجع عن هذا الإجراء.`)) {
       return;
     }
 
+    setIsActionPending(true);
     try {
       await categoryService.deleteCategory(category.id);
       invalidateData(['categories']);
+      toast.success('تم حذف الفئة بنجاح.');
     } catch (err: any) {
       console.error(err);
-      // Maybe set an error state if we want to show alert, but for now log it
+      toast.error(err.message || 'فشل حذف الفئة. قد تكون مرتبطة بأصناف أو أقسام فرعية.');
+    } finally {
+      setIsActionPending(false);
     }
   };
 
   const handleToggleStatus = async (item: Item) => {
-    if (!canMutateItems) return;
+    if (!canMutateItems || isActionPending) return;
     const newStatus = item.status === 'active' ? 'inactive' : 'active';
 
     if (newStatus === 'inactive') {
@@ -317,11 +353,16 @@ export const ItemsManagement = ({
       }
     }
 
+    setIsActionPending(true);
     try {
       await itemsService.updateItemStatus(item.id, newStatus, 'System');
       invalidateData(['items']);
+      toast.success(newStatus === 'active' ? 'تم تنشيط الصنف بنجاح.' : 'تم تعطيل الصنف بنجاح.');
     } catch (err: any) {
       console.error(err);
+      toast.error(err.message || 'فشل تحديث حالة الصنف.');
+    } finally {
+      setIsActionPending(false);
     }
   };
 
@@ -418,43 +459,56 @@ export const ItemsManagement = ({
     }] : []),
   ];
 
+  const handleNavigateToBreadcrumb = (targetLevel: ItemsViewLevel) => {
+    setSearchTerm('');
+    const newState = transitionNavigateToLevel(
+      {
+        viewLevel,
+        selectedMainCategory,
+        selectedSubCategory,
+      },
+      targetLevel
+    );
+
+    setViewLevel(newState.viewLevel);
+    setSelectedMainCategory(newState.selectedMainCategory as Category | null);
+    setSelectedSubCategory(newState.selectedSubCategory as Category | null);
+
+    if (targetLevel === 'mainCategories') {
+      setSubCategoryPage(1);
+      setItemPage(1);
+      updateSessionState({
+        viewLevel: 'mainCategories',
+        selectedMainCategory: null,
+        selectedSubCategory: null,
+        subCategoryPage: 1,
+        itemPage: 1,
+      });
+    } else if (targetLevel === 'subCategories') {
+      setItemPage(1);
+      updateSessionState({
+        viewLevel: 'subCategories',
+        selectedSubCategory: null,
+        itemPage: 1,
+      });
+    }
+  };
+
+  const breadcrumbs = buildBreadcrumbs(
+    {
+      viewLevel,
+      selectedMainCategory,
+      selectedSubCategory,
+    },
+    role
+  ).map((crumb) => ({
+    ...crumb,
+    icon: crumb.level === 'mainCategories' ? <Home size={15} className="text-brand-violet" /> : undefined,
+    onClick: crumb.isClickable ? () => handleNavigateToBreadcrumb(crumb.level) : undefined,
+  }));
+
   const renderBreadcrumbs = () => (
-    <nav className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold shadow-xs" dir="rtl" aria-label="مسار التنقل">
-      <button
-        onClick={() => {
-          setViewLevel('mainCategories');
-          setSelectedMainCategory(null);
-          setSelectedSubCategory(null);
-          updateSessionState({ viewLevel: 'mainCategories' });
-        }}
-        className="flex items-center gap-1.5 text-ink-600 hover:text-brand-violet transition-colors cursor-pointer"
-      >
-        <Home size={15} className="text-brand-violet" />
-        <span>الأقسام الرئيسية</span>
-      </button>
-
-      {selectedMainCategory && (
-        <>
-          <span className="text-gray-300 font-bold">›</span>
-          <button
-            onClick={handleBack}
-            disabled={viewLevel !== 'items'}
-            className={`transition-colors ${viewLevel === 'items' ? 'text-ink-600 hover:text-brand-violet cursor-pointer' : 'text-brand-violet font-bold cursor-default'}`}
-          >
-            {selectedMainCategory.name}
-          </button>
-        </>
-      )}
-
-      {selectedSubCategory && (
-        <>
-          <span className="text-gray-300 font-bold">›</span>
-          <span className="text-brand-violet font-bold cursor-default">
-            {selectedSubCategory.name}
-          </span>
-        </>
-      )}
-    </nav>
+    <Breadcrumb items={breadcrumbs} />
   );
 
   return (
@@ -547,7 +601,7 @@ export const ItemsManagement = ({
               </div>
 
               <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-6">
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 mb-4">
                   <SearchBar onSearch={setSearchTerm} />
                   {canMutateItems && (
                     <button
@@ -559,9 +613,23 @@ export const ItemsManagement = ({
                     </button>
                   )}
                 </div>
+
+                <div className="mb-4">
+                  <FilterTabs
+                    tabs={[
+                      { id: 'all', label: 'الكل', count: filterCounts.all },
+                      { id: 'in_stock', label: 'متوفر', count: filterCounts.in_stock },
+                      { id: 'low_stock', label: 'منخفض', count: filterCounts.low_stock },
+                      { id: 'out_of_stock', label: 'نفد من المخزن', count: filterCounts.out_of_stock },
+                    ]}
+                    activeTab={statusFilter}
+                    onTabChange={setStatusFilter}
+                  />
+                </div>
+
                 <Table
                   columns={columns}
-                  data={items}
+                  data={filteredItems}
                   keyField="id"
                   pagination={{
                     currentPage: itemPage,
@@ -575,6 +643,14 @@ export const ItemsManagement = ({
                   }}
                   isLoading={loading}
                   rowClassName={(row) => row.id === highlightedItemId ? 'bg-purple-50/80 font-medium border-r-4 border-r-brand-violet' : ''}
+                  emptyState={
+                    <EmptyState
+                      title={statusFilter !== 'all' ? 'لا توجد أصناف مطابقة للتصفية المحددة' : 'لا توجد أصناف في هذه الفئة'}
+                      description={statusFilter !== 'all' ? 'يمكنك التبديل إلى "الكل" لعرض جميع الأصناف.' : 'ابدأ بإضافة أول صنف لمتابعة كمياته وحركته.'}
+                      actionLabel={statusFilter !== 'all' ? 'عرض جميع الأصناف' : (canMutateItems ? 'إضافة صنف جديد' : undefined)}
+                      onAction={statusFilter !== 'all' ? () => setStatusFilter('all') : (canMutateItems ? () => setIsAddItemModalOpen(true) : undefined)}
+                    />
+                  }
                 />
               </div>
             </div>
@@ -606,7 +682,7 @@ export const ItemsManagement = ({
         <AdjustQuantityModal
           isOpen={isAdjustModalOpen}
           onClose={() => setIsAdjustModalOpen(false)}
-          onItemAdjusted={handleItemUpdated}
+          onItemAdjusted={handleItemAdjusted}
           item={selectedItem}
         />
       )}

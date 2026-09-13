@@ -76,6 +76,7 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
     if (!validate()) return;
 
     setApiError(null);
@@ -118,6 +119,8 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
   };
 
   const handleRestoreItem = async (itemId: number) => {
+    if (isSaving) return;
+    setIsSaving(true);
     setApiError(null);
     try {
       await apiClient.patch(`/items/${itemId}/restore`, {

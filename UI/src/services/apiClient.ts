@@ -25,7 +25,14 @@ export type RequestOptions = RequestInit & {
 };
 
 export function generateIdempotencyKey(): string {
-    return crypto.randomUUID();
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+        const r = (Math.random() * 16) | 0;
+        const v = c === 'x' ? r : (r & 0x3) | 0x8;
+        return v.toString(16);
+    });
 }
 
 // CSRF Token Management
@@ -92,15 +99,13 @@ async function fetchWithProtection(endpoint: string, options: RequestOptions = {
         : endpoint;
     const rawPath = cleanEndpoint.split('?')[0].replace(/\/+$/, '');
     const cleanPath = rawPath.startsWith('/') ? rawPath : `/${rawPath}`;
-    const isItemCreate = method === 'POST' && cleanPath === '/items';
-    const isStockAdjust = method === 'POST' && /^\/items\/\d+\/adjust$/.test(cleanPath);
-    const isLeaveOrderCreate = method === 'POST' && cleanPath === '/leave-orders';
-    const isLeaveOrderClose = method === 'POST' && /^\/leave-orders\/\d+\/close$/.test(cleanPath);
-    const isTicketClose = method === 'POST' && /^\/tickets\/\d+\/close$/.test(cleanPath);
-    const isTicketReturn = method === 'POST' && (/^\/tickets\/\d+\/return$/.test(cleanPath) || /^\/leave-orders\/\d+\/return$/.test(cleanPath));
-
-    // Automatically attach Idempotency-Key for first-party creation, adjustment, closure, and return requests
-    if ((isItemCreate || isStockAdjust || isLeaveOrderCreate || isLeaveOrderClose || isTicketClose || isTicketReturn) && !headers['Idempotency-Key']) {
+    // Automatically attach Idempotency-Key for all mutating requests (POST, PUT, DELETE, PATCH), excluding auth and sync
+    const isMutatingMethod = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
+    const isAuthOrSync = cleanPath.startsWith('/auth') || cleanPath === '/sync';
+    const hasIdempotencyKey = Object.keys(headers).some(
+        (h) => h.toLowerCase() === 'idempotency-key' || h.toLowerCase() === 'x-idempotency-key'
+    );
+    if (isMutatingMethod && !isAuthOrSync && !hasIdempotencyKey) {
         headers['Idempotency-Key'] = generateIdempotencyKey();
     }
 

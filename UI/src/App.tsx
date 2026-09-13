@@ -18,7 +18,8 @@ import { PODetailModal } from './components/PODetailModal';
 import { PageId, canAccessPage, normalizePageId } from './navigation';
 import { useCapabilities } from './hooks/useCapabilities';
 import { useQueryClient } from '@tanstack/react-query';
-
+import { usePrefetchMetadata } from './hooks/useMetadata';
+import { useAdaptiveSyncHeartbeat } from './hooks/useAdaptiveSyncHeartbeat';
 
 const PAGE_COMPONENTS: Record<PageId, React.ComponentType> = {
   Dashboard,
@@ -49,6 +50,13 @@ export const App = () => {
   const queryClient = useQueryClient();
   const { role } = useAuth();
   const capabilities = useCapabilities();
+
+  // Prefetch metadata (units, categories, providers, destinations) on app mount
+  usePrefetchMetadata();
+
+  // Coordinated adaptive sync heartbeat replacing individual pollers
+  useAdaptiveSyncHeartbeat();
+
   const {
     activePage,
     selectedPO,
@@ -97,9 +105,7 @@ export const App = () => {
           onUpdated={() => {
             queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
             queryClient.invalidateQueries({ queryKey: ['purchase-order'] });
-            queryClient.invalidateQueries({ queryKey: ['items'] });
             queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
-            queryClient.invalidateQueries({ queryKey: ['recent-logs'] });
             closePODetailModal();
           }}
           canVoid={capabilities.canManagePOs}

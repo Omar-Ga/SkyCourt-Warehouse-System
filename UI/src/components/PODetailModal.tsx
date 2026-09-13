@@ -38,7 +38,7 @@ export const PODetailModal: React.FC<{
 
   const submitVoid = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!voidReason.trim() || !order) return;
+    if (voidMutation.isPending || !voidReason.trim() || !order) return;
     await voidMutation.mutateAsync({ id: order.id, input: { expected_revision: order.revision, reason: voidReason.trim() } });
     setShowVoid(false);
     setVoidReason('');
@@ -46,7 +46,7 @@ export const PODetailModal: React.FC<{
   };
 
   const dispatch = async () => {
-    if (!order) return;
+    if (dispatchMutation.isPending || !order) return;
     await dispatchMutation.mutateAsync({ id: order.id, expected_revision: order.revision, idempotencyKey: generateIdempotencyKey() });
     onUpdated();
   };

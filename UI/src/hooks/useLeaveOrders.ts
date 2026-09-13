@@ -30,8 +30,6 @@ export const useLeaveOrders = (
     queryFn: () => getLeaveOrders(params),
     placeholderData: (prev) => prev,
     staleTime: 1000 * 30, // 30 seconds
-    refetchInterval: 15000,
-    refetchIntervalInBackground: false,
     enabled: isAuthenticated && options?.enabled !== false,
     ...options
   });
@@ -44,8 +42,6 @@ export const useLeaveOrderDetail = (id: number | null, options: any = {}) => {
     queryFn: () => getLeaveOrderDetail(id!),
     enabled: isAuthenticated && id !== null && options?.enabled !== false,
     staleTime: 1000 * 10,
-    refetchInterval: 10000,
-    refetchIntervalInBackground: false,
     ...options
   });
 };
@@ -55,8 +51,6 @@ export const useTicketsCount = (options: any = {}) => {
   return useQuery<{ count: number }>({
     queryKey: ['tickets-count'],
     queryFn: () => getTicketsCount(),
-    refetchInterval: 5000, // Poll every 5 seconds per spec
-    refetchIntervalInBackground: false, // only while visible
     enabled: isAuthenticated && options?.enabled !== false,
     staleTime: 2000,
     ...options
@@ -102,12 +96,19 @@ export const useCloseLeaveOrder = () => {
   });
 };
 
-const invalidateLeaveOrders = (queryClient: ReturnType<typeof useQueryClient>, id?: number) => {
+const invalidateLeaveOrders = (
+  queryClient: ReturnType<typeof useQueryClient>,
+  id?: number,
+  affectsStockAndLogs: boolean = false
+) => {
   queryClient.invalidateQueries({ queryKey: ['leave-orders'] });
   queryClient.invalidateQueries({ queryKey: ['tickets'] });
   queryClient.invalidateQueries({ queryKey: ['tickets-count'] });
   queryClient.invalidateQueries({ queryKey: ['items'] });
-  queryClient.invalidateQueries({ queryKey: ['movement-logs'] });
+  if (affectsStockAndLogs) {
+    queryClient.invalidateQueries({ queryKey: ['movement-logs'] });
+    queryClient.invalidateQueries({ queryKey: ['recent-logs'] });
+  }
   queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
   if (id) queryClient.invalidateQueries({ queryKey: ['leave-order', id] });
 };
@@ -117,7 +118,7 @@ export const useFulfillLeaveOrder = () => {
   return useMutation({
     mutationFn: ({ id, expected_revision, idempotencyKey }: { id: number; expected_revision: number; idempotencyKey?: string }) =>
       fulfillLeaveOrder(id, expected_revision, idempotencyKey),
-    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id)
+    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id, true)
   });
 };
 
@@ -126,7 +127,7 @@ export const useRejectLeaveOrder = () => {
   return useMutation({
     mutationFn: ({ id, input, idempotencyKey }: { id: number; input: { expected_revision: number; reason: string }; idempotencyKey?: string }) =>
       rejectLeaveOrder(id, input, idempotencyKey),
-    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id)
+    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id, false)
   });
 };
 
@@ -135,7 +136,7 @@ export const useResubmitLeaveOrder = () => {
   return useMutation({
     mutationFn: ({ id, input, idempotencyKey }: { id: number; input: Parameters<typeof resubmitLeaveOrder>[1]; idempotencyKey?: string }) =>
       resubmitLeaveOrder(id, input, idempotencyKey),
-    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id)
+    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id, false)
   });
 };
 
@@ -144,7 +145,7 @@ export const useCancelLeaveOrder = () => {
   return useMutation({
     mutationFn: ({ id, expected_revision, idempotencyKey }: { id: number; expected_revision: number; idempotencyKey?: string }) =>
       cancelLeaveOrder(id, expected_revision, idempotencyKey),
-    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id)
+    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id, false)
   });
 };
 
@@ -159,8 +160,6 @@ export const useTickets = (
     queryFn: () => getTickets(normalizedParams),
     placeholderData: (prev) => prev,
     staleTime: 1000 * 15,
-    refetchInterval: 15000,
-    refetchIntervalInBackground: false,
     enabled: isAuthenticated && options?.enabled !== false,
     ...options
   });

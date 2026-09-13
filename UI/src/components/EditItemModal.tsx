@@ -63,7 +63,7 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
 
   const handleSubmit = async (e?: React.FormEvent<HTMLFormElement>) => {
     if (e) e.preventDefault();
-    if (!item) return;
+    if (isSaving || !item) return;
     setErrors({});
 
     if (validate()) {

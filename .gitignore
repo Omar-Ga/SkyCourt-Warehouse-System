@@ -44,6 +44,13 @@ secrets.*
 .agents/**/*config*.json
 .agents/local/
 .agents/*.token*
+.agents/orchestrator_*/
+.agents/sentinel_*/
+.agents/swe_*/
+.agents/teamwork_*/
+.agents/victory_*/
+.agents/BRIEFING.md
+.agents/ORIGINAL_REQUEST.md
 .playwright-mcp/
 outputs/
 /work_order*.md

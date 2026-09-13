@@ -80,7 +80,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!order) return;
+    if (returnMutation.isPending || !order) return;
     setErrorMsg(null);
 
     if (hasLineErrors) {

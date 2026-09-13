@@ -1,3 +1,4 @@
+from typing import Any
 from sqlite3 import IntegrityError
 from .db_utils import get_db
 
@@ -9,19 +10,23 @@ def get_all_providers():
     providers = [dict(row) for row in cursor.fetchall()]
     return providers
 
-def add_provider(name: str):
+def add_provider(name: str, db: Any = None):
     """Adds a new provider to the database."""
-    db = get_db()
-    cursor = db.cursor()
+    conn = db if db is not None else get_db()
+    caller_owned = db is not None
+    cursor = conn.cursor()
     try:
         cursor.execute("INSERT INTO providers (name) VALUES (?)", (name,))
-        db.commit()
+        if not caller_owned:
+            conn.commit()
         return {"id": cursor.lastrowid, "name": name}
     except IntegrityError:
-        db.rollback()
+        if not caller_owned:
+            conn.rollback()
         raise ValueError(f"Provider '{name}' already exists.")
     except Exception as e:
-        db.rollback()
+        if not caller_owned:
+            conn.rollback()
         raise e
 
 def update_provider(provider_id: int, name: str):

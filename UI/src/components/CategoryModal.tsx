@@ -2,8 +2,8 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from './Modal';
 import { Category } from '../types';
-import { apiClient } from '../services/apiClient';
 import { useCapabilities } from '../hooks/useCapabilities';
+import { useCreateCategory, useUpdateCategory } from '../hooks/useMetadata';
 
 type CategoryModalProps = {
   isOpen: boolean;
@@ -19,6 +19,11 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
 
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const createCategoryMutation = useCreateCategory();
+  const updateCategoryMutation = useUpdateCategory();
+  const isPending = isSaving || createCategoryMutation.isPending || updateCategoryMutation.isPending;
 
   const isEditing = !!categoryToEdit;
   const title = isEditing
@@ -35,6 +40,7 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
         setName('');
       }
       setError(null);
+      setIsSaving(false);
     }
   }, [isOpen, isEditing, categoryToEdit]);
 
@@ -49,36 +55,34 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (!validate() || isPending) return;
 
-    const endpoint = isEditing ? `/categories/${categoryToEdit?.id}` : '/categories';
-
-    const body: { name: string; parent_id?: number | null } = { name: name.trim() };
-    if (!isEditing) {
-      body.parent_id = parentId;
-    }
+    setError(null);
+    setIsSaving(true);
 
     try {
-      if (isEditing) {
-        await apiClient.put(endpoint, body);
+      if (isEditing && categoryToEdit) {
+        await updateCategoryMutation.mutateAsync({ id: categoryToEdit.id, name: name.trim() });
       } else {
-        await apiClient.post(endpoint, body);
+        await createCategoryMutation.mutateAsync({ name: name.trim(), parent_id: parentId });
       }
 
       onSave();
       onClose();
     } catch (err: any) {
       setError(err.message || 'فشل حفظ القسم');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const footer = (
     <>
-      <button type="button" className="btn btn-outline ml-2" onClick={onClose}>
+      <button type="button" className="btn btn-outline ml-2" onClick={onClose} disabled={isPending}>
         إلغاء
       </button>
-      <button type="submit" className="btn btn-primary" form="category-form">
-        {isEditing ? 'حفظ التعديلات' : 'حفظ'}
+      <button type="submit" className="btn btn-primary" form="category-form" disabled={isPending}>
+        {isPending ? 'جارٍ الحفظ...' : isEditing ? 'حفظ التعديلات' : 'حفظ'}
       </button>
     </>
   );
@@ -98,6 +102,7 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="أدخل اسم القسم"
+            disabled={isPending}
             autoFocus
           />
         </div>
@@ -105,3 +110,4 @@ export const CategoryModal = ({ isOpen, onClose, onSave, categoryToEdit, parentI
     </Modal>
   );
 };
+
