@@ -362,6 +362,72 @@ app = create_app()
 
 # --- Lifecycle Handlers ---
 
+def ensure_windows_webview2_registry():
+    """
+    On 64-bit Windows, Edge WebView2 runtime client info is installed under:
+    HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}
+    However, pywebview 4.4.1's _is_chromium() checks HKLM\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients on 64-bit systems,
+    missing the 32-bit registry hive and erroneously falling back to Internet Explorer 11 (MSHTML).
+    This function detects WebView2 in WOW6432Node and copies the version string into HKCU
+    where pywebview successfully finds it without requiring administrator rights.
+    """
+    if sys.platform != 'win32':
+        return
+
+    try:
+        import winreg
+
+        webview2_key = r"{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+        pv_val = None
+
+        # Check HKLM WOW6432Node and direct paths
+        for base_key in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+            for sub_path in (
+                rf"SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{webview2_key}",
+                rf"SOFTWARE\Microsoft\EdgeUpdate\Clients\{webview2_key}",
+            ):
+                try:
+                    with winreg.OpenKey(base_key, sub_path) as k:
+                        val, _ = winreg.QueryValueEx(k, "pv")
+                        if val and str(val).strip() != "0":
+                            pv_val = str(val).strip()
+                            break
+                except Exception:
+                    continue
+            if pv_val:
+                break
+
+        if pv_val:
+            hkcu_target = rf"SOFTWARE\Microsoft\EdgeUpdate\Clients\{webview2_key}"
+            try:
+                with winreg.CreateKey(winreg.HKEY_CURRENT_USER, hkcu_target) as k:
+                    winreg.SetValueEx(k, "pv", 0, winreg.REG_SZ, pv_val)
+                logger.info(f"Verified WebView2 runtime version {pv_val} in HKCU registry.")
+            except Exception as e:
+                logger.warning(f"Failed writing WebView2 registry key to HKCU: {e}")
+    except Exception as e:
+        logger.warning(f"ensure_windows_webview2_registry error: {e}")
+
+
+def wait_for_server(url: str, timeout: float = 20.0) -> bool:
+    """Polls until the local Flask HTTP server responds with HTTP 200 before creating the webview window."""
+    import time
+    import urllib.request
+
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            req = urllib.request.Request(url, method="HEAD")
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if resp.status == 200:
+                    logger.info(f"Flask server ready at {url} in {time.time() - start_time:.2f}s.")
+                    return True
+        except Exception:
+            time.sleep(0.15)
+    logger.warning(f"Flask server at {url} did not respond within {timeout}s.")
+    return False
+
+
 def run_flask():
     app.run(host=HOST, port=PORT, use_reloader=False, debug=False)
 
@@ -377,13 +443,33 @@ def start_app():
     finally:
         conn.close()
 
-    # 3. Start Flask in a background thread
+    # 3. Ensure Windows WebView2 registry key is present
+    ensure_windows_webview2_registry()
+
+    # 4. Start Flask in a background thread
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
 
-    # 4. Start WebView Window
-    import webview
+    # 5. Wait for Flask HTTP server to be ready before opening WebView window
     target_url = f"http://{HOST}:{PORT}/"
+    wait_for_server(target_url, timeout=20.0)
+
+    # 6. Start WebView Window with EdgeChromium
+    import webview
+
+    if sys.platform == 'win32':
+        try:
+            import webview.platforms.winforms as winforms
+            import webview.platforms.edgechromium as Chromium
+
+            winforms.is_chromium = True
+            winforms.is_cef = False
+            winforms.renderer = 'edgechromium'
+            winforms.Chromium = Chromium
+            logger.info("Forced pywebview WinForms renderer to EdgeChromium.")
+        except Exception as e:
+            logger.warning(f"Failed to force EdgeChromium in pywebview: {e}")
+
     webview.create_window(
         "Warehouse Management System (نظام إدارة المستودعات)",
         target_url,
@@ -392,7 +478,7 @@ def start_app():
         resizable=True,
         text_select=True,
     )
-    webview.start(debug=False)
+    webview.start(gui="edgechromium" if sys.platform == 'win32' else None, debug=True)
 
 
 if __name__ == "__main__":
