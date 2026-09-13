@@ -4,7 +4,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['IBM Plex Sans Arabic', 'Noto Sans Arabic', 'Cairo', 'Inter', 'system-ui', 'sans-serif'],
+        sans: ['Cairo', 'Noto Sans Arabic', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
       },
       colors: {
         // Official SkyCourt Brand Core

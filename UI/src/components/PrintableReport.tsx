@@ -33,7 +33,7 @@ export const PrintableReport = React.forwardRef<HTMLDivElement, PrintableReportP
     .reduce((s, l) => s + Math.abs(l.quantity_changed || 0), 0);
 
   return (
-    <div ref={ref} style={{ padding: '20mm 18mm', direction: 'rtl', fontFamily: 'Cairo, "IBM Plex Sans Arabic", sans-serif', color: '#111827', backgroundColor: '#ffffff' }}>
+    <div ref={ref} style={{ padding: '20mm 18mm', direction: 'rtl', fontFamily: 'Cairo, "Noto Sans Arabic", sans-serif', color: '#111827', backgroundColor: '#ffffff' }}>
       {/* 1. Official Letterhead Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #4B1E78', paddingBottom: '16px', marginBottom: '20px' }}>
         <div>

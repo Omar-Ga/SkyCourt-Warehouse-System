@@ -11,16 +11,18 @@
   --color-warning: 122, 74, 0;      /* #7A4A00 */
   --color-error: 166, 27, 41;       /* #A61B29 */
   --color-gray: 91, 102, 112;      /* #5B6670 */
-  font-family: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', Cairo, system-ui, sans-serif;
+  font-family: 'Cairo', 'Noto Sans Arabic', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 body {
-  font-family: 'IBM Plex Sans Arabic', 'Noto Sans Arabic', Cairo, sans-serif;
+  font-family: 'Cairo', 'Noto Sans Arabic', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 500;
   color: #102A3A;
   background-color: #F5F8F7;
   direction: rtl;
   text-align: right;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 @layer base {
