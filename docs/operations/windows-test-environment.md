@@ -83,3 +83,22 @@ To forward the remote Flask port (`5070`) locally to inspect through your local 
 ```bash
 ssh -L 5070:127.0.0.1:5070 windows-test-pc
 ```
+
+---
+
+## 4. Live GUI Viewing & Control
+
+Both workstations support remote viewing and control directly from Linux:
+
+### Live Screen Mirroring (Physical Monitor Stays ON)
+TightVNC Server runs on port `5900` on both workstations. Connecting allows simultaneous shared view and control without locking the physical display:
+- **PC 1 (Primary, `192.168.1.121`):** `mirror` or `mirror 1` (or desktop shortcut *"PC 1 - Mirror (Screen ON)"*)
+- **PC 2 (Secondary, `192.168.1.103`):** `mirror 2` (or desktop shortcut *"PC 2 - Mirror (Screen ON)"*)
+
+### Dedicated Remote Desktop (RDP)
+Native Windows RDP runs on port `3389` with FreeRDP 3:
+- **PC 1 (Primary, `192.168.1.121`):** `rdp` or `rdp 1` (or desktop shortcut *"PC 1 - RDP (Private Session)"*)
+- **PC 2 (Secondary, `192.168.1.103`):** `rdp 2` (or desktop shortcut *"PC 2 - RDP (Private Session)"*)
+- Password for both local accounts (`Eng Mhmd` and `man-pc`) is configured to `123456` with automatic login.
+- `-grab-keyboard` is passed so window manager shortcuts (Hyprland `Super+Q`, workspaces) remain responsive on the host.
+
