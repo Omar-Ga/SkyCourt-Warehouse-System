@@ -70,5 +70,26 @@ def check_remote_lock(timeout: float = 3.0):
 
 
 if __name__ == '__main__':
-    check_remote_lock()
-    start_app() 
+    try:
+        check_remote_lock()
+        start_app()
+    except Exception as e:
+        import traceback
+        log_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+        crash_file = os.path.join(log_dir, 'crash.log')
+        try:
+            with open(crash_file, 'w', encoding='utf-8') as f:
+                f.write(traceback.format_exc())
+        except Exception:
+            pass
+        logger.critical(f"Fatal startup error: {e}", exc_info=True)
+
+        # On Windows, display native error popup so errors are never silent
+        if sys.platform == 'win32':
+            try:
+                import ctypes
+                error_msg = f"Fatal Startup Error:\n\n{e}\n\nA detailed report was saved to:\n{crash_file}"
+                ctypes.windll.user32.MessageBoxW(0, error_msg, "SkyCourt Warehouse - Startup Error", 0x10)
+            except Exception:
+                pass
+        raise 
