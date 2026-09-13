@@ -66,6 +66,7 @@ env/
 # Build artifacts
 /build/
 /dist/
+/dist_release/
 UI/dist/
 UI/dist-ssr/
 

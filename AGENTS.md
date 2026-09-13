@@ -25,3 +25,10 @@ This repository uses the default five-label triage vocabulary. See `docs/agents/
 
 ### Domain Documentation
 Single-context project documentation uses root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`. Always consult `CONTEXT.md` before making domain changes.
+
+### Remote Windows Test Workstations
+Direct SSH access is configured for the local physical test PCs:
+- Primary: `windows-test-pc` (`192.168.1.121`, user `Eng Mhmd`)
+- Secondary: `man-pc` (`192.168.1.103`, user `man-pc`)
+See `docs/operations/windows-test-environment.md` for connection aliases and remote execution commands.
+
