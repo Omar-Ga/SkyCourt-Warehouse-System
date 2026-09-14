@@ -113,7 +113,9 @@ export const ItemsManagement = ({
     error: errorMain,
   } = useCategories({ level: 'main' });
 
-  const mainCategories = mainCategoriesData?.categories || [];
+  const mainCategories: Category[] = Array.isArray(mainCategoriesData)
+    ? mainCategoriesData
+    : (mainCategoriesData?.categories || []);
 
   // Sync selectedMainCategory from URL or cache
   useEffect(() => {
@@ -151,7 +153,9 @@ export const ItemsManagement = ({
     { enabled: Boolean(catIdNum || selectedMainCategory?.id) }
   );
 
-  const subCategories = subCategoriesData?.categories || [];
+  const subCategories: Category[] = Array.isArray(subCategoriesData)
+    ? subCategoriesData
+    : (subCategoriesData?.categories || []);
   const totalSubCategories = subCategories.length;
 
   // Sync selectedSubCategory from URL or cache
@@ -459,9 +463,9 @@ export const ItemsManagement = ({
       return (
         <button
           onClick={() => handleOpenCategoryModal(null, null)}
-          className="px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+          className="min-h-[44px] px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-black flex items-center gap-2 shadow-xs transition-all cursor-pointer leading-normal active:scale-95"
         >
-          <Plus size={16} />
+          <Plus size={18} className="shrink-0" />
           <span>إضافة فئة رئيسية</span>
         </button>
       );
@@ -470,9 +474,9 @@ export const ItemsManagement = ({
       return (
         <button
           onClick={() => handleOpenCategoryModal(null, catIdNum ?? selectedMainCategory?.id ?? null)}
-          className="px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+          className="min-h-[44px] px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-black flex items-center gap-2 shadow-xs transition-all cursor-pointer leading-normal active:scale-95"
         >
-          <Plus size={16} />
+          <Plus size={18} className="shrink-0" />
           <span>إضافة فئة فرعية</span>
         </button>
       );
@@ -481,9 +485,9 @@ export const ItemsManagement = ({
       return (
         <button
           onClick={() => setIsAddItemModalOpen(true)}
-          className="px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+          className="min-h-[44px] px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-black flex items-center gap-2 shadow-xs transition-all cursor-pointer leading-normal active:scale-95"
         >
-          <Plus size={16} />
+          <Plus size={18} className="shrink-0" />
           <span>إضافة صنف جديد</span>
         </button>
       );
@@ -518,19 +522,28 @@ export const ItemsManagement = ({
           <>
             {viewLevel === 'mainCategories' && (
               <div className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                  {/* Main category cards - note: Add Main Category card is hoisted to header action slot */}
-                  {mainCategories.map((cat: Category) => (
-                    <MainCategoryCard
-                      key={cat.id}
-                      category={cat}
-                      onSelect={handleSelectMainCategory}
-                      onEdit={canMutateCategories ? (c) => handleOpenCategoryModal(c, null) : undefined}
-                      onDelete={canMutateCategories ? handleDeleteCategory : undefined}
-                      className="h-32"
-                    />
-                  ))}
-                </div>
+                {mainCategories.length === 0 ? (
+                  <EmptyState
+                    title="لا توجد فئات رئيسية"
+                    description="لم يتم العثور على أي فئات رئيسية مسجلة في النظام."
+                    actionLabel={canMutateCategories ? "إضافة فئة رئيسية" : undefined}
+                    onAction={canMutateCategories ? () => handleOpenCategoryModal(null, null) : undefined}
+                  />
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                    {/* Main category cards - note: Add Main Category card is hoisted to header action slot */}
+                    {mainCategories.map((cat: Category) => (
+                      <MainCategoryCard
+                        key={cat.id}
+                        category={cat}
+                        onSelect={handleSelectMainCategory}
+                        onEdit={canMutateCategories ? (c) => handleOpenCategoryModal(c, null) : undefined}
+                        onDelete={canMutateCategories ? handleDeleteCategory : undefined}
+                        className="h-32"
+                      />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 

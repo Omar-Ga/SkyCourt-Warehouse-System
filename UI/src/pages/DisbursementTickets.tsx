@@ -211,7 +211,7 @@ export const DisbursementTickets: React.FC = () => {
             <div className="flex justify-end gap-2 w-full">
               <button
                 type="button"
-                className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+                className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
                 onClick={() => {
                   setFulfillingTicketId(null);
                   setFulfillError(null);
@@ -222,7 +222,7 @@ export const DisbursementTickets: React.FC = () => {
               </button>
               <button
                 type="button"
-                className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
+                className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
                 onClick={handleConfirmFulfill}
                 disabled={fulfill.isPending || loadingFulfilling || !fulfillingOrder}
               >
@@ -324,7 +324,7 @@ export const DisbursementTickets: React.FC = () => {
             <div className="flex justify-end gap-2 w-full">
               <button
                 type="button"
-                className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+                className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
                 onClick={() => {
                   setRejectingId(null);
                   setReason('');
@@ -335,7 +335,7 @@ export const DisbursementTickets: React.FC = () => {
               </button>
               <button
                 type="button"
-                className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
+                className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
                 onClick={() => rejectTicket()}
                 disabled={reject.isPending || !reason.trim()}
               >

@@ -21,7 +21,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className = '' })
 
   return (
     <nav
-      className={`flex items-center gap-1.5 bg-white px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold shadow-xs select-none flex-wrap ${className}`}
+      className={`flex items-center gap-2 bg-white px-4.5 py-3 rounded-xl border border-gray-200 text-sm font-semibold shadow-xs select-none flex-wrap ${className}`}
       dir="rtl"
       aria-label="مسار التنقل"
     >
@@ -33,8 +33,8 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className = '' })
           <React.Fragment key={item.id || `${item.level || 'crumb'}-${index}`}>
             {index > 0 && (
               <ChevronLeft
-                size={14}
-                className="text-slate-400 shrink-0 mx-0.5"
+                size={16}
+                className="text-slate-400 shrink-0 mx-1"
                 aria-hidden="true"
               />
             )}
@@ -43,14 +43,14 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className = '' })
               <button
                 type="button"
                 onClick={item.onClick}
-                className="inline-flex items-center gap-1.5 text-ink-600 hover:text-primary-600 hover:bg-primary-50 px-2 py-1 rounded-lg transition-colors cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-primary-500/20"
+                className="inline-flex items-center gap-2 text-ink-600 hover:text-primary-600 hover:bg-primary-50 px-2.5 py-1 rounded-lg transition-colors cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-primary-500/20"
               >
                 {item.icon && <span className="shrink-0 text-primary-600">{item.icon}</span>}
-                <span className="leading-none">{item.label}</span>
+                <span className="leading-normal">{item.label}</span>
               </button>
             ) : (
               <span
-                className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg ${
+                className={`inline-flex items-center gap-2 px-2.5 py-1 rounded-lg ${
                   isLast || item.isActive
                     ? 'text-primary-600 font-bold bg-primary-50/60'
                     : 'text-ink-700'
@@ -58,7 +58,7 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className = '' })
                 aria-current={isLast || item.isActive ? 'page' : undefined}
               >
                 {item.icon && <span className="shrink-0 text-primary-600">{item.icon}</span>}
-                <span className="leading-none">{item.label}</span>
+                <span className="leading-normal">{item.label}</span>
               </span>
             )}
           </React.Fragment>

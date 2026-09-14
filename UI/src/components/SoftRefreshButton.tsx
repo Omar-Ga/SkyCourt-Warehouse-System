@@ -74,19 +74,20 @@ export const SoftRefreshButton: React.FC<SoftRefreshButtonProps> = ({
         <button
             onClick={handleRefresh}
             disabled={isBusy}
-            className={`flex items-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
+            className={`flex items-center justify-center px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${className}`}
             title="تحديث البيانات"
+            aria-label={label || "تحديث البيانات"}
         >
             <RotateCw
                 size={18}
-                className={`ml-2 rtl:ml-2 rtl:mr-0 ${isBusy ? 'animate-spin' : ''}`}
+                className={`${label ? 'ms-2' : ''} ${isBusy ? 'animate-spin' : ''} shrink-0`}
             />
-            <span>{label}</span>
-            {isBusy && (
+            {label ? <span>{label}</span> : null}
+            {isBusy && label ? (
                 <span className="mr-2 text-xs text-gray-400 font-normal">
                     (جاري...)
                 </span>
-            )}
+            ) : null}
         </button>
     );
 };

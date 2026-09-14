@@ -43,7 +43,7 @@ const DestinationModal = ({ isOpen, onClose, destination, onSave, initialName, i
     <>
       <button
         type="button"
-        className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs ml-2"
+        className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs ml-2"
         onClick={onClose}
         disabled={isSaving}
       >
@@ -51,7 +51,7 @@ const DestinationModal = ({ isOpen, onClose, destination, onSave, initialName, i
       </button>
       <button
         type="submit"
-        className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
+        className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
         form="destination-form"
         disabled={isSaving}
       >
@@ -97,7 +97,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, destination, onConfirm, isDeletin
     <>
       <button
         type="button"
-        className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs ml-2"
+        className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs ml-2"
         onClick={onClose}
         disabled={isDeleting}
       >
@@ -105,7 +105,7 @@ const DeleteConfirmModal = ({ isOpen, onClose, destination, onConfirm, isDeletin
       </button>
       <button
         type="button"
-        className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
+        className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
         onClick={onConfirm}
         disabled={isDeleting}
       >
@@ -222,7 +222,7 @@ export const DestinationManagement = () => {
       icon={<MapPin size={22} className="text-primary-600" />}
       action={
         <button
-          className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
+          className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
           onClick={() => { setModalApiError(null); setIsAddModalOpen(true); }}
         >
           <Plus size={18} className="ml-2" />
@@ -245,7 +245,7 @@ export const DestinationManagement = () => {
           <h3 className="text-lg font-medium text-gray-700">لا توجد وجهات بعد</h3>
           <p className="text-gray-500 mb-4">أضف الوجهات التي يتم إرسال الأصناف إليها</p>
           <button
-            className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
+            className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
             onClick={() => { setModalApiError(null); setIsAddModalOpen(true); }}
           >
             إضافة وجهة جديدة

@@ -22,7 +22,7 @@ export function FilterTabs<T extends string = string>({
 }: FilterTabsProps<T>): React.ReactElement {
   return (
     <div
-      className={`inline-flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl border border-slate-200/70 select-none flex-wrap ${className}`}
+      className={`inline-flex items-center gap-1.5 p-1.5 bg-slate-100/80 rounded-xl border border-slate-200/70 select-none flex-wrap ${className}`}
       dir="rtl"
       role="tablist"
     >
@@ -35,16 +35,16 @@ export function FilterTabs<T extends string = string>({
             role="tab"
             aria-selected={isActive}
             onClick={() => onTabChange(tab.id)}
-            className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all duration-150 cursor-pointer ${
+            className={`min-h-[42px] px-4 py-2 rounded-lg text-sm font-bold inline-flex items-center gap-2.5 transition-all duration-150 cursor-pointer ${
               isActive
                 ? 'bg-white text-primary-600 shadow-xs font-black'
                 : 'text-slate-600 hover:text-ink-950 hover:bg-white/60'
             }`}
           >
-            <span>{tab.label}</span>
+            <span className="leading-normal">{tab.label}</span>
             {typeof tab.count === 'number' && (
               <span
-                className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold leading-none ${
+                className={`text-xs px-2 py-0.5 rounded-full font-bold leading-normal flex items-center justify-center ${
                   isActive
                     ? 'bg-primary-100 text-primary-800'
                     : 'bg-slate-200/80 text-slate-600'

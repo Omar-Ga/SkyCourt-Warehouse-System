@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  ArrowLeft,
+  ArrowRight,
   ChevronDown,
   Cloud,
   CloudOff,
@@ -34,24 +34,24 @@ import {
 } from '../navigation';
 
 const ITEM_ICONS: Record<string, React.ReactNode> = {
-  Dashboard: <LayoutDashboard size={18} />,
-  Items: <Package size={18} />,
-  PurchaseOrders: <ClipboardList size={18} />,
-  DisbursementTickets: <Receipt size={18} />,
-  POTickets: <PackageCheck size={18} />,
-  LeaveOrders: <Send size={18} />,
-  Logs: <History size={18} />,
-  Units: <Ruler size={18} />,
-  Destinations: <MapPin size={18} />,
-  Providers: <Truck size={18} />,
-  Settings: <SettingsIcon size={18} />,
+  Dashboard: <LayoutDashboard size={20} className="shrink-0" />,
+  Items: <Package size={20} className="shrink-0" />,
+  PurchaseOrders: <ClipboardList size={20} className="shrink-0" />,
+  DisbursementTickets: <Receipt size={20} className="shrink-0" />,
+  POTickets: <PackageCheck size={20} className="shrink-0" />,
+  LeaveOrders: <Send size={20} className="shrink-0" />,
+  Logs: <History size={20} className="shrink-0" />,
+  Units: <Ruler size={20} className="shrink-0" />,
+  Destinations: <MapPin size={20} className="shrink-0" />,
+  Providers: <Truck size={20} className="shrink-0" />,
+  Settings: <SettingsIcon size={20} className="shrink-0" />,
 };
 
 const GROUP_ICONS: Record<string, React.ReactNode> = {
-  stockOperations: <Boxes size={16} />,
-  ordersDocuments: <ClipboardList size={16} />,
-  masterData: <Database size={16} />,
-  systemReports: <Sliders size={16} />,
+  stockOperations: <Boxes size={19} className="shrink-0" />,
+  ordersDocuments: <ClipboardList size={19} className="shrink-0" />,
+  masterData: <Database size={19} className="shrink-0" />,
+  systemReports: <Sliders size={19} className="shrink-0" />,
 };
 
 const ROLE_BADGES: Record<string, string> = {
@@ -148,37 +148,37 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
 
   return (
     <header
-      className="bg-white border-b border-gray-200 px-4 lg:px-6 h-16 flex items-center justify-between gap-4 select-none shrink-0 shadow-xs z-30 relative font-sans"
+      className="bg-white border-b border-gray-200 px-5 lg:px-8 h-20 flex items-center justify-between gap-4 select-none shrink-0 shadow-xs z-30 relative font-sans"
       dir="rtl"
     >
       {/* Right Side: In-App Back Button + Logo */}
-      <div className="flex items-center gap-3 shrink-0">
+      <div className="flex items-center gap-3.5 shrink-0">
         {canGoBack && (
           <button
             type="button"
             onClick={handleBack}
             title="رجوع"
             aria-label="رجوع"
-            className="w-9 h-9 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+            className="w-11 h-11 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer shadow-2xs shrink-0 active:scale-95"
           >
-            <ArrowLeft size={18} className="rotate-180 rtl:rotate-0 transition-transform" />
+            <ArrowRight size={22} className="shrink-0" />
           </button>
         )}
 
         <button
           type="button"
           onClick={() => handleNavigate(CANONICAL_PAGE_ROUTES.Dashboard)}
-          className="flex items-center gap-2.5 cursor-pointer focus:outline-hidden"
+          className="flex items-center gap-3 cursor-pointer focus:outline-hidden group"
           title="الرئيسية"
         >
           <img
             src="/assets/skycourt_logo_transparent.png"
             alt="SkyCourt Mall"
-            className="h-9 w-auto object-contain"
+            className="h-11 w-auto object-contain transition-transform group-hover:scale-105"
           />
           <div className="hidden sm:flex flex-col text-right">
-            <span className="text-sm font-black text-[#1e1b4b] leading-tight">سكاي كورت</span>
-            <span className="text-[10px] text-primary-600 font-bold leading-tight">
+            <span className="text-base font-black text-ink-950 leading-tight">سكاي كورت</span>
+            <span className="text-xs text-primary-600 font-bold leading-tight">
               {ROLE_BADGES[role] || 'المستودع'}
             </span>
           </div>
@@ -186,7 +186,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
       </div>
 
       {/* Center: Role-Filtered Navigation Menus */}
-      <nav ref={dropdownRef} className="flex items-center gap-1.5 overflow-visible">
+      <nav ref={dropdownRef} className="flex items-center gap-2 overflow-visible">
         {navGroups.map((group) => {
           const isGroupActive = group.items.some((item) => {
             if (item.path === '/') return currentPath === '/';
@@ -199,7 +199,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
               <button
                 type="button"
                 onClick={() => setOpenDropdown(isOpen ? null : group.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all cursor-pointer ${
                   isGroupActive
                     ? 'bg-primary-50 text-primary-700 border border-primary-200 shadow-2xs'
                     : 'text-ink-700 hover:bg-slate-100 hover:text-ink-950'
@@ -210,14 +210,14 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
                 </span>
                 <span>{group.title}</span>
                 <ChevronDown
-                  size={14}
+                  size={16}
                   className={`transition-transform duration-200 text-slate-400 ${isOpen ? 'rotate-180' : ''}`}
                 />
               </button>
 
               {isOpen && (
-                <div className="absolute top-full mt-1.5 right-0 min-w-[200px] bg-white border border-gray-200 rounded-2xl shadow-lg py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100">
-                  <div className="px-3 py-1.5 text-[11px] font-bold text-slate-400 border-b border-gray-100 mb-1">
+                <div className="absolute top-full mt-2 right-0 min-w-[220px] bg-white border border-gray-200 rounded-2xl shadow-xl py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-4 py-2 text-xs font-bold text-slate-400 border-b border-gray-100 mb-1">
                     {group.title}
                   </div>
                   {group.items.map((item) => {
@@ -236,20 +236,20 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
                         key={item.pageId}
                         type="button"
                         onClick={() => handleNavigate(item.path)}
-                        className={`flex items-center justify-between w-full px-3.5 py-2 text-xs sm:text-sm text-right font-medium transition-colors cursor-pointer ${
+                        className={`flex items-center justify-between w-full px-4 py-2.5 text-sm text-right font-medium transition-colors cursor-pointer ${
                           isItemActive
                             ? 'bg-primary-50 text-primary-700 font-bold'
                             : 'text-ink-700 hover:bg-slate-50 hover:text-ink-950'
                         }`}
                       >
-                        <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="flex items-center gap-3 min-w-0">
                           <span className={isItemActive ? 'text-primary-600' : 'text-slate-400'}>
                             {ITEM_ICONS[item.pageId]}
                           </span>
                           <span className="truncate">{item.title}</span>
                         </div>
                         {showBadge && (
-                          <span className="text-[11px] px-1.5 py-0.5 rounded-full font-bold bg-amber-500 text-white shrink-0">
+                          <span className="text-xs px-2 py-0.5 rounded-full font-bold bg-amber-500 text-white shrink-0">
                             {ticketsCount}
                           </span>
                         )}
@@ -264,13 +264,13 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
       </nav>
 
       {/* Left Side: Refresh, Sync Indicator, User & Logout */}
-      <div className="flex items-center gap-2.5 shrink-0">
+      <div className="flex items-center gap-3 shrink-0">
         {/* Soft Refresh */}
-        <SoftRefreshButton label="" className="!p-2 !h-9 !w-9 !min-w-[36px] flex items-center justify-center" />
+        <SoftRefreshButton label="" className="!p-0 !h-11 !w-11 !min-w-[44px] rounded-xl flex items-center justify-center shrink-0 border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 shadow-2xs" />
 
         {/* Compact Cloud Sync Status Icon with Hover Tooltip */}
         <div
-          className={`w-9 h-9 rounded-xl border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
+          className={`w-11 h-11 rounded-xl border flex items-center justify-center transition-colors cursor-pointer shrink-0 ${
             isOnline
               ? 'bg-emerald-50 border-emerald-200 text-status-success hover:bg-emerald-100'
               : 'bg-rose-50 border-rose-200 text-status-danger hover:bg-rose-100'
@@ -279,16 +279,16 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
           aria-label={isOnline ? 'متصل بالسحابة' : 'غير متصل'}
         >
           {isOnline ? (
-            <Cloud size={18} className="text-status-success" />
+            <Cloud size={22} className="text-status-success shrink-0" />
           ) : (
-            <CloudOff size={18} className="text-status-danger animate-pulse" />
+            <CloudOff size={22} className="text-status-danger animate-pulse shrink-0" />
           )}
         </div>
 
         {/* User Badge */}
-        <div className="hidden md:flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-semibold text-ink-800">
-          <UserIcon size={15} className="text-slate-500" />
-          <span className="max-w-[100px] truncate">{user?.username || 'المستخدم'}</span>
+        <div className="hidden md:flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-ink-800 shrink-0">
+          <UserIcon size={18} className="text-slate-500 shrink-0" />
+          <span className="max-w-[150px] truncate leading-normal">{user?.username || 'المستخدم'}</span>
         </div>
 
         {/* Logout Button */}
@@ -297,9 +297,9 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
           onClick={handleLogout}
           title="تسجيل الخروج"
           aria-label="تسجيل الخروج"
-          className="w-9 h-9 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+          className="w-11 h-11 rounded-xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 flex items-center justify-center transition-colors cursor-pointer shadow-2xs shrink-0 active:scale-95"
         >
-          <LogOut size={16} />
+          <LogOut size={20} className="shrink-0" />
         </button>
       </div>
     </header>

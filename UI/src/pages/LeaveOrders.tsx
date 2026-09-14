@@ -44,10 +44,10 @@ export const LeaveOrders: React.FC = () => {
         canCreate && (
           <button
             type="button"
-            className="px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer"
+            className="min-h-[44px] px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-sm font-black flex items-center gap-2 shadow-xs transition-all shrink-0 cursor-pointer active:scale-95 leading-normal"
             onClick={() => setIsCreateOpen(true)}
           >
-            <Plus size={16} />
+            <Plus size={18} className="shrink-0" />
             <span>إنشاء إذن صرف جديد</span>
           </button>
         )

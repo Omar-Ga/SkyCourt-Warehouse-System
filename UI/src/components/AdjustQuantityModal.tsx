@@ -185,7 +185,7 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
     <>
       <button
         type="button"
-        className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs ml-2"
+        className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs ml-2"
         onClick={() => {
           onClose();
         }}
@@ -196,22 +196,22 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
       {action === 'remove' && (
         <button
           type="button"
-          className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs ml-2"
+          className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs ml-2"
           onClick={() => handleSubmit('remove')}
           disabled={isSaving}
         >
-          {isSaving ? <Loader2 size={16} className="ml-1 animate-spin" /> : <ArrowDown size={16} className="ml-1" />}
+          {isSaving ? <Loader2 size={18} className="ml-1 animate-spin" /> : <ArrowDown size={18} className="ml-1" />}
           {isSaving ? 'جاري السحب...' : 'تأكيد السحب'}
         </button>
       )}
       {action === 'add' && (
         <button
           type="button"
-          className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white shadow-xs"
+          className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white shadow-xs"
           onClick={() => handleSubmit('add')}
           disabled={isSaving}
         >
-          {isSaving ? <Loader2 size={16} className="ml-1 animate-spin" /> : <ArrowUp size={16} className="ml-1" />}
+          {isSaving ? <Loader2 size={18} className="ml-1 animate-spin" /> : <ArrowUp size={18} className="ml-1" />}
           {isSaving ? 'جاري الإضافة...' : 'تأكيد الإضافة'}
         </button>
       )}
@@ -240,17 +240,17 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
 
       <div className="flex justify-center my-4 space-x-2 space-x-reverse">
         <button
-          className={`h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer w-1/2 text-white ${action === 'remove' ? 'bg-emerald-300 hover:bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-xs'}`}
+          className={`min-h-[46px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer w-1/2 text-white ${action === 'remove' ? 'bg-emerald-300 hover:bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-xs'}`}
           onClick={() => handleActionClick('add')}
         >
-          <ArrowUp size={16} className="ml-2" />
+          <ArrowUp size={18} className="ml-2" />
           إضافة رصيد
         </button>
         <button
-          className={`h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer w-1/2 text-white ${action === 'add' ? 'bg-rose-300 hover:bg-rose-400' : 'bg-rose-600 hover:bg-rose-700 shadow-xs'}`}
+          className={`min-h-[46px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer w-1/2 text-white ${action === 'add' ? 'bg-rose-300 hover:bg-rose-400' : 'bg-rose-600 hover:bg-rose-700 shadow-xs'}`}
           onClick={() => handleActionClick('remove')}
         >
-          <ArrowDown size={16} className="ml-2" />
+          <ArrowDown size={18} className="ml-2" />
           سحب رصيد
         </button>
       </div>

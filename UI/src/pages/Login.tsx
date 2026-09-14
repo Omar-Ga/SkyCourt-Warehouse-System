@@ -71,12 +71,12 @@ export const Login: React.FC = () => {
           className="absolute right-8 lg:right-16 xl:right-20 bottom-16 lg:bottom-20 max-w-[460px] flex flex-col items-start text-right z-20 select-none"
           dir="rtl"
         >
-          <h1 className="text-4xl lg:text-[48px] xl:text-[54px] font-black text-white leading-[1.2] tracking-tight text-right drop-shadow-sm font-['Cairo']">
+          <h1 className="text-4xl lg:text-[48px] xl:text-[54px] font-black text-white leading-[1.3] tracking-tight text-right drop-shadow-sm font-sans">
             كل منتج
             <br />
             في مكانه الصحيح
           </h1>
-          <div className="w-16 h-1.5 bg-[#7b61bd] rounded-full mt-4 shadow-sm" />
+          <div className="w-16 h-1.5 bg-[#1E7D46] rounded-full mt-4 shadow-sm" />
         </div>
       </div>
 
@@ -97,10 +97,10 @@ export const Login: React.FC = () => {
 
           {/* Heading & Subtitle */}
           <div className="text-center mb-12">
-            <h2 className="text-3xl lg:text-[38px] font-black text-[#041831] tracking-tight mb-3.5 leading-snug font-['Cairo']">
+            <h2 className="text-3xl lg:text-[38px] font-black text-[#041831] tracking-tight mb-3.5 leading-snug font-sans">
               مخزن سكاي كورت
             </h2>
-            <p className="text-slate-500 text-base lg:text-lg font-medium leading-relaxed font-['Cairo']">
+            <p className="text-slate-500 text-base lg:text-lg font-medium leading-relaxed font-sans">
               نظام إدارة المخزن
             </p>
           </div>
@@ -121,7 +121,7 @@ export const Login: React.FC = () => {
             <div>
               <label
                 htmlFor="username"
-                className="block text-slate-900 font-bold text-base lg:text-lg mb-3 text-right font-['Cairo']"
+                className="block text-slate-900 font-bold text-base lg:text-lg mb-3 text-right font-sans"
               >
                 اسم المستخدم
               </label>
@@ -134,7 +134,7 @@ export const Login: React.FC = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="أدخل اسم المستخدم"
-                className="w-full bg-[#f0f3f8] rounded-2xl border border-slate-200/90 px-5 py-4 text-right placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-600 transition-all text-slate-800 text-base lg:text-lg font-normal font-['Cairo']"
+                className="w-full bg-[#f0f3f8] rounded-2xl border border-slate-200/90 px-5 py-4 text-right placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-600 transition-all text-slate-800 text-base lg:text-lg font-normal font-sans"
                 disabled={isSubmitting}
               />
             </div>
@@ -142,7 +142,7 @@ export const Login: React.FC = () => {
             <div>
               <label
                 htmlFor="password"
-                className="block text-slate-900 font-bold text-base lg:text-lg mb-3 text-right font-['Cairo']"
+                className="block text-slate-900 font-bold text-base lg:text-lg mb-3 text-right font-sans"
               >
                 كلمة المرور
               </label>
@@ -154,7 +154,7 @@ export const Login: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="أدخل كلمة المرور"
-                className="w-full bg-[#f0f3f8] rounded-2xl border border-slate-200/90 px-5 py-4 text-right placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-600 transition-all text-slate-800 text-base lg:text-lg font-normal font-['Cairo']"
+                className="w-full bg-[#f0f3f8] rounded-2xl border border-slate-200/90 px-5 py-4 text-right placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-600 transition-all text-slate-800 text-base lg:text-lg font-normal font-sans"
                 disabled={isSubmitting}
               />
             </div>
@@ -162,7 +162,7 @@ export const Login: React.FC = () => {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full !mt-11 py-4.5 lg:py-5 px-6 rounded-2xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-bold text-lg lg:text-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer font-['Cairo']"
+              className="w-full !mt-11 py-4.5 lg:py-5 px-6 rounded-2xl bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white font-bold text-lg lg:text-xl shadow-lg hover:shadow-xl transition-all flex items-center justify-center disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer font-sans"
             >
               {isSubmitting ? (
                 <div className="flex items-center gap-2">

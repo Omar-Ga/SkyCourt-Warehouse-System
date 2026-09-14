@@ -211,7 +211,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
             {canReturn && (
               <button
                 type="button"
-                className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
+                className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
                 onClick={() => setIsReturnOpen(true)}
               >
                 <Undo2 size={16} />
@@ -223,15 +223,15 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
               <>
                 <button
                   type="button"
-                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
                   onClick={() => setIsEditingRejected(true)}
                 >
-                  <Edit3 size={15} />
+                  <Edit3 size={16} />
                   <span>تعديل البنود وإعادة الإرسال</span>
                 </button>
                 <button
                   type="button"
-                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
                   onClick={handleResubmitAsIs}
                   disabled={resubmitMutation.isPending || cancelMutation.isPending}
                 >
@@ -239,7 +239,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 shadow-2xs"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 shadow-2xs"
                   onClick={handleCancelOrder}
                   disabled={cancelMutation.isPending || resubmitMutation.isPending}
                 >
@@ -252,7 +252,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
               <>
                 <button
                   type="button"
-                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
                   onClick={handleSaveCorrectionAndResubmit}
                   disabled={resubmitMutation.isPending}
                 >
@@ -260,7 +260,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+                  className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
                   onClick={() => setIsEditingRejected(false)}
                   disabled={resubmitMutation.isPending}
                 >
@@ -274,14 +274,14 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
             <button
               type="button"
               onClick={() => refetch()}
-              className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+              className="p-2.5 rounded-xl text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
               title="تحديث البيانات يدويّاً"
             >
               <RefreshCw size={18} />
             </button>
             <button
               type="button"
-              className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
               onClick={onClose}
             >
               إغلاق النافذة
@@ -426,10 +426,10 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                 </h4>
                 <button
                   type="button"
-                  className="h-7 px-2.5 rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-1 bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs cursor-pointer"
+                  className="min-h-[38px] px-4 py-2 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-1.5 bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs cursor-pointer"
                   onClick={() => setEditLines([...editLines, { item: null, quantity: '' }])}
                 >
-                  <Plus size={13} /> إضافة بند
+                  <Plus size={15} /> إضافة بند
                 </button>
               </div>
 
@@ -469,7 +469,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                               minHeight: '34px',
                               borderRadius: '6px',
                               fontSize: '12px',
-                              fontFamily: 'Cairo, sans-serif'
+                              fontFamily: 'Almarai, sans-serif'
                             }),
                             menuPortal: (base: any) => ({ ...base, zIndex: 9999 })
                           }}

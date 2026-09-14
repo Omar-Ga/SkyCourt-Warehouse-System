@@ -141,7 +141,7 @@ export function Table<T extends Record<string, any>>({
       </div>
 
       {pagination && (pagination.totalPages > 1 || (pagination.totalItems !== undefined && pagination.totalItems > 0)) && (
-        <div className="py-3 px-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-ink-500">
+        <div className="py-3.5 px-4.5 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-ink-500">
           <div>
             {pagination.totalItems !== undefined ? (
               <>
@@ -157,24 +157,24 @@ export function Table<T extends Record<string, any>>({
             )}
           </div>
           {pagination.totalPages > 1 && (
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                 disabled={pagination.currentPage <= 1}
                 onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
               >
-                <ChevronRight size={14} />
+                <ChevronRight size={15} />
                 <span>السابق</span>
               </button>
               <button
                 type="button"
-                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1"
+                className="px-3.5 py-2 rounded-xl bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 text-xs font-bold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1.5 shadow-2xs"
                 disabled={pagination.currentPage >= pagination.totalPages}
                 onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
               >
                 <span>التالي</span>
-                <ChevronLeft size={14} />
+                <ChevronLeft size={15} />
               </button>
             </div>
           )}

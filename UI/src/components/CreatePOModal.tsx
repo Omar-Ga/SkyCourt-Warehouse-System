@@ -423,7 +423,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
           <button
             type="button"
             onClick={handleClose}
-            className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+            className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
             disabled={isPending}
           >
             إلغاء
@@ -431,7 +431,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
           {hasUncertainSubmission ? (
             <button
               type="button"
-              className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
               onClick={handleCheckPreviousSubmission}
               disabled={isPending}
             >
@@ -440,7 +440,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
           ) : (
             <button
               type="button"
-              className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
+              className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
               onClick={handleSubmit}
               disabled={isPending || loadingProviders}
             >
@@ -528,9 +528,9 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
               <button
                 type="button"
                 onClick={handleAddLine}
-                className="h-8 px-3 rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-1 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+                className="min-h-[38px] px-4 py-2 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
               >
-                <Plus size={14} />
+                <Plus size={16} />
                 إضافة بند آخر
               </button>
             </div>
@@ -581,7 +581,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                                 borderRadius: '6px',
                                 borderColor: '#e2e8f0',
                                 fontSize: '12px',
-                                fontFamily: 'Cairo, sans-serif'
+                                fontFamily: 'Almarai, sans-serif'
                               }),
                               menuPortal: (base: any) => ({ ...base, zIndex: 9999 })
                             }}

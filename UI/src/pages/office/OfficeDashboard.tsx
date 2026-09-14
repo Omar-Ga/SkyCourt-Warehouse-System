@@ -186,7 +186,7 @@ export const OfficeDashboard: React.FC = () => {
                 backgroundColor: '#f8fafc',
                 padding: '2px 6px',
                 fontSize: '13px',
-                fontFamily: 'Cairo',
+                fontFamily: 'Almarai, sans-serif',
                 '&:hover': {
                   borderColor: '#cbd5e1'
                 }

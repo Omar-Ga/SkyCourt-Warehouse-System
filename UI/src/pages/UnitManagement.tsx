@@ -47,7 +47,7 @@ const UnitModal = ({ isOpen, onClose, unit, onSave, initialName, isSaving, apiEr
     <>
       <button
         type="button"
-        className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs ml-2"
+        className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm inline-flex items-center justify-center gap-2 transition-all select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs ml-2 leading-normal"
         onClick={onClose}
         disabled={isSaving}
       >
@@ -55,7 +55,7 @@ const UnitModal = ({ isOpen, onClose, unit, onSave, initialName, isSaving, apiEr
       </button>
       <button
         type="submit"
-        className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
+        className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm inline-flex items-center justify-center gap-2 transition-all select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs leading-normal active:scale-95"
         form="unit-form"
         disabled={isSaving}
       >
@@ -246,13 +246,13 @@ export const UnitManagement = () => {
       icon={<Ruler size={22} className="text-primary-600" />}
       action={
         <button
-          className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
+          className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm inline-flex items-center justify-center gap-2 transition-all select-none cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs leading-normal active:scale-95"
           onClick={() => {
             setModalApiError(null);
             setIsAddModalOpen(true);
           }}
         >
-          <Plus size={18} className="ml-2" />
+          <Plus size={18} className="shrink-0" />
           إضافة وحدة جديدة
         </button>
       }

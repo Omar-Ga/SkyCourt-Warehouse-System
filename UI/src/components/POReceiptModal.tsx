@@ -30,7 +30,7 @@ export const POReceiptModal: React.FC<{ order: PurchaseOrderDetail | null; isOpe
         <div className="flex justify-end gap-2">
           <button
             type="button"
-            className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+            className="min-h-[44px] px-5 py-2.5 rounded-xl font-bold text-sm leading-normal inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
             onClick={onClose}
             disabled={mutation.isPending}
           >
@@ -38,11 +38,11 @@ export const POReceiptModal: React.FC<{ order: PurchaseOrderDetail | null; isOpe
           </button>
           <button
             type="button"
-            className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
+            className="min-h-[44px] px-5 py-2.5 rounded-xl font-black text-sm leading-normal inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
             onClick={submit}
             disabled={mutation.isPending}
           >
-            <PackageCheck size={16} />
+            <PackageCheck size={18} />
             {mutation.isPending ? 'جاري الاستلام والإيداع...' : 'تأكيد الاستلام الفعلي وإيداع المخزون'}
           </button>
         </div>
