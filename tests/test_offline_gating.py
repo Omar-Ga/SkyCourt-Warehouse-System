@@ -78,7 +78,8 @@ def test_offline_mutation_gate_blocks_stock_adjustment(app, sample_metadata):
                 conn=conn,
                 item_id=item_id,
                 change_amount=5,
-                action_type="addition"
+                action_type="addition",
+                operation_key="op-offline-1"
             )
 
 
@@ -464,7 +465,8 @@ def test_offline_flagged_connection_blocks_primitive(migrated_db, sample_metadat
             conn=conn,
             item_id=item_id,
             change_amount=1,
-            action_type="addition"
+            action_type="addition",
+            operation_key="op-offline-2"
         )
 
 

@@ -18,6 +18,8 @@ from app.models.db_utils import (
     LibSQLRow,
     LibSQLConnectionWrapper,
     is_transient_error,
+    create_connection,
+    DatabaseUnavailableError,
 )
 
 try:
@@ -310,6 +312,13 @@ def test_transient_error_classification_exhaustive():
     assert is_transient_error(ValueError("validation error: invalid integer")) is False
 
 
+def test_local_sqlite_target_is_rejected_outside_explicit_test_mode(monkeypatch):
+    """Production configuration cannot silently select a local SQLite writer."""
+    monkeypatch.delenv("SKYCOURT_ALLOW_LOCAL_SQLITE_TESTS", raising=False)
+    with pytest.raises(DatabaseUnavailableError, match="Local SQLite"):
+        create_connection(":memory:")
+
+
 @pytest.mark.skipif(not LIBSQL_AVAILABLE, reason="libsql driver is not installed")
 def test_remote_engine_live_verification():
     """
@@ -372,4 +381,3 @@ def test_remote_engine_live_verification():
         except Exception:
             pass
         conn.close()
-

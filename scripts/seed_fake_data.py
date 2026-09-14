@@ -329,6 +329,8 @@ ITEM_TEMPLATES = {
 
 def clean_database(conn):
     """Purges all domain data while preserving system users, remote settings, and migrations."""
+    if getattr(conn, "is_authenticated", False) or getattr(conn, "database_target", None):
+        raise RuntimeError("Refusing destructive seed cleanup against a remote or production database.")
     print("🧹 Cleaning all domain data from database...")
     cursor = conn.cursor()
     

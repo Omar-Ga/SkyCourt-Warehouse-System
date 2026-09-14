@@ -4,6 +4,7 @@ Provides request-owned connections, transaction management, transient-conflict r
 and compatibility adapters for SQLite and LibSQL.
 """
 import logging
+import os
 import sqlite3
 import time
 from datetime import datetime, timezone
@@ -34,6 +35,11 @@ class OfflineMutationGatedError(RuntimeError):
     pass
 
 
+class StagingSafetyError(RuntimeError):
+    """Raised when a staging operation could target the authoritative database."""
+    pass
+
+
 # Offline mutation gate configuration
 OFFLINE_STOCK_MUTATIONS_ENABLED = False
 
@@ -53,25 +59,51 @@ def check_stock_mutation_allowed(conn: Any = None):
     Raises OfflineMutationGatedError if stock mutations are attempted while offline or
     if offline mutations have been disallowed.
     """
-    if not is_offline_mutation_allowed():
-        # 1. Flagged via Flask request context
-        if has_request_context() and getattr(g, "offline_mode", False):
-            raise OfflineMutationGatedError(
-                "Offline stock mutations are disabled in this release. An active cloud connection is required."
-            )
+    # 1. Flagged via Flask request context
+    if has_request_context() and getattr(g, "offline_mode", False):
+        raise OfflineMutationGatedError(
+            "Offline stock mutations are disabled in this release. An active cloud connection is required."
+        )
 
-        # 2. Flagged via Flask app configuration
-        if has_app_context() and current_app.config.get("OFFLINE_MODE", False):
-            raise OfflineMutationGatedError(
-                "Offline stock mutations are disabled in this release. An active cloud connection is required."
-            )
+    # 2. Flagged via Flask app configuration
+    if has_app_context() and current_app.config.get("OFFLINE_MODE", False):
+        raise OfflineMutationGatedError(
+            "Offline stock mutations are disabled in this release. An active cloud connection is required."
+        )
 
-        # 3. Connection explicitly flagged as offline or local replica
-        if conn is not None:
-            if getattr(conn, "is_offline", False) is True or getattr(conn, "replica_mode", None) == "offline":
-                raise OfflineMutationGatedError(
-                    "Offline stock mutations are disabled in this release. An active cloud connection is required."
-                )
+    if conn is None and has_request_context() and "db" in g:
+        conn = g.db
+
+    # 3. Connection explicitly flagged as offline or local replica
+    if conn is not None and (
+        getattr(conn, "is_offline", False) is True
+        or getattr(conn, "replica_mode", None) == "offline"
+    ):
+        raise OfflineMutationGatedError(
+            "Offline stock mutations are disabled in this release. An active cloud connection is required."
+        )
+
+    if conn is None:
+        raise DatabaseUnavailableError("An authoritative cloud database connection is required.")
+
+    # Local SQLite is a test-only escape hatch. Production must be positively
+    # identified as an authenticated LibSQL connection, not merely non-offline.
+    if isinstance(conn, sqlite3.Connection):
+        if _local_sqlite_allowed():
+            return
+        raise DatabaseUnavailableError("Only an authenticated remote LibSQL connection may mutate stock.")
+
+    if isinstance(conn, LibSQLConnectionWrapper) and conn.is_authenticated:
+        return
+
+    raise DatabaseUnavailableError("Only an authenticated remote LibSQL connection may mutate stock.")
+
+
+def _local_sqlite_allowed() -> bool:
+    """Returns whether local SQLite is explicitly enabled for tests."""
+    if has_app_context() and current_app.config.get("TESTING", False):
+        return True
+    return os.environ.get("SKYCOURT_ALLOW_LOCAL_SQLITE_TESTS") == "1"
 
 
 def _translate_driver_exception(e: Exception) -> Exception:
@@ -299,9 +331,11 @@ class LibSQLCursorWrapper:
 
 class LibSQLConnectionWrapper:
     """Wrapper for LibSQL Connection supporting row_factory, transaction management, context manager, and duck-typing."""
-    def __init__(self, real_connection):
+    def __init__(self, real_connection, database_target: Optional[str] = None, authenticated: bool = False):
         self._conn = real_connection
         self.row_factory = LibSQLRow
+        self.database_target = database_target
+        self.is_authenticated = authenticated
 
     def __enter__(self):
         return self
@@ -375,15 +409,25 @@ class LibSQLConnectionWrapper:
 def create_connection(database_target: Optional[str] = None, auth_token: Optional[str] = None):
     """
     Creates a new database connection based on configuration.
-    Supports local SQLite (:memory: or file path) and remote LibSQL.
+    Supports local SQLite only in explicit test mode and remote LibSQL in production.
     Always enforces PRAGMA foreign_keys = ON.
     """
     # 1. Target explicitly passed or in app config
     if database_target is None and has_app_context():
         database_target = current_app.config.get("DATABASE") or current_app.config.get("DATABASE_PATH")
 
-    # 2. Check if SQLite target requested (memory or local path)
-    if database_target and (database_target == ":memory:" or database_target.endswith(".db") or database_target.endswith(".sqlite") or "/" in database_target or "\\" in database_target):
+    # 2. Check if an explicit local SQLite target was requested. Remote URLs
+    # also contain slashes, so classify them before checking path-like values.
+    is_remote_target = bool(database_target) and database_target.lower().startswith(("libsql://", "https://", "wss://", "ws://"))
+    is_local_target = bool(database_target) and (
+        database_target == ":memory:"
+        or database_target.startswith("file:")
+        or database_target.endswith((".db", ".sqlite"))
+        or (not is_remote_target and ("/" in database_target or "\\" in database_target))
+    )
+    if is_local_target:
+        if not _local_sqlite_allowed():
+            raise DatabaseUnavailableError("Local SQLite databases are permitted only in explicit test mode.")
         conn = sqlite3.connect(database_target, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA foreign_keys = ON;")
@@ -394,12 +438,7 @@ def create_connection(database_target: Optional[str] = None, auth_token: Optiona
     token = auth_token or TURSO_AUTH_TOKEN
 
     if not LIBSQL_AVAILABLE:
-        # Fall back to sqlite3 in-memory if libsql not installed
-        logger.warning("libsql is unavailable. Falling back to local in-memory SQLite database.")
-        conn = sqlite3.connect(":memory:", check_same_thread=False)
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA foreign_keys = ON;")
-        return conn
+        raise DatabaseUnavailableError("The LibSQL driver is unavailable; cloud database access is disabled.")
 
     if not target_url or not token:
         raise DatabaseUnavailableError("Remote database target URL or auth token is missing.")
@@ -407,7 +446,7 @@ def create_connection(database_target: Optional[str] = None, auth_token: Optiona
     try:
         import libsql
         raw_conn = libsql.connect(target_url, auth_token=token)
-        wrapper = LibSQLConnectionWrapper(raw_conn)
+        wrapper = LibSQLConnectionWrapper(raw_conn, database_target=target_url, authenticated=True)
         wrapper.row_factory = LibSQLRow
         wrapper.execute("PRAGMA foreign_keys = ON;")
         return wrapper

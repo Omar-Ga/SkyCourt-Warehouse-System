@@ -269,27 +269,6 @@ export const ItemsManagement = ({
     }
   };
 
-  const handleBack = () => {
-    setSearchTerm('');
-    if (viewLevel === 'items') {
-      setSelectedSubCategory(null);
-      setItemPage(1);
-      setViewLevel('subCategories');
-      updateSessionState({
-        viewLevel: 'subCategories',
-        selectedSubCategory: null,
-        itemPage: 1
-      });
-    } else if (viewLevel === 'subCategories') {
-      setSelectedMainCategory(null);
-      setViewLevel('mainCategories');
-      updateSessionState({
-        viewLevel: 'mainCategories',
-        selectedMainCategory: null
-      });
-    }
-  };
-
   const invalidateData = (keys: string[], includeStatsAndLogs: boolean = false) => {
     keys.forEach(key => queryClient.invalidateQueries({ queryKey: [key] }));
     if (includeStatsAndLogs) {

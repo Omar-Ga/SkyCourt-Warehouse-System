@@ -119,8 +119,8 @@ def test_startup_schema_version_verification_rejects_outdated_db():
     conn.row_factory = sqlite3.Row
 
     with pytest.raises(IncompatibleSchemaError) as exc:
-        verify_schema_version(conn, required_version=3)
-    assert "Database schema version is 0, but version 3 is required" in str(exc.value)
+        verify_schema_version(conn, required_version=4)
+    assert "Database schema version is 0, but version 4 is required" in str(exc.value)
 
     conn.close()
 

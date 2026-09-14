@@ -6,12 +6,13 @@ legacy baseline detection, and interruption recovery.
 import hashlib
 import logging
 import re
+import sqlite3
 import sys
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-CURRENT_SCHEMA_VERSION = 3
+CURRENT_SCHEMA_VERSION = 4
 
 class MigrationError(Exception):
     """Base exception for migration errors."""
@@ -73,8 +74,9 @@ def split_sql_statements(sql: str) -> list[str]:
                 line = line[:comment_start]
         
         current_statement.append(line)
-        if line.strip().endswith(";"):
-            stmt = "\n".join(current_statement).strip()
+        candidate = "\n".join(current_statement).strip()
+        if line.strip().endswith(";") and sqlite3.complete_statement(candidate):
+            stmt = candidate
             if stmt:
                 statements.append(stmt)
             current_statement = []

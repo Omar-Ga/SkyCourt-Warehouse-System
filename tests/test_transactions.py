@@ -64,6 +64,7 @@ def test_adjust_stock_primitive_removal_conditional(migrated_db, sample_metadata
         item_id=item_id,
         change_amount=4,
         action_type="removal"
+        ,operation_key="op-removal-1"
     )
     assert result["resulting_quantity"] == 6
 
@@ -74,6 +75,7 @@ def test_adjust_stock_primitive_removal_conditional(migrated_db, sample_metadata
             item_id=item_id,
             change_amount=10,
             action_type="removal"
+            ,operation_key="op-removal-fail"
         )
 
 
@@ -149,7 +151,8 @@ def test_multi_line_atomic_rollback(migrated_db, sample_metadata):
             item_id=item1_id,
             change_amount=5,
             action_type="removal",
-            details="Line 1 of order"
+            details="Line 1 of order",
+            operation_key="op-multiline-1"
         )
 
         # Line 2: non-existent item ID 99999 -> raises ValueError
@@ -158,7 +161,8 @@ def test_multi_line_atomic_rollback(migrated_db, sample_metadata):
             item_id=99999,
             change_amount=3,
             action_type="removal",
-            details="Line 2 of order"
+            details="Line 2 of order",
+            operation_key="op-multiline-2"
         )
 
         migrated_db.commit()
@@ -191,7 +195,8 @@ def test_return_adds_stock_even_if_inactive_or_archived(migrated_db, sample_meta
         item_id=item_id,
         change_amount=3,
         action_type="return",
-        details="Ticket return"
+        details="Ticket return",
+        operation_key="op-return-1"
     )
 
     assert result["resulting_quantity"] == 3

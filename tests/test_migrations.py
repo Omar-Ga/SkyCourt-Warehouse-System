@@ -24,11 +24,11 @@ def test_fresh_install_migrations():
     conn.row_factory = sqlite3.Row
 
     applied = run_migrations(conn)
-    assert applied == [1, 2, 3]
+    assert applied == [1, 2, 3, 4]
 
     # Verify schema version
-    current_version = verify_schema_version(conn, required_version=3)
-    assert current_version == 3
+    current_version = verify_schema_version(conn, required_version=4)
+    assert current_version == 4
 
     # Verify all tables exist
     cursor = conn.cursor()
@@ -44,6 +44,12 @@ def test_fresh_install_migrations():
     for expected in expected_tables:
         assert expected in tables, f"Expected table '{expected}' missing from database"
 
+    cursor.execute("SELECT name FROM sqlite_master WHERE type='trigger'")
+    assert {row[0] for row in cursor.fetchall()} == {
+        "trg_prevent_movement_log_update",
+        "trg_prevent_movement_log_delete",
+    }
+
     conn.close()
 
 
@@ -54,14 +60,35 @@ def test_migrations_rerun_is_idempotent():
 
     # First run
     applied_first = run_migrations(conn)
-    assert applied_first == [1, 2, 3]
+    assert applied_first == [1, 2, 3, 4]
 
     # Second run
     applied_second = run_migrations(conn)
     assert applied_second == []
 
     # Schema version remains current
-    assert verify_schema_version(conn) == 3
+    assert verify_schema_version(conn) == 4
+    conn.close()
+
+
+def test_movement_logs_are_append_only_after_migration():
+    """Direct SQL cannot update or delete an audit log after migration 4."""
+    conn = sqlite3.connect(":memory:")
+    conn.row_factory = sqlite3.Row
+    run_migrations(conn)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO units (name) VALUES ('قطعة')")
+    unit_id = cursor.lastrowid
+    cursor.execute("INSERT INTO items (name, unit_id, current_quantity) VALUES ('سجل ثابت', ?, 1)", (unit_id,))
+    item_id = cursor.lastrowid
+    cursor.execute("INSERT INTO movement_logs (item_id, action_type) VALUES (?, 'Addition')", (item_id,))
+    conn.commit()
+
+    with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+        cursor.execute("UPDATE movement_logs SET action_type = 'Removal' WHERE item_id = ?", (item_id,))
+    conn.rollback()
+    with pytest.raises(sqlite3.IntegrityError, match="immutable"):
+        cursor.execute("DELETE FROM movement_logs WHERE item_id = ?", (item_id,))
     conn.close()
 
 
@@ -103,10 +130,10 @@ def test_upgrade_from_legacy_database():
 
     # 3. Run migrations on this legacy database
     applied = run_migrations(conn)
-    assert applied == [2, 3]  # Baselined 1, applied 2 and 3
+    assert applied == [2, 3, 4]  # Baselined 1, applied 2, 3, and 4
 
     # 4. Verify version
-    assert verify_schema_version(conn) == 3
+    assert verify_schema_version(conn) == 4
 
     # 5. Verify unmanaged table app_remote_settings survived intact
     cursor.execute("SELECT is_locked FROM app_remote_settings WHERE id = 1")

@@ -94,6 +94,8 @@ def add_item_route():
         return jsonify(e.to_dict()), 400
 
     idempotency_key = request.headers.get("Idempotency-Key") or request.headers.get("X-Idempotency-Key")
+    if not idempotency_key or not idempotency_key.strip():
+        return jsonify({"error": "Missing required Idempotency-Key header", "code": "MISSING_IDEMPOTENCY_KEY"}), 400
     db = get_db()
     actor_id = g.current_user["id"] if hasattr(g, "current_user") and g.current_user else None
     actor_name = g.current_user["display_name"] if hasattr(g, "current_user") and g.current_user else None
@@ -275,6 +277,8 @@ def adjust_item_quantity_route(item_id):
         return jsonify(e.to_dict()), 400
 
     idempotency_key = request.headers.get("Idempotency-Key") or request.headers.get("X-Idempotency-Key")
+    if not idempotency_key or not idempotency_key.strip():
+        return jsonify({"error": "Missing required Idempotency-Key header", "code": "MISSING_IDEMPOTENCY_KEY"}), 400
     db = get_db()
     actor_id = g.current_user["id"] if hasattr(g, "current_user") and g.current_user else None
     actor_name = g.current_user["display_name"] if hasattr(g, "current_user") and g.current_user else None

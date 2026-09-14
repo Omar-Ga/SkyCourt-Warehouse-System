@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS leave_orders (
     employee_name TEXT NOT NULL,
     destination_id INTEGER NOT NULL,
     destination_name TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'rejected', 'closed', 'partially_returned', 'cancelled')),
+    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'reconciliation', 'rejected', 'closed', 'partially_returned', 'cancelled')),
     notes TEXT,
     created_by INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -280,3 +280,15 @@ CREATE INDEX IF NOT EXISTS idx_mov_log_destination_id ON movement_logs (destinat
 CREATE INDEX IF NOT EXISTS idx_movement_logs_user_id ON movement_logs (user_id);
 CREATE INDEX IF NOT EXISTS idx_movement_logs_operation_key ON movement_logs (operation_key);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_mov_log_op_item_action ON movement_logs (operation_key, item_id, action_type) WHERE operation_key IS NOT NULL;
+
+CREATE TRIGGER IF NOT EXISTS trg_prevent_movement_log_update
+BEFORE UPDATE ON movement_logs
+BEGIN
+    SELECT RAISE(ABORT, 'Movement logs are immutable and cannot be updated');
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_prevent_movement_log_delete
+BEFORE DELETE ON movement_logs
+BEGIN
+    SELECT RAISE(ABORT, 'Movement logs are immutable and cannot be deleted');
+END;

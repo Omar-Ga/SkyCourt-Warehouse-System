@@ -127,6 +127,7 @@ def reject_leave_order_service(order_id, expected_revision, reason, actor_id, id
     if not key: raise ValidationError("Idempotency-Key header is required", "Idempotency-Key", "MISSING_IDEMPOTENCY_KEY")
     conn, owned = _transaction(db)
     try:
+        check_stock_mutation_allowed(conn)
         def action(order):
             if order["status"] != "open": raise StateConflictError("Only open tickets can be rejected", "INVALID_STATUS_TRANSITION")
             cursor = conn.cursor()
@@ -149,6 +150,7 @@ def resubmit_leave_order_service(order_id, expected_revision, actor_id, items=No
     if not key: raise ValidationError("Idempotency-Key header is required", "Idempotency-Key", "MISSING_IDEMPOTENCY_KEY")
     conn, owned = _transaction(db)
     try:
+        check_stock_mutation_allowed(conn)
         replay = reserve_operation(conn, key, "leave_order_resubmit", actor_id, compute_request_hash({"order_id": order_id, "expected_revision": expected_revision, "items": items, "notes": notes}))
         if replay.get("replayed"):
             return replay["response_body"]
@@ -184,6 +186,7 @@ def cancel_leave_order_service(order_id, expected_revision, actor_id, idempotenc
     if not key: raise ValidationError("Idempotency-Key header is required", "Idempotency-Key", "MISSING_IDEMPOTENCY_KEY")
     conn, owned = _transaction(db)
     try:
+        check_stock_mutation_allowed(conn)
         def cancel(order):
             if order["status"] != "rejected":
                 raise StateConflictError("Only rejected tickets can be cancelled", "INVALID_STATUS_TRANSITION")

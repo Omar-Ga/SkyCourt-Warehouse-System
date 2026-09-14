@@ -9,6 +9,9 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
+from app.config import TURSO_DATABASE_URL
+from app.models.db_utils import StagingSafetyError
+
 logger = logging.getLogger(__name__)
 
 CORE_TABLES = {
@@ -466,55 +469,104 @@ def compare_database_snapshots(baseline: Dict[str, Any], post_migration: Dict[st
     }
 
 
-def rehearse_staging_migration(conn: Any, migrations_dir: Optional[Path] = None) -> Dict[str, Any]:
+def _staging_target_identity(target: Any) -> Optional[str]:
+    """Returns a stable identity for a staging target when the driver exposes one."""
+    identity = getattr(target, "database_target", None)
+    if identity is None and isinstance(target, sqlite3.Connection):
+        try:
+            row = target.execute("PRAGMA database_list").fetchone()
+            if row and row[2] and row[2] != ":memory:":
+                identity = row[2]
+        except Exception:
+            identity = None
+    if identity is None and isinstance(target, (str, Path)):
+        target_string = str(target)
+        if target_string.lower().startswith(("libsql://", "https://", "wss://", "ws://")):
+            identity = target_string
+        else:
+            identity = str(Path(target_string).expanduser().resolve())
+    return str(identity).rstrip("/").lower() if identity else None
+
+
+def rehearse_staging_migration(
+    conn: Any,
+    clone_target: Any = None,
+    migrations_dir: Optional[Path] = None,
+) -> Dict[str, Any]:
     """
     Executes a complete staging migration rehearsal:
-    1. Inspects baseline staging copy
-    2. Takes an in-memory backup snapshot
-    3. Restores backup into validation connection and verifies 100% restore fidelity
-    4. Runs pending migrations on staging connection
+    1. Inspects the read-only source baseline
+    2. Requires an explicit disposable clone target
+    3. Copies the source into the clone and verifies 100% restore fidelity
+    4. Runs pending migrations on the clone only
     5. Inspects post-migration state
     6. Compares baseline to post-migration
     Returns full qualification report.
     """
     from app.migrations import run_migrations, verify_schema_version, CURRENT_SCHEMA_VERSION
 
+    if clone_target is None:
+        raise StagingSafetyError("An explicit disposable staging clone target is required.")
+    if clone_target is conn:
+        raise StagingSafetyError("The staging clone target must not be the source database connection.")
+
+    source_identity = _staging_target_identity(conn)
+    clone_identity = _staging_target_identity(clone_target)
+    production_identity = _staging_target_identity(TURSO_DATABASE_URL)
+    if clone_identity and production_identity and clone_identity == production_identity:
+        raise StagingSafetyError("The staging clone target must not be the configured production database.")
+    if source_identity and clone_identity and source_identity == clone_identity:
+        raise StagingSafetyError("The staging clone target must not identify the source database.")
+
     # 1. Baseline inspection
     baseline_snapshot = inspect_database(conn)
 
-    # 2. Rehearsal backup
-    backup_conn = sqlite3.connect(":memory:")
-    backup_conn.row_factory = sqlite3.Row
-    backup_database(conn, backup_conn)
+    # 2. Treat the source as read-only for the remainder of the rehearsal.
+    try:
+        conn.execute("PRAGMA query_only = ON")
+    except Exception as exc:
+        raise StagingSafetyError("The source database could not be placed in read-only mode.") from exc
 
-    # 3. Restore verification: restore backup into fresh validation connection
-    validation_conn = sqlite3.connect(":memory:")
-    validation_conn.row_factory = sqlite3.Row
-    restore_database(backup_conn, validation_conn)
-    restored_snapshot = inspect_database(validation_conn)
-    restore_comparison = compare_database_snapshots(baseline_snapshot, restored_snapshot)
-    validation_conn.close()
+    clone_conn = clone_target
+    should_close_clone = False
+    if isinstance(clone_target, (str, Path)):
+        clone_conn = sqlite3.connect(str(clone_target))
+        clone_conn.row_factory = sqlite3.Row
+        should_close_clone = True
 
-    # 4. Apply migrations
-    applied_versions = run_migrations(conn, migrations_dir=migrations_dir)
-    current_version = verify_schema_version(conn, required_version=CURRENT_SCHEMA_VERSION)
+    try:
+        # 3. Restore source into the explicitly supplied disposable clone.
+        backup_conn = sqlite3.connect(":memory:")
+        backup_conn.row_factory = sqlite3.Row
+        backup_database(conn, backup_conn)
+        restore_database(backup_conn, clone_conn)
+        backup_conn.close()
+        restored_snapshot = inspect_database(clone_conn)
+        restore_comparison = compare_database_snapshots(baseline_snapshot, restored_snapshot)
 
-    # 5. Post-migration inspection
-    post_snapshot = inspect_database(conn)
+        # 4. Apply migrations to the clone only.
+        applied_versions = run_migrations(clone_conn, migrations_dir=migrations_dir)
+        current_version = verify_schema_version(clone_conn, required_version=CURRENT_SCHEMA_VERSION)
 
-    # 6. Snapshot comparison
-    comparison = compare_database_snapshots(baseline_snapshot, post_snapshot)
-    comparison["applied_versions"] = applied_versions
-    comparison["current_version"] = current_version
-    comparison["restore_verified"] = restore_comparison["passed"]
-    if not restore_comparison["passed"]:
-        comparison["passed"] = False
-        comparison["discrepancies"].extend(
-            [f"Restore validation failure: {d}" for d in restore_comparison["discrepancies"]]
-        )
-
-    backup_conn.close()
-    return comparison
+        # 5-6. Inspect and compare the migrated clone.
+        post_snapshot = inspect_database(clone_conn)
+        comparison = compare_database_snapshots(baseline_snapshot, post_snapshot)
+        comparison["applied_versions"] = applied_versions
+        comparison["current_version"] = current_version
+        comparison["restore_verified"] = restore_comparison["passed"]
+        if not restore_comparison["passed"]:
+            comparison["passed"] = False
+            comparison["discrepancies"].extend(
+                [f"Restore validation failure: {d}" for d in restore_comparison["discrepancies"]]
+            )
+        return comparison
+    finally:
+        try:
+            conn.execute("PRAGMA query_only = OFF")
+        except Exception:
+            pass
+        if should_close_clone:
+            clone_conn.close()
 
 
 if __name__ == "__main__":
@@ -523,6 +575,7 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="SkyCourt Warehouse Staging Rehearsal Tool")
     parser.add_argument("--rehearse", action="store_true", help="Run full staging migration rehearsal")
+    parser.add_argument("--clone-target", help="Explicit disposable clone database path for rehearsal")
     parser.add_argument("--inspect", action="store_true", help="Inspect current database state")
     args = parser.parse_args()
 
@@ -538,7 +591,9 @@ if __name__ == "__main__":
             print(f"- Foreign Keys Valid: {snapshot['foreign_keys_valid']}")
             print(f"- Integrity Check Passed: {snapshot['integrity_check_passed']}")
         elif args.rehearse:
-            report = rehearse_staging_migration(conn)
+            if not args.clone_target:
+                parser.error("--clone-target is required with --rehearse")
+            report = rehearse_staging_migration(conn, clone_target=args.clone_target)
             print("Staging Rehearsal Report:")
             print(f"- Passed: {report['passed']}")
             print(f"- Applied Migrations: {report.get('applied_versions')}")

@@ -126,7 +126,7 @@ def list_leave_orders(cursor_or_db, page=1, page_size=20, status=None, search=No
         normalized = status.strip().lower()
         if normalized == "actionable":
             clauses.append("lo.status IN ('open', 'partially_returned')")
-        elif normalized in ("open", "rejected", "closed", "partially_returned", "cancelled"):
+        elif normalized in ("open", "reconciliation", "rejected", "closed", "partially_returned", "cancelled"):
             clauses.append("lo.status = ?")
             params.append(normalized)
     if search and search.strip():

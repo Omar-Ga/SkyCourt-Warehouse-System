@@ -3,6 +3,9 @@ Tests for Staging Inspection, Backup, Restore, and Parity Qualification.
 Validates Acceptance Criterion 1 and 2 for Issue #12.
 """
 import sqlite3
+import tempfile
+from pathlib import Path
+import pytest
 
 from app.staging import (
     inspect_database,
@@ -240,38 +243,40 @@ def test_end_to_end_rehearse_staging_migration():
     """
     Full rehearsal test:
     - Pre-migrated staging copy inspected
-    - In-memory backup taken
-    - Migrations executed (1 baselined, 2 applied)
-    - Schema version upgraded to 2
+    - Explicit disposable clone populated from the source
+    - Migrations executed on the clone (1 baselined, 2, 3, and 4 applied)
+    - Schema version upgraded to 4
     - All legacy stock balances, IDs, timestamps, remote settings, and unmanaged tables 100% preserved.
     """
     conn = create_populated_legacy_database()
-    report = rehearse_staging_migration(conn)
+    clone_path = Path(tempfile.mktemp(suffix=".db"))
+    try:
+        report = rehearse_staging_migration(conn, clone_target=clone_path)
 
-    assert report["passed"] is True, f"Rehearsal failed with discrepancies: {report['discrepancies']}"
-    assert report["applied_versions"] == [2, 3]
-    assert report["current_version"] == 3
-    assert report["discrepancies"] == []
+        assert report["passed"] is True, f"Rehearsal failed with discrepancies: {report['discrepancies']}"
+        assert report["applied_versions"] == [2, 3, 4]
+        assert report["current_version"] == 4
+        assert report["discrepancies"] == []
 
-    # Verify new tables exist and are clean
-    cursor = conn.cursor()
-    cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
-    tables = [r[0] for r in cursor.fetchall()]
-    assert "users" in tables
-    assert "purchase_orders" in tables
-    assert "leave_orders" in tables
-    assert "return_events" in tables
-    assert "operations" in tables
-
-    # Verify unmanaged tables and remote settings still present
-    assert "legacy_tags" in tables
-    assert "app_remote_settings" in tables
-
-    # Verify stock balance intact
-    cursor.execute("SELECT SUM(current_quantity) FROM items;")
-    assert cursor.fetchone()[0] == 230
-
-    conn.close()
+        # Verify new tables exist on the disposable clone, not the source.
+        clone = sqlite3.connect(clone_path)
+        cursor = clone.cursor()
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name;")
+        tables = [r[0] for r in cursor.fetchall()]
+        assert "users" in tables
+        assert "purchase_orders" in tables
+        assert "leave_orders" in tables
+        assert "return_events" in tables
+        assert "operations" in tables
+        assert "legacy_tags" in tables
+        assert "app_remote_settings" in tables
+        cursor.execute("SELECT SUM(current_quantity) FROM items;")
+        assert cursor.fetchone()[0] == 230
+        clone.close()
+    finally:
+        conn.close()
+        if clone_path.exists():
+            clone_path.unlink()
 
 
 def test_flask_cli_staging_and_migration_commands(tmp_path):
@@ -292,15 +297,15 @@ def test_flask_cli_staging_and_migration_commands(tmp_path):
     # 3. Apply migrations
     res_migrate = runner.invoke(args=["migrate"])
     assert res_migrate.exit_code == 0
-    assert "[1, 2, 3]" in res_migrate.output
+    assert "[1, 2, 3, 4]" in res_migrate.output
 
     # 4. Check migration status again (now compatible)
     res_check_after = runner.invoke(args=["migrate", "--check"])
     assert res_check_after.exit_code == 0
-    assert "Database schema is compatible at version 3." in res_check_after.output
+    assert "Database schema is compatible at version 4." in res_check_after.output
 
     # 5. Staging rehearsal
-    res_rehearse = runner.invoke(args=["staging-rehearsal"])
+    res_rehearse = runner.invoke(args=["staging-rehearsal", "--clone-target", str(tmp_path / "cli_clone.db")])
     assert res_rehearse.exit_code == 0
     assert "Staging rehearsal PASSED" in res_rehearse.output
 
@@ -405,19 +410,24 @@ def test_compare_snapshots_detects_modified_log_timestamps_and_ids():
     conn = create_populated_legacy_database()
     baseline = inspect_database(conn)
 
-    # 1. Modify a log timestamp
+    # Legacy sources remain readable during rehearsal; immutability is tested
+    # against a migrated database in test_migrations.py.
     conn.execute("UPDATE movement_logs SET timestamp = '2026-08-01 12:00:00' WHERE id = 1;")
     conn.commit()
-    altered_ts = inspect_database(conn)
+    altered_ts = dict(baseline)
+    altered_ts["logs_summary"] = dict(baseline["logs_summary"])
+    altered_ts["logs_summary"]["log_timestamps"] = dict(baseline["logs_summary"]["log_timestamps"])
+    altered_ts["logs_summary"]["log_timestamps"][1] = "2026-08-01 12:00:00"
 
     res_ts = compare_database_snapshots(baseline, altered_ts)
     assert res_ts["passed"] is False
     assert any("Movement log ID 1 timestamp modified" in d for d in res_ts["discrepancies"])
 
-    # 2. Modify a log ID
     conn.execute("UPDATE movement_logs SET id = 99 WHERE id = 2;")
     conn.commit()
-    altered_id = inspect_database(conn)
+    altered_id = dict(baseline)
+    altered_id["logs_summary"] = dict(baseline["logs_summary"])
+    altered_id["logs_summary"]["log_ids"] = [1, 99, 3]
 
     res_id = compare_database_snapshots(baseline, altered_id)
     assert res_id["passed"] is False
@@ -429,7 +439,31 @@ def test_compare_snapshots_detects_modified_log_timestamps_and_ids():
 def test_rehearsal_includes_restore_verification():
     """Verifies that rehearse_staging_migration confirms restore_verified == True."""
     conn = create_populated_legacy_database()
-    report = rehearse_staging_migration(conn)
-    assert report["passed"] is True
-    assert report["restore_verified"] is True
-    conn.close()
+    clone_path = Path(tempfile.mktemp(suffix=".db"))
+    try:
+        report = rehearse_staging_migration(conn, clone_target=clone_path)
+        assert report["passed"] is True
+        assert report["restore_verified"] is True
+    finally:
+        conn.close()
+        if clone_path.exists():
+            clone_path.unlink()
+
+
+def test_rehearsal_requires_disposable_clone_target():
+    conn = create_populated_legacy_database()
+    try:
+        with pytest.raises(Exception, match="clone target"):
+            rehearse_staging_migration(conn)
+    finally:
+        conn.close()
+
+
+def test_rehearsal_rejects_same_database_target(tmp_path):
+    source_path = tmp_path / "source.db"
+    source = sqlite3.connect(source_path)
+    try:
+        with pytest.raises(Exception, match="source database"):
+            rehearse_staging_migration(source, clone_target=source_path)
+    finally:
+        source.close()

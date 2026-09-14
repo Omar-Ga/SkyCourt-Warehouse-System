@@ -271,6 +271,41 @@ def test_api_route_idempotency_replay(client, sample_metadata):
     assert res_cross.get_json()["code"] == "IDEMPOTENCY_KEY_CONFLICT"
 
 
+def test_stock_mutations_require_idempotency_key(client, sample_metadata):
+    """Missing operation keys are rejected before item or stock mutation."""
+    payload = {
+        "name": "Missing Key Item",
+        "unit_id": sample_metadata["unit_id"],
+        "sub_category_id": sample_metadata["sub_category_id"],
+        "initial_quantity": 10,
+    }
+    response = client.post("/api/items", json=payload, headers={"Idempotency-Key": ""})
+    assert response.status_code == 400
+    assert response.get_json() == {
+        "error": "Missing required Idempotency-Key header",
+        "code": "MISSING_IDEMPOTENCY_KEY",
+    }
+
+    created = client.post(
+        "/api/items",
+        json=payload,
+        headers={"Idempotency-Key": "missing-key-follow-up"},
+    )
+    assert created.status_code == 201
+    item_id = created.get_json()["id"]
+
+    adjustment = client.post(
+        f"/api/items/{item_id}/adjust",
+        json={"change_amount": 1, "adjustment_type": "addition"},
+        headers={"X-Idempotency-Key": ""},
+    )
+    assert adjustment.status_code == 400
+    assert adjustment.get_json() == {
+        "error": "Missing required Idempotency-Key header",
+        "code": "MISSING_IDEMPOTENCY_KEY",
+    }
+
+
 def test_category_creation_idempotency(client, migrated_db):
     """Verifies that category creation requests carrying an Idempotency-Key are idempotent."""
     idem_key = "cat-create-key-001"
@@ -434,7 +469,6 @@ def test_put_and_delete_with_idempotency_headers(client):
 
     del_u = client.delete(f"/api/units/{u_id}", headers={"Idempotency-Key": "u-del"})
     assert del_u.status_code == 200
-
 
 
 

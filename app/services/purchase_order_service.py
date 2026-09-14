@@ -122,14 +122,15 @@ def _response(conn, po_id: int, role: str = "office") -> Dict[str, Any]:
 def create_purchase_order_service(provider_id: int, items: List[Dict[str, Any]], notes: Optional[str] = None,
                                   actor_id: Optional[int] = None, idempotency_key: Optional[str] = None,
                                   db: Optional[Any] = None) -> Dict[str, Any]:
+    conn = db or get_db()
     validate_positive_integer(provider_id, "provider_id")
     notes = validate_string(notes, "notes", 0, 500, True)
     if not idempotency_key or not str(idempotency_key).strip():
         raise ValidationError("Idempotency-Key header is required", "Idempotency-Key", "MISSING_IDEMPOTENCY_KEY")
     validate_positive_integer(actor_id, "actor_id")
-    conn = db or get_db()
     owned = db is None
     try:
+        check_stock_mutation_allowed(conn)
         validate_foreign_key(conn, "providers", provider_id, "provider_id")
         parsed = _parse_lines(conn, items)
         key = str(idempotency_key).strip()
@@ -184,6 +185,7 @@ def edit_purchase_order_service(po_id: int, provider_id: int, items: List[Dict[s
         raise ValidationError("Idempotency-Key header is required", "Idempotency-Key", "MISSING_IDEMPOTENCY_KEY")
     conn = db or get_db(); owned = db is None
     try:
+        check_stock_mutation_allowed(conn)
         po = purchase_order_model.get_purchase_order_by_id(conn, po_id)
         if not po: raise ValidationError("Purchase order not found", "po_id", "NOT_FOUND")
         if po["status"] != "draft": raise StateConflictError("Only draft purchase orders can be edited", "INVALID_STATUS_TRANSITION")
@@ -210,6 +212,7 @@ def dispatch_purchase_order_service(po_id: int, expected_revision: int, actor_id
     validate_positive_integer(po_id, "po_id"); validate_non_negative_integer(expected_revision, "expected_revision"); validate_positive_integer(actor_id, "actor_id")
     conn = db or get_db(); owned = db is None
     try:
+        check_stock_mutation_allowed(conn)
         po = purchase_order_model.get_purchase_order_by_id(conn, po_id)
         if not po: raise ValidationError("Purchase order not found", "po_id", "NOT_FOUND")
         if po["status"] != "draft": raise StateConflictError("Only drafts can be dispatched", "INVALID_STATUS_TRANSITION")
@@ -235,6 +238,7 @@ def void_purchase_order_service(po_id, expected_revision, reason, actor_id, idem
     reason = validate_string(reason, "reason", 1, 255); validate_positive_integer(actor_id, "actor_id")
     conn = db or get_db(); owned = db is None
     try:
+        check_stock_mutation_allowed(conn)
         key = (idempotency_key or "").strip()
         if not key: raise ValidationError("Idempotency-Key header is required", "Idempotency-Key", "MISSING_IDEMPOTENCY_KEY")
         replay = reserve_operation(conn, key, "purchase_order_void", actor_id, compute_request_hash({"po_id": po_id, "expected_revision": expected_revision, "reason": reason}))

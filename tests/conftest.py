@@ -5,8 +5,30 @@ import os
 import sqlite3
 import tempfile
 import pytest
+from flask.testing import FlaskClient
+
+# Local SQLite is an explicit test-only database target. Production code does
+# not enable this escape hatch and therefore fails closed to remote LibSQL.
+os.environ.setdefault("SKYCOURT_ALLOW_LOCAL_SQLITE_TESTS", "1")
+
 from app.main import create_app
 from app.migrations import run_migrations
+
+
+class TestMutationClient(FlaskClient):
+    """Supplies keys for legacy test callers while preserving missing-key tests."""
+
+    _operation_counter = 0
+
+    def open(self, *args, **kwargs):
+        path = args[0] if args else kwargs.get("path", "")
+        method = kwargs.get("method") or (args[1] if len(args) > 1 else "GET")
+        if method.upper() == "POST" and str(path).rstrip("/").startswith("/api/items"):
+            headers = kwargs.setdefault("headers", {})
+            if not any(key.lower() in ("idempotency-key", "x-idempotency-key") for key in headers):
+                type(self)._operation_counter += 1
+                headers["Idempotency-Key"] = f"test-auto-item-operation-{self._operation_counter}"
+        return super().open(*args, **kwargs)
 
 
 @pytest.fixture
@@ -45,6 +67,7 @@ def app(temp_db_path):
         "DATABASE": temp_db_path,
         "SECRET_KEY": "test-secret-key"
     })
+    application.test_client_class = TestMutationClient
     return application
 
 

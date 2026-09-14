@@ -14,6 +14,13 @@ from app.validation import (
     validate_foreign_key
 )
 
+
+def _require_operation_key(operation_key: Optional[str]) -> str:
+    """Requires a stable key for every client-initiated stock mutation."""
+    if not operation_key or not str(operation_key).strip():
+        raise ValueError("Missing required Idempotency-Key header")
+    return str(operation_key).strip()
+
 logger = logging.getLogger(__name__)
 
 
@@ -41,6 +48,7 @@ def adjust_stock_primitive(
     and records movement log entry within the caller's transaction.
     DOES NOT commit or rollback.
     """
+    operation_key = _require_operation_key(operation_key)
     check_stock_mutation_allowed(conn)
 
     validate_positive_integer(item_id, "item_id")
@@ -181,6 +189,7 @@ def add_item(
     db: Optional[Any] = None
 ) -> dict:
     """Orchestrates adding a new item with validation and audit logging."""
+    operation_key = _require_operation_key(operation_key)
     cleaned_name = validate_string(name, "name", min_len=1, max_len=150)
     validate_positive_integer(unit_id, "unit_id")
     validate_positive_integer(sub_category_id, "sub_category_id")
@@ -195,6 +204,7 @@ def add_item(
     caller_owned = db is not None
 
     try:
+        check_stock_mutation_allowed(conn)
         # Validate foreign keys exist
         validate_foreign_key(conn, "units", unit_id, "unit_id")
         validate_foreign_key(conn, "categories", sub_category_id, "sub_category_id")

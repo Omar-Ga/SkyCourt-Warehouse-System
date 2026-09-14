@@ -118,7 +118,7 @@ CREATE TABLE leave_orders_v3 (
     employee_name TEXT NOT NULL,
     destination_id INTEGER NOT NULL,
     destination_name TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'rejected', 'closed', 'partially_returned', 'cancelled')),
+    status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'reconciliation', 'rejected', 'closed', 'partially_returned', 'cancelled')),
     notes TEXT,
     created_by INTEGER NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -139,7 +139,7 @@ INSERT INTO leave_orders_v3 (
     created_by, created_at, revision, closed_by, closed_at, close_reason
 )
 SELECT id, order_number, employee_name, destination_id, destination_name,
-       CASE WHEN status = 'open' THEN 'closed' ELSE status END,
+        CASE WHEN status = 'open' THEN 'reconciliation' ELSE status END,
        notes, created_by, created_at, revision, closed_by, closed_at, close_reason
 FROM leave_orders;
 DROP TABLE leave_orders;
@@ -168,7 +168,7 @@ INSERT INTO leave_order_items_v3 (
     requested_quantity, dispensed_quantity, returned_quantity
 )
 SELECT id, leave_order_id, item_id, item_name, unit_id, unit_name,
-       quantity, quantity, returned_quantity
+        quantity, 0, 0
 FROM leave_order_items;
 DROP TABLE leave_order_items;
 ALTER TABLE leave_order_items_v3 RENAME TO leave_order_items;

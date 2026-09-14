@@ -321,12 +321,13 @@ def create_app(test_config=None) -> flask.Flask:
             conn.close()
 
     @application.cli.command("staging-rehearsal")
-    def staging_rehearsal_command():
+    @click.option("--clone-target", required=True, help="Explicit disposable clone database path or target.")
+    def staging_rehearsal_command(clone_target):
         """Runs a complete staging migration rehearsal and validates data preservation."""
         from app.staging import rehearse_staging_migration
         conn = get_db()
         try:
-            report = rehearse_staging_migration(conn)
+            report = rehearse_staging_migration(conn, clone_target=clone_target)
             if report["passed"]:
                 click.echo("Staging rehearsal PASSED. 100% preservation verified across all row counts, balances, IDs, and settings.")
                 click.echo(f"Applied migrations: {report.get('applied_versions')}, Schema version: {report.get('current_version')}")
