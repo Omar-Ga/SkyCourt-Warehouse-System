@@ -411,21 +411,21 @@ def ensure_windows_webview2_registry():
 
 
 def wait_for_server(url: str, timeout: float = 20.0) -> bool:
-    """Polls until the local Flask HTTP server responds with HTTP 200 before creating the webview window."""
+    """Polls until the server responds with HTTP 200 or 304 before creating the webview window."""
     import time
     import urllib.request
 
     start_time = time.time()
     while time.time() - start_time < timeout:
         try:
-            req = urllib.request.Request(url, method="HEAD")
+            req = urllib.request.Request(url, headers={"User-Agent": "SkyCourt-HealthCheck"})
             with urllib.request.urlopen(req, timeout=1.0) as resp:
-                if resp.status == 200:
-                    logger.info(f"Flask server ready at {url} in {time.time() - start_time:.2f}s.")
+                if resp.status in (200, 304):
+                    logger.info(f"Server ready at {url} in {time.time() - start_time:.2f}s.")
                     return True
         except Exception:
             time.sleep(0.15)
-    logger.warning(f"Flask server at {url} did not respond within {timeout}s.")
+    logger.warning(f"Server at {url} did not respond within {timeout}s.")
     return False
 
 
@@ -433,7 +433,7 @@ def run_flask():
     app.run(host=HOST, port=PORT, use_reloader=False, debug=False)
 
 
-def start_app():
+def start_app(target_url: str = None):
     # 1. Initialize Database & Verify Connectivity
     initialize_database()
 
@@ -452,8 +452,12 @@ def start_app():
     flask_thread.start()
 
     # 5. Wait for Flask HTTP server to be ready before opening WebView window
-    target_url = f"http://{HOST}:{PORT}/"
-    wait_for_server(target_url, timeout=20.0)
+    flask_url = f"http://{HOST}:{PORT}/"
+    wait_for_server(flask_url, timeout=20.0)
+
+    url_to_open = target_url or os.environ.get("VITE_DEV_URL") or os.environ.get("UI_URL") or flask_url
+    if url_to_open != flask_url:
+        wait_for_server(url_to_open, timeout=20.0)
 
     # 6. Start WebView Window with EdgeChromium
     import webview
@@ -473,7 +477,7 @@ def start_app():
 
     webview.create_window(
         "Warehouse Management System (نظام إدارة المستودعات)",
-        target_url,
+        url_to_open,
         width=1024,
         height=768,
         resizable=True,

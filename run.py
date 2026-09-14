@@ -69,10 +69,47 @@ def check_remote_lock(timeout: float = 3.0):
         logger.info(f"Remote lock check bypassed (fail-safe active): {e}")
 
 
+import atexit
+import subprocess
+import urllib.request
+
+
+def _is_server_reachable(url: str, timeout: float = 1.0) -> bool:
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "SkyCourt-HealthCheck"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status in (200, 304)
+    except Exception:
+        return False
+
+
 if __name__ == '__main__':
+    dev_mode = '--dev' in sys.argv or os.environ.get("SKYCOURT_DEV") == "1"
+    vite_proc = None
+    target_url = None
+
+    if dev_mode:
+        dev_url = "http://localhost:5173/"
+        target_url = dev_url
+        if not _is_server_reachable(dev_url):
+            ui_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "UI")
+            logger.info("Starting Vite development server (live HMR enabled)...")
+            vite_proc = subprocess.Popen(
+                ["npm", "run", "dev"],
+                cwd=ui_dir,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+
+            def _cleanup_vite():
+                if vite_proc and vite_proc.poll() is None:
+                    vite_proc.terminate()
+
+            atexit.register(_cleanup_vite)
+
     try:
         check_remote_lock()
-        start_app()
+        start_app(target_url=target_url)
     except Exception as e:
         import traceback
         log_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
@@ -92,4 +129,7 @@ if __name__ == '__main__':
                 ctypes.windll.user32.MessageBoxW(0, error_msg, "SkyCourt Warehouse - Startup Error", 0x10)
             except Exception:
                 pass
-        raise 
+        raise
+    finally:
+        if vite_proc and vite_proc.poll() is None:
+            vite_proc.terminate() 

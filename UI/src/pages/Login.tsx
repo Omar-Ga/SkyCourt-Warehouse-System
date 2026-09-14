@@ -134,7 +134,7 @@ export const Login: React.FC = () => {
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="أدخل اسم المستخدم"
-                className="w-full bg-[#f0f3f8] rounded-2xl border border-slate-200/90 px-5 py-4 text-right placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-600 transition-all text-slate-800 text-base lg:text-lg font-normal font-sans"
+                className="w-full h-14 bg-[#f0f3f8] rounded-2xl border border-slate-200/90 px-5 py-2 leading-normal text-right placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-600 transition-all text-slate-800 text-base lg:text-lg font-normal font-['Noto_Sans_Arabic',sans-serif]"
                 disabled={isSubmitting}
               />
             </div>
@@ -154,7 +154,7 @@ export const Login: React.FC = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="أدخل كلمة المرور"
-                className="w-full bg-[#f0f3f8] rounded-2xl border border-slate-200/90 px-5 py-4 text-right placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-600 transition-all text-slate-800 text-base lg:text-lg font-normal font-sans"
+                className="w-full h-14 bg-[#f0f3f8] rounded-2xl border border-slate-200/90 px-5 py-2 leading-normal text-right placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/25 focus:border-primary-600 transition-all text-slate-800 text-base lg:text-lg font-normal font-['Noto_Sans_Arabic',sans-serif]"
                 disabled={isSubmitting}
               />
             </div>
