@@ -1,5 +1,5 @@
-import { Sidebar } from './components/Sidebar';
-import { TopHeader } from './components/TopHeader';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { TopNavBar } from './components/TopNavBar';
 import { Dashboard } from './pages/Dashboard';
 import { ItemsManagement } from './pages/ItemsManagement';
 import { MovementLog } from './pages/MovementLog';
@@ -15,40 +15,22 @@ import { useAppContext } from './context/AppContext';
 import { useAuth } from './context/AuthContext';
 import { POReceiptModal } from './components/POReceiptModal';
 import { PODetailModal } from './components/PODetailModal';
-import { PageId, canAccessPage, normalizePageId } from './navigation';
+import { PageId, canAccessPage } from './navigation';
 import { useCapabilities } from './hooks/useCapabilities';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePrefetchMetadata } from './hooks/useMetadata';
 import { useAdaptiveSyncHeartbeat } from './hooks/useAdaptiveSyncHeartbeat';
 
-const PAGE_COMPONENTS: Record<PageId, React.ComponentType> = {
-  Dashboard,
-  Items: ItemsManagement,
-  PurchaseOrders,
-  DisbursementTickets,
-  POTickets,
-  LeaveOrders,
-  Logs: MovementLog,
-  Units: UnitManagement,
-  Destinations: DestinationManagement,
-  Providers: ProviderManagement,
-  Settings,
-};
-
-function PageComponent({ page, role }: { page: PageId; role: string | null }) {
-  // Defense-in-depth: disallow rendering unauthorized pages directly
+function ProtectedRoute({ page, element }: { page: PageId; element: React.ReactNode }) {
+  const { role } = useAuth();
   if (!role || !canAccessPage(role, page)) {
-    return <Dashboard />;
+    return <Navigate to="/" replace />;
   }
-
-  const canonical = normalizePageId(page) || 'Dashboard';
-  const Component = PAGE_COMPONENTS[canonical] || Dashboard;
-  return <Component />;
+  return <>{element}</>;
 }
 
 export const App = () => {
   const queryClient = useQueryClient();
-  const { role } = useAuth();
   const capabilities = useCapabilities();
 
   // Prefetch metadata (units, categories, providers, destinations) on app mount
@@ -58,23 +40,70 @@ export const App = () => {
   useAdaptiveSyncHeartbeat();
 
   const {
-    activePage,
     selectedPO,
     isPOReceiptModalOpen,
     closePOReceiptModal,
     isPODetailModalOpen,
     closePODetailModal,
-    setLastReceipt
+    setLastReceipt,
   } = useAppContext();
 
   return (
-    <div className="flex h-screen bg-surface-canvas font-sans" dir="rtl">
-      <Sidebar />
-      <main className="flex-1 flex flex-col overflow-hidden bg-surface-canvas">
-        <TopHeader />
-        <div className="flex-1 overflow-x-hidden overflow-y-auto p-6 lg:p-8">
-          <PageComponent page={activePage} role={role} />
-        </div>
+    <div className="flex flex-col h-screen w-full bg-surface-canvas font-sans overflow-hidden" dir="rtl">
+      <TopNavBar />
+      <main className="flex-1 w-full overflow-x-hidden overflow-y-auto p-4 sm:p-6 lg:p-8">
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route
+            path="/items"
+            element={<ProtectedRoute page="Items" element={<ItemsManagement />} />}
+          />
+          <Route
+            path="/items/category/:categoryId"
+            element={<ProtectedRoute page="Items" element={<ItemsManagement />} />}
+          />
+          <Route
+            path="/items/category/:categoryId/subcategory/:subCategoryId"
+            element={<ProtectedRoute page="Items" element={<ItemsManagement />} />}
+          />
+          <Route
+            path="/purchase-orders"
+            element={<ProtectedRoute page="PurchaseOrders" element={<PurchaseOrders />} />}
+          />
+          <Route
+            path="/disbursement-tickets"
+            element={<ProtectedRoute page="DisbursementTickets" element={<DisbursementTickets />} />}
+          />
+          <Route
+            path="/po-tickets"
+            element={<ProtectedRoute page="POTickets" element={<POTickets />} />}
+          />
+          <Route
+            path="/leave-orders"
+            element={<ProtectedRoute page="LeaveOrders" element={<LeaveOrders />} />}
+          />
+          <Route
+            path="/logs"
+            element={<ProtectedRoute page="Logs" element={<MovementLog />} />}
+          />
+          <Route
+            path="/units"
+            element={<ProtectedRoute page="Units" element={<UnitManagement />} />}
+          />
+          <Route
+            path="/destinations"
+            element={<ProtectedRoute page="Destinations" element={<DestinationManagement />} />}
+          />
+          <Route
+            path="/providers"
+            element={<ProtectedRoute page="Providers" element={<ProviderManagement />} />}
+          />
+          <Route
+            path="/settings"
+            element={<ProtectedRoute page="Settings" element={<Settings />} />}
+          />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       {/* Purchase Order Receipt Confirmation Modal (Warehouse / Admin) */}
@@ -114,3 +143,5 @@ export const App = () => {
     </div>
   );
 };
+
+export default App;

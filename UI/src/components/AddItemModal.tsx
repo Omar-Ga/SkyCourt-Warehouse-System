@@ -165,42 +165,42 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
       secondaryActionText="إلغاء"
       onSecondaryAction={onClose}
     >
-      {apiError && <p className="form-error bg-error-100 text-error-700 p-3 rounded-md mb-4">{apiError}</p>}
+      {apiError && <p className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium mb-4">{apiError}</p>}
       <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="form-group md:col-span-2">
-            <label htmlFor="name" className="form-label">اسم الصنف <span className="text-error-500">*</span></label>
+          <div className="mb-3.5 md:col-span-2">
+            <label htmlFor="name" className="block text-xs font-bold text-ink-700 mb-1.5">اسم الصنف <span className="text-rose-500">*</span></label>
             <input
               ref={nameInputRef}
               type="text"
               id="name"
-              className={`input ${errors.name ? 'border-error-500' : ''}`}
+              className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.name ? 'border-rose-500' : ''}`}
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="أدخل اسم الصنف"
             />
-            {errors.name && <p className="form-error">{errors.name}</p>}
+            {errors.name && <p className="mt-1 text-xs font-medium text-rose-600">{errors.name}</p>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="quantity" className="form-label">الكمية المبدئية <span className="text-error-500">*</span></label>
+          <div className="mb-3.5">
+            <label htmlFor="quantity" className="block text-xs font-bold text-ink-700 mb-1.5">الكمية المبدئية <span className="text-rose-500">*</span></label>
             <input
               type="number"
               id="quantity"
-              className={`input ${errors.quantity ? 'border-error-500' : ''}`}
+              className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.quantity ? 'border-rose-500' : ''}`}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="أدخل الكمية"
               min="0"
             />
-            {errors.quantity && <p className="form-error">{errors.quantity}</p>}
+            {errors.quantity && <p className="mt-1 text-xs font-medium text-rose-600">{errors.quantity}</p>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="unit" className="form-label">الوحدة <span className="text-error-500">*</span></label>
+          <div className="mb-3.5">
+            <label htmlFor="unit" className="block text-xs font-bold text-ink-700 mb-1.5">الوحدة <span className="text-rose-500">*</span></label>
             <select
               id="unit"
-              className={`select ${errors.unitId ? 'border-error-500' : ''}`}
+              className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.unitId ? 'border-rose-500' : ''}`}
               value={unitId}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setUnitId(e.target.value)}
             >
@@ -211,14 +211,14 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
                 </option>
               ))}
             </select>
-            {errors.unitId && <p className="form-error">{errors.unitId}</p>}
+            {errors.unitId && <p className="mt-1 text-xs font-medium text-rose-600">{errors.unitId}</p>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="provider" className="form-label">المورد</label>
+          <div className="mb-3.5">
+            <label htmlFor="provider" className="block text-xs font-bold text-ink-700 mb-1.5">المورد</label>
             <select
               id="provider"
-              className={`select ${errors.providerId ? 'border-error-500' : ''}`}
+              className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.providerId ? 'border-rose-500' : ''}`}
               value={providerId}
               onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setProviderId(e.target.value)}
             >
@@ -231,27 +231,27 @@ export const AddItemModal = ({ isOpen, onClose, units, onItemAdded, subCategoryI
             </select>
           </div>
 
-          <div className="form-group">
-            <label htmlFor="cost" className="form-label">التكلفة للوحدة</label>
+          <div className="mb-3.5">
+            <label htmlFor="cost" className="block text-xs font-bold text-ink-700 mb-1.5">التكلفة للوحدة</label>
             <input
               type="number"
               id="cost"
-              className={`input ${errors.cost ? 'border-error-500' : ''}`}
+              className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.cost ? 'border-rose-500' : ''}`}
               value={cost}
               onChange={(e) => setCost(e.target.value)}
               placeholder="أدخل التكلفة"
               min="0"
               step="0.01"
             />
-            {errors.cost && <p className="form-error">{errors.cost}</p>}
+            {errors.cost && <p className="mt-1 text-xs font-medium text-rose-600">{errors.cost}</p>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="personName" className="form-label">اسم الشخص</label>
+          <div className="mb-3.5">
+            <label htmlFor="personName" className="block text-xs font-bold text-ink-700 mb-1.5">اسم الشخص</label>
             <input
               type="text"
               id="personName"
-              className="input"
+              className="w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
               placeholder="أدخل اسم الشخص"

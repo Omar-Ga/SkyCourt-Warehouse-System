@@ -205,21 +205,21 @@ export const Modal = ({
 
   const content = (
     <div 
-      className="modal-backdrop animate-fade-in"
+      className="fixed inset-0 bg-ink-950/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fade-in"
       style={{ zIndex: backdropZIndex }}
       onMouseDown={handleBackdropMouseDown}
       onClick={handleBackdropClick}
     >
       <div 
         ref={modalRef}
-        className={`modal animate-scale-in ${sizeClasses[size]}`}
+        className={`bg-white rounded-2xl shadow-2xl p-6 max-w-2xl w-full mx-auto max-h-[90vh] overflow-y-auto border border-gray-100 animate-scale-in ${sizeClasses[size]}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby="modal-title"
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="modal-header">
+        <div className="border-b border-gray-100 pb-4 mb-5 flex items-center justify-between">
           <h2 id="modal-title" className="text-xl font-semibold m-0">{title}</h2>
           <button 
             type="button"
@@ -230,21 +230,25 @@ export const Modal = ({
             <X size={20} />
           </button>
         </div>
-        <div className="modal-content">
+        <div>
           {children}
         </div>
         {hasFooter && (
-          <div className="modal-footer">
+          <div className="border-t border-gray-100 pt-4 mt-5 flex justify-end space-x-2 space-x-reverse">
             {footer}
             {secondaryActionText && (
-              <button type="button" className="btn btn-outline" onClick={onSecondaryAction || onClose}>
+              <button
+                type="button"
+                className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+                onClick={onSecondaryAction || onClose}
+              >
                 {secondaryActionText}
               </button>
             )}
             {primaryActionText && (
               <button
                 type="button"
-                className="btn btn-primary"
+                className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
                 onClick={onPrimaryAction}
                 disabled={isPrimaryActionDisabled}
               >

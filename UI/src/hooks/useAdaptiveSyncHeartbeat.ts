@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from './useAuth';
 
-const ACTIVE_INTERVAL_MS = 12000; // 12 seconds when actively interacting (within 10-15s)
-const IDLE_INTERVAL_MS = 45000;   // 45 seconds when idle (within 30-60s)
+const ACTIVE_INTERVAL_MS = 30000; // 30 seconds when actively interacting (>= 30s)
+const IDLE_INTERVAL_MS = 60000;   // 60 seconds when idle (>= 60s)
 const IDLE_THRESHOLD_MS = 30000;  // 30 seconds without interaction considered idle
 
 /**
@@ -42,6 +42,9 @@ export const useAdaptiveSyncHeartbeat = () => {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+        return;
+      }
       const timeSinceActivity = Date.now() - lastActivityRef.current;
       const isIdle = timeSinceActivity >= IDLE_THRESHOLD_MS;
       const delay = isIdle ? IDLE_INTERVAL_MS : ACTIVE_INTERVAL_MS;
@@ -54,7 +57,6 @@ export const useAdaptiveSyncHeartbeat = () => {
 
       // Skip network fetches when app/tab is in the background
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
-        scheduleNext();
         return;
       }
 
@@ -75,6 +77,11 @@ export const useAdaptiveSyncHeartbeat = () => {
           clearTimeout(timerRef.current);
         }
         runHeartbeat();
+      } else if (document.visibilityState === 'hidden') {
+        if (timerRef.current) {
+          clearTimeout(timerRef.current);
+          timerRef.current = null;
+        }
       }
     };
 

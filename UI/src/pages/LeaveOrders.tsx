@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { CreateLeaveOrderModal } from '../components/CreateLeaveOrderModal';
 import { LeaveOrderDetailModal } from '../components/LeaveOrderDetailModal';
 import { formatSafeDate } from '../services/statsService';
+import { PageLayout } from '../components/PageLayout';
 
 export const LeaveOrders: React.FC = () => {
   const { user } = useAuth();
@@ -35,7 +36,24 @@ export const LeaveOrders: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
+    <PageLayout
+      title="أذونات الصرف"
+      subtitle="إصدار ومتابعة أذونات الصرف للأقسام والجهات وتتبع المتبقي بالخارج."
+      icon={<Send size={22} className="text-primary-600" />}
+      action={
+        canCreate && (
+          <button
+            type="button"
+            className="px-4 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer"
+            onClick={() => setIsCreateOpen(true)}
+          >
+            <Plus size={16} />
+            <span>إنشاء إذن صرف جديد</span>
+          </button>
+        )
+      }
+    >
+      <div className="space-y-6">
       {/* Top Action & Search Bar */}
       <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-xs flex flex-col md:flex-row justify-between items-stretch md:items-center gap-4">
         {/* Status Filters */}
@@ -56,7 +74,7 @@ export const LeaveOrders: React.FC = () => {
               }}
               className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 statusFilter === tab.value
-                  ? 'bg-brand-violet text-white shadow-xs'
+                  ? 'bg-primary-600 text-white shadow-xs'
                   : 'bg-slate-100 text-ink-700 hover:bg-slate-200'
               }`}
             >
@@ -70,7 +88,7 @@ export const LeaveOrders: React.FC = () => {
           <form onSubmit={handleSearchSubmit} className="relative w-full md:w-72">
             <input
               type="text"
-              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-4 py-2.5 pl-10 text-sm text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-4 py-2.5 pl-10 text-sm text-ink-900 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
               placeholder="بحث برقم الإذن، المستلم، أو الوجهة..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -82,17 +100,6 @@ export const LeaveOrders: React.FC = () => {
               <Search size={16} />
             </button>
           </form>
-
-          {canCreate && (
-            <button
-              type="button"
-              className="px-4 py-2.5 rounded-xl bg-brand-violet hover:bg-brand-violet-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors shrink-0 cursor-pointer"
-              onClick={() => setIsCreateOpen(true)}
-            >
-              <Plus size={16} />
-              <span>إنشاء إذن صرف جديد</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -100,7 +107,7 @@ export const LeaveOrders: React.FC = () => {
       <div className="bg-white rounded-2xl shadow-xs border border-gray-200 overflow-hidden">
         {isLoading ? (
           <div className="py-16 text-center text-ink-500">
-            <div className="inline-block w-8 h-8 border-3 border-brand-violet border-t-transparent rounded-full animate-spin mb-3" />
+            <div className="inline-block w-8 h-8 border-3 border-primary-600 border-t-transparent rounded-full animate-spin mb-3" />
             <p className="font-semibold text-sm">جاري تحميل أذونات الصرف...</p>
           </div>
         ) : isError ? (
@@ -110,7 +117,7 @@ export const LeaveOrders: React.FC = () => {
           </div>
         ) : orders.length === 0 ? (
           <div className="py-16 text-center text-ink-600">
-            <div className="w-14 h-14 rounded-2xl bg-purple-50 text-brand-violet border border-purple-100 flex items-center justify-center mx-auto mb-3">
+            <div className="w-14 h-14 rounded-2xl bg-primary-50 text-primary-600 border border-primary-100 flex items-center justify-center mx-auto mb-3">
               <Send size={28} />
             </div>
             <h4 className="text-base font-bold text-ink-900 mb-1">لا توجد أذونات صرف مطابقة للبحث أو الفلتر المحدد</h4>
@@ -185,7 +192,7 @@ export const LeaveOrders: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setSelectedOrderId(order.id)}
-                        className="btn btn-xs btn-outline flex items-center gap-1 mx-auto text-primary-600 border-primary-200 hover:bg-primary-50"
+                        className="h-7 px-2.5 rounded-lg text-xs font-semibold inline-flex items-center gap-1 mx-auto text-primary-600 border border-primary-200 hover:bg-primary-50 bg-white transition-colors cursor-pointer"
                       >
                         <Eye size={13} /> عرض التفاصيل
                       </button>
@@ -206,7 +213,7 @@ export const LeaveOrders: React.FC = () => {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="btn btn-xs btn-outline"
+                className="h-7 px-2.5 rounded-lg text-xs font-semibold inline-flex items-center justify-center transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
                 disabled={page <= 1}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
@@ -218,7 +225,7 @@ export const LeaveOrders: React.FC = () => {
               </span>
               <button
                 type="button"
-                className="btn btn-xs btn-outline"
+                className="h-7 px-2.5 rounded-lg text-xs font-semibold inline-flex items-center justify-center transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
                 disabled={page >= totalPages}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
@@ -247,6 +254,7 @@ export const LeaveOrders: React.FC = () => {
         isOpen={selectedOrderId !== null}
         onClose={() => setSelectedOrderId(null)}
       />
-    </div>
+      </div>
+    </PageLayout>
   );
 };

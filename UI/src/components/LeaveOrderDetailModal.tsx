@@ -211,7 +211,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
             {canReturn && (
               <button
                 type="button"
-                className="btn btn-primary bg-green-600 hover:bg-green-700 border-green-600 flex items-center gap-1"
+                className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
                 onClick={() => setIsReturnOpen(true)}
               >
                 <Undo2 size={16} />
@@ -223,7 +223,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
               <>
                 <button
                   type="button"
-                  className="btn btn-primary bg-brand-violet hover:bg-purple-700 flex items-center gap-1"
+                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
                   onClick={() => setIsEditingRejected(true)}
                 >
                   <Edit3 size={15} />
@@ -231,7 +231,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
                   onClick={handleResubmitAsIs}
                   disabled={resubmitMutation.isPending || cancelMutation.isPending}
                 >
@@ -239,7 +239,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline text-red-600 hover:bg-red-50"
+                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 shadow-2xs"
                   onClick={handleCancelOrder}
                   disabled={cancelMutation.isPending || resubmitMutation.isPending}
                 >
@@ -252,7 +252,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
               <>
                 <button
                   type="button"
-                  className="btn btn-primary bg-emerald-600 hover:bg-emerald-700"
+                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 hover:bg-primary-700 text-white shadow-xs"
                   onClick={handleSaveCorrectionAndResubmit}
                   disabled={resubmitMutation.isPending}
                 >
@@ -260,7 +260,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
                   onClick={() => setIsEditingRejected(false)}
                   disabled={resubmitMutation.isPending}
                 >
@@ -279,7 +279,11 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
             >
               <RefreshCw size={18} />
             </button>
-            <button type="button" className="btn btn-outline" onClick={onClose}>
+            <button
+              type="button"
+              className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+              onClick={onClose}
+            >
               إغلاق النافذة
             </button>
           </div>
@@ -381,9 +385,9 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                 {order.total_returned ?? 0}
               </span>
             </div>
-            <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-center">
-              <span className="text-xs font-bold text-brand-violet block mb-1">الرصيد المتبقي بالخارج</span>
-              <span className="text-xl font-extrabold text-brand-violet font-mono">
+            <div className="bg-primary-50 border border-primary-200 rounded-xl p-3 text-center">
+              <span className="text-xs font-bold text-primary-700 block mb-1">الرصيد المتبقي بالخارج</span>
+              <span className="text-xl font-extrabold text-primary-700 font-mono">
                 {order.remaining_quantity}
               </span>
             </div>
@@ -414,15 +418,15 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
 
           {/* F09: Editable Lines Mode for Rejected Request */}
           {isEditingRejected ? (
-            <div className="border border-purple-200 rounded-xl p-4 bg-purple-50/30 space-y-4">
+            <div className="border border-primary-200 rounded-xl p-4 bg-primary-50/30 space-y-4">
               <div className="flex items-center justify-between">
-                <h4 className="font-bold text-sm text-purple-900 flex items-center gap-1.5">
+                <h4 className="font-bold text-sm text-primary-900 flex items-center gap-1.5">
                   <Edit3 size={16} />
                   <span>تعديل بنود الإذن المرفوض تمهيداً لإعادة إرساله</span>
                 </h4>
                 <button
                   type="button"
-                  className="btn btn-xs btn-outline bg-white flex items-center gap-1"
+                  className="h-7 px-2.5 rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-1 bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs cursor-pointer"
                   onClick={() => setEditLines([...editLines, { item: null, quantity: '' }])}
                 >
                   <Plus size={13} /> إضافة بند
@@ -478,7 +482,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                         <input
                           type="number"
                           min="1"
-                          className="input w-full text-xs py-1.5 px-2 text-center"
+                          className="w-full text-xs py-1.5 px-2 text-center bg-white border border-gray-300 rounded-lg text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                           placeholder="الكمية"
                           value={line.quantity}
                           onChange={(e) => {
@@ -511,7 +515,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                 </label>
                 <input
                   type="text"
-                  className="input w-full text-xs"
+                  className="w-full h-9 px-3 py-1.5 text-xs bg-white border border-gray-300 rounded-xl text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                   placeholder="توضيح التعديلات المنفذة لمسؤول المخزن..."
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
@@ -543,7 +547,7 @@ export const LeaveOrderDetailModal: React.FC<LeaveOrderDetailModalProps> = ({
                         <td className="p-3 text-center font-bold text-gray-800">{item.requested_quantity}</td>
                         <td className="p-3 text-center font-bold text-emerald-700">{item.dispensed_quantity}</td>
                         <td className="p-3 text-center text-gray-600">{item.returned_quantity}</td>
-                        <td className="p-3 text-center font-bold text-brand-violet">{item.remaining_quantity}</td>
+                        <td className="p-3 text-center font-bold text-primary-700">{item.remaining_quantity}</td>
                         <td className="p-3">
                           <span
                             className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${

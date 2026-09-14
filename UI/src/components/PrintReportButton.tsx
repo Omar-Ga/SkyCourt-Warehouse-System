@@ -84,12 +84,12 @@ export const PrintReportButton: React.FC<PrintReportButtonProps> = ({ filters, d
       >
         {isPreparing ? (
           <>
-            <span className="w-3.5 h-3.5 border-2 border-brand-violet border-t-transparent rounded-full animate-spin"></span>
+            <span className="w-3.5 h-3.5 border-2 border-primary-600 border-t-transparent rounded-full animate-spin"></span>
             <span>جاري التحضير...</span>
           </>
         ) : (
           <>
-            <Printer size={16} className="text-brand-violet" />
+            <Printer size={16} className="text-primary-600" />
             <span>طباعة تقرير رسمي A4</span>
           </>
         )}

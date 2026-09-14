@@ -118,7 +118,7 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
     <>
       <button
         type="button"
-        className="btn btn-outline ml-2"
+        className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs ml-2"
         onClick={handleClose}
         disabled={isSaving}
       >
@@ -126,7 +126,7 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
       </button>
       <button
         type="button"
-        className="btn btn-primary disabled:opacity-70 disabled:cursor-not-allowed"
+        className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
         onClick={() => handleSubmit()}
         disabled={isSaving}
       >
@@ -145,62 +145,61 @@ export const EditItemModal = ({ isOpen, onClose, item, units, onItemUpdated }: E
       title={`تعديل الصنف: ${item.name}`}
       footer={footer}
     >
-      {errors.api && <p className="form-error bg-error-100 text-error-700 p-3 rounded-md mb-4">{errors.api}</p>}
+      {errors.api && <p className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium mb-4">{errors.api}</p>}
       <form id="edit-item-form" onSubmit={handleSubmit} noValidate>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="form-group md:col-span-2">
-            <label htmlFor="edit-name" className="form-label">اسم الصنف <span className="text-error-500">*</span></label>
+          <div className="mb-3.5 md:col-span-2">
+            <label htmlFor="edit-name" className="block text-xs font-bold text-ink-700 mb-1.5">اسم الصنف <span className="text-rose-500">*</span></label>
             <input
               type="text"
               id="edit-name"
-              className={`input ${errors.name ? 'border-error-500' : ''}`}
+              className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.name ? 'border-rose-500' : ''}`}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
-            {errors.name && <p className="form-error">{errors.name}</p>}
+            {errors.name && <p className="mt-1 text-xs font-medium text-rose-600">{errors.name}</p>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="edit-unit" className="form-label">وحدة القياس <span className="text-error-500">*</span></label>
+          <div className="mb-3.5">
+            <label htmlFor="edit-unit" className="block text-xs font-bold text-ink-700 mb-1.5">وحدة القياس <span className="text-rose-500">*</span></label>
             <select
               id="edit-unit"
-              className={`select ${errors.unitId ? 'border-error-500' : ''}`}
-              value={unitId} // unitId is string state for form
+              className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.unitId ? 'border-rose-500' : ''}`}
+              value={unitId}
               onChange={(e) => setUnitId(e.target.value)}
             >
               <option value="">اختر وحدة</option>
               {units.map((u) => (
-                <option key={u.id} value={String(u.id)}> {/* Ensure value is string for select options */}
+                <option key={u.id} value={String(u.id)}>
                   {u.name}
                 </option>
               ))}
             </select>
-            {errors.unitId && <p className="form-error">{errors.unitId}</p>}
+            {errors.unitId && <p className="mt-1 text-xs font-medium text-rose-600">{errors.unitId}</p>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="edit-personName" className="form-label">اسم المُعدِّل</label>
+          <div className="mb-3.5">
+            <label htmlFor="edit-personName" className="block text-xs font-bold text-ink-700 mb-1.5">اسم المُعدِّل</label>
             <input
               type="text"
               id="edit-personName"
-              className="input"
+              className="w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
               placeholder="أدخل اسمك"
             />
           </div>
 
-          <div className="form-group md:col-span-2">
-            <label className="form-label">الفئة</label>
+          <div className="mb-3.5 md:col-span-2">
+            <label className="block text-xs font-bold text-ink-700 mb-1.5">الفئة</label>
             <input
               type="text"
-              className="input bg-base-200"
+              className="w-full h-10 px-3.5 py-2 bg-slate-100 border border-gray-300 rounded-xl text-sm text-ink-700 cursor-not-allowed"
               disabled
               value={item.sub_category_name || 'N/A'}
             />
             <p className="text-xs text-gray-500 mt-1">لا يمكن تغيير الفئة من هنا. يرجى نقل الصنف إذا لزم الأمر.</p>
           </div>
-
         </div>
       </form>
     </Modal>

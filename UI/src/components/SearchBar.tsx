@@ -25,7 +25,7 @@ export const SearchBar = ({ onSearch, placeholder = "بحث..." }: SearchBarProp
       </div>
       <input
         type="text"
-        className="input pr-10 pl-4"
+        className="w-full h-10 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all pr-10 pl-4"
         placeholder={placeholder}
         value={query}
         onChange={(e) => setQuery(e.target.value)}

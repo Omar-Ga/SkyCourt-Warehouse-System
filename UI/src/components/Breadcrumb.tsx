@@ -43,21 +43,21 @@ export const Breadcrumb: React.FC<BreadcrumbProps> = ({ items, className = '' })
               <button
                 type="button"
                 onClick={item.onClick}
-                className="inline-flex items-center gap-1.5 text-ink-600 hover:text-brand-violet hover:bg-purple-50 px-2 py-1 rounded-lg transition-colors cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-brand-violet/20"
+                className="inline-flex items-center gap-1.5 text-ink-600 hover:text-primary-600 hover:bg-primary-50 px-2 py-1 rounded-lg transition-colors cursor-pointer focus:outline-hidden focus:ring-2 focus:ring-primary-500/20"
               >
-                {item.icon && <span className="shrink-0 text-brand-violet">{item.icon}</span>}
+                {item.icon && <span className="shrink-0 text-primary-600">{item.icon}</span>}
                 <span className="leading-none">{item.label}</span>
               </button>
             ) : (
               <span
                 className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg ${
                   isLast || item.isActive
-                    ? 'text-brand-violet font-bold bg-purple-50/60'
+                    ? 'text-primary-600 font-bold bg-primary-50/60'
                     : 'text-ink-700'
                 }`}
                 aria-current={isLast || item.isActive ? 'page' : undefined}
               >
-                {item.icon && <span className="shrink-0 text-brand-violet">{item.icon}</span>}
+                {item.icon && <span className="shrink-0 text-primary-600">{item.icon}</span>}
                 <span className="leading-none">{item.label}</span>
               </span>
             )}

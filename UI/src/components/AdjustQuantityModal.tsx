@@ -185,7 +185,7 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
     <>
       <button
         type="button"
-        className="btn btn-outline ml-2"
+        className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs ml-2"
         onClick={() => {
           onClose();
         }}
@@ -196,7 +196,7 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
       {action === 'remove' && (
         <button
           type="button"
-          className="btn bg-error-500 text-white hover:bg-error-600 ml-2 disabled:opacity-70 disabled:cursor-not-allowed"
+          className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs ml-2"
           onClick={() => handleSubmit('remove')}
           disabled={isSaving}
         >
@@ -207,7 +207,7 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
       {action === 'add' && (
         <button
           type="button"
-          className="btn bg-success-500 text-white hover:bg-success-600 disabled:opacity-70 disabled:cursor-not-allowed"
+          className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 hover:bg-primary-700 active:bg-primary-800 text-white shadow-xs"
           onClick={() => handleSubmit('add')}
           disabled={isSaving}
         >
@@ -240,14 +240,14 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
 
       <div className="flex justify-center my-4 space-x-2 space-x-reverse">
         <button
-          className={`btn w-1/2 text-white ${action === 'remove' ? 'bg-success-300' : 'bg-success-500'}`}
+          className={`h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer w-1/2 text-white ${action === 'remove' ? 'bg-emerald-300 hover:bg-emerald-400' : 'bg-emerald-600 hover:bg-emerald-700 shadow-xs'}`}
           onClick={() => handleActionClick('add')}
         >
           <ArrowUp size={16} className="ml-2" />
           إضافة رصيد
         </button>
         <button
-          className={`btn w-1/2 text-white ${action === 'add' ? 'bg-error-300' : 'bg-error-500'}`}
+          className={`h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer w-1/2 text-white ${action === 'add' ? 'bg-rose-300 hover:bg-rose-400' : 'bg-rose-600 hover:bg-rose-700 shadow-xs'}`}
           onClick={() => handleActionClick('remove')}
         >
           <ArrowDown size={16} className="ml-2" />
@@ -255,35 +255,35 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
         </button>
       </div>
 
-      {errors.api && <p className="form-error bg-error-100 text-error-700 p-3 rounded-md mb-4">{errors.api}</p>}
+      {errors.api && <p className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium mb-4">{errors.api}</p>}
 
       {action && (
         <div className="grid grid-cols-1 gap-4">
-          <div className="form-group">
-            <label htmlFor="quantity" className="form-label">
-              الكمية <span className="text-error-500">*</span>
+          <div className="mb-3.5">
+            <label htmlFor="quantity" className="block text-xs font-bold text-ink-700 mb-1.5">
+              الكمية <span className="text-rose-500">*</span>
             </label>
             <input
               type="number"
               id="quantity"
-              className={`input ${errors.quantity ? 'border-error-500' : ''}`}
+              className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.quantity ? 'border-rose-500' : ''}`}
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               placeholder="أدخل الكمية"
               min="1"
             />
-            {errors.quantity && <p className="form-error">{errors.quantity}</p>}
+            {errors.quantity && <p className="mt-1 text-xs font-medium text-rose-600">{errors.quantity}</p>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="personName" className="form-label flex items-center">
+          <div className="mb-3.5">
+            <label htmlFor="personName" className="block text-xs font-bold text-ink-700 mb-1.5 flex items-center">
               <User size={16} className="ml-1 text-gray-400 rtl:mr-1 rtl:ml-0" />
               اسم المستلم/المُسلِّم (اختياري)
             </label>
             <input
               type="text"
               id="personName"
-              className="input"
+              className="w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
               value={personName}
               onChange={(e) => setPersonName(e.target.value)}
               placeholder="أدخل الاسم"
@@ -293,18 +293,18 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
           {action === 'remove' && (
             <div className="border-t border-gray-200 pt-4 mt-2">
               <h3 className="text-gray-700 font-medium mb-3">معلومات السحب</h3>
-              <div className="form-group">
-                <label htmlFor="destination" className="form-label">
-                  الوجهة <span className="text-error-500">*</span>
+              <div className="mb-3.5">
+                <label htmlFor="destination" className="block text-xs font-bold text-ink-700 mb-1.5">
+                  الوجهة <span className="text-rose-500">*</span>
                 </label>
                 {destinationsLoading ? (
                   <p>جاري تحميل الوجهات...</p>
                 ) : destinationsError ? (
-                  <p className="form-error">{destinationsError}</p>
+                  <p className="mt-1 text-xs font-medium text-rose-600">{destinationsError}</p>
                 ) : (
                   <select
                     id="destination"
-                    className={`input ${errors.destination ? 'border-error-500' : ''}`}
+                    className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.destination ? 'border-rose-500' : ''}`}
                     value={selectedDestinationId}
                     onChange={(e) => setSelectedDestinationId(e.target.value)}
                   >
@@ -314,31 +314,31 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
                     ))}
                   </select>
                 )}
-                {errors.destination && <p className="form-error">{errors.destination}</p>}
+                {errors.destination && <p className="mt-1 text-xs font-medium text-rose-600">{errors.destination}</p>}
               </div>
             </div>
           )}
 
           {action === 'add' && (
             <>
-              <div className="form-group">
+              <div className="mb-3.5">
                 <h3 className="text-lg font-medium text-gray-800 mb-3 border-b pb-2">
                   معلومات الإضافة
                 </h3>
               </div>
 
-              <div className="form-group">
-                <label htmlFor="provider" className="form-label">
+              <div className="mb-3.5">
+                <label htmlFor="provider" className="block text-xs font-bold text-ink-700 mb-1.5">
                   المورد
                 </label>
                 {providersLoading ? (
                   <p>جاري تحميل الموردين...</p>
                 ) : providersError ? (
-                  <p className="form-error">{providersError}</p>
+                  <p className="mt-1 text-xs font-medium text-rose-600">{providersError}</p>
                 ) : (
                   <select
                     id="provider"
-                    className={`input ${errors.provider ? 'border-error-500' : ''}`}
+                    className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.provider ? 'border-rose-500' : ''}`}
                     value={selectedProviderId}
                     onChange={(e) => setSelectedProviderId(e.target.value)}
                   >
@@ -348,21 +348,21 @@ export const AdjustQuantityModal = ({ isOpen, onClose, item, onItemAdjusted }: A
                     ))}
                   </select>
                 )}
-                {errors.provider && <p className="form-error">{errors.provider}</p>}
+                {errors.provider && <p className="mt-1 text-xs font-medium text-rose-600">{errors.provider}</p>}
               </div>
 
-              <div className="form-group">
-                <label htmlFor="cost" className="form-label">التكلفة للوحدة</label>
+              <div className="mb-3.5">
+                <label htmlFor="cost" className="block text-xs font-bold text-ink-700 mb-1.5">التكلفة للوحدة</label>
                 <input
                   type="number"
                   id="cost"
-                  className={`input ${errors.cost ? 'border-error-500' : ''}`}
+                  className={`w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${errors.cost ? 'border-rose-500' : ''}`}
                   value={cost}
                   onChange={(e) => setCost(e.target.value)}
                   placeholder="أدخل التكلفة (اختياري)"
                   min="0"
                 />
-                {errors.cost && <p className="form-error">{errors.cost}</p>}
+                {errors.cost && <p className="mt-1 text-xs font-medium text-rose-600">{errors.cost}</p>}
               </div>
             </>
           )}

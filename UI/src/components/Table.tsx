@@ -3,117 +3,185 @@ import React from 'react';
 import { ChevronRight, ChevronLeft } from 'lucide-react';
 import { EmptyState } from './EmptyState';
 
-type TableProps = {
-  columns: {
-    key: string;
-    header: string;
-    render?: (value: any, row: any) => React.ReactNode;
-    width?: string;
-  }[];
-  data: any[];
-  keyField: string;
-  onRowClick?: (row: any) => void;
-  pagination?: {
-    currentPage: number;
-    totalPages: number;
-    onPageChange: (page: number) => void;
-    totalItems?: number;
-    itemsPerPage?: number;
-  };
-  isLoading?: boolean;
-  rowClassName?: (row: any) => string;
-  emptyState?: React.ReactNode;
+export type Column<T = any> = {
+  key: string;
+  header: string;
+  render?: (value: any, row: T, index: number) => React.ReactNode;
+  width?: string;
+  align?: 'right' | 'center' | 'left';
+  headerClassName?: string;
+  cellClassName?: string;
 };
 
-export const Table = ({ columns, data, keyField, onRowClick, pagination, isLoading, rowClassName, emptyState }: TableProps) => {
+export type TablePagination = {
+  currentPage: number;
+  totalPages: number;
+  onPageChange: (page: number) => void;
+  totalItems?: number;
+  itemsPerPage?: number;
+};
+
+export type TableProps<T = any> = {
+  columns: Column<T>[];
+  data: T[];
+  keyField: keyof T | string;
+  onRowClick?: (row: T) => void;
+  pagination?: TablePagination;
+  isLoading?: boolean;
+  skeletonRows?: number;
+  rowClassName?: (row: T) => string;
+  emptyState?: React.ReactNode;
+  emptyTitle?: string;
+  emptyDescription?: string;
+  emptyIcon?: React.ReactNode;
+  emptyActionLabel?: string;
+  emptyOnAction?: () => void;
+};
+
+export const resolveColumnAlignment = (align?: 'right' | 'center' | 'left'): string => {
+  if (align === 'center') return 'text-center';
+  if (align === 'left') return 'text-left';
+  return 'text-right';
+};
+
+export function Table<T extends Record<string, any>>({
+  columns,
+  data,
+  keyField,
+  onRowClick,
+  pagination,
+  isLoading,
+  skeletonRows = 5,
+  rowClassName,
+  emptyState,
+  emptyTitle,
+  emptyDescription,
+  emptyIcon,
+  emptyActionLabel,
+  emptyOnAction,
+}: TableProps<T>) {
   return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="table">
-          <thead>
+        <table className="min-w-full divide-y divide-gray-200 text-right text-xs">
+          <thead className="bg-surface-canvas text-ink-600 font-bold border-b border-gray-200">
             <tr>
               {columns.map((column) => (
                 <th
                   key={column.key}
-                  className={column.width ? `w-${column.width}` : ''}
+                  style={column.width ? { width: column.width } : undefined}
+                  className={`py-3.5 px-4 font-bold text-xs tracking-tight ${resolveColumnAlignment(column.align)} ${column.headerClassName || ''}`}
                 >
                   {column.header}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody>
-            {isLoading && (
-              <tr>
-                <td colSpan={columns.length} className="text-center py-8 text-gray-500">
-                  <div className="flex justify-center items-center">
-                    <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-primary-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    جاري التحميل...
-                  </div>
-                </td>
-              </tr>
-            )}
+          <tbody className="divide-y divide-gray-100 bg-white">
+            {isLoading &&
+              Array.from({ length: Math.max(0, skeletonRows) }).map((_, rIdx) => (
+                <tr key={`skeleton-${rIdx}`} className="animate-pulse">
+                  {columns.map((column, cIdx) => (
+                    <td key={`skeleton-cell-${cIdx}`} className={`py-3.5 px-4 ${resolveColumnAlignment(column.align)}`}>
+                      <div
+                        className={`h-4 bg-slate-200 rounded-md animate-pulse ${
+                          column.align === 'center'
+                            ? 'mx-auto w-12'
+                            : column.align === 'left'
+                            ? 'w-16'
+                            : 'w-3/4'
+                        }`}
+                      />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+
             {!isLoading && data.length === 0 && (
               <tr>
                 <td colSpan={columns.length} className="p-0 border-none">
                   {emptyState || (
                     <EmptyState
-                      title="لا توجد بيانات للعرض"
-                      description="لم يتم العثور على أي عناصر مسجلة في هذا الجدول."
+                      title={emptyTitle || 'لا توجد بيانات للعرض'}
+                      description={emptyDescription || 'لم يتم العثور على أي عناصر مسجلة في هذا الجدول.'}
+                      icon={emptyIcon}
+                      actionLabel={emptyActionLabel}
+                      onAction={emptyOnAction}
                     />
                   )}
                 </td>
               </tr>
             )}
-            {!isLoading && data.map((row) => (
-              <tr
-                key={row[keyField]}
-                onClick={() => onRowClick && onRowClick(row)}
-                className={`${onRowClick ? 'cursor-pointer' : ''} ${rowClassName ? rowClassName(row) : ''} hover:bg-base-200 transition-colors`}
-              >
-                {columns.map((column) => (
-                  <td key={`${row[keyField]}-${column.key}`}>
-                    {column.render
-                      ? column.render(row[column.key], row)
-                      : row[column.key]}
-                  </td>
-                ))}
-              </tr>
-            ))}
+
+            {!isLoading &&
+              data.map((row, index) => (
+                <tr
+                  key={String(row[keyField] ?? index)}
+                  onClick={() => onRowClick && onRowClick(row)}
+                  className={`hover:bg-slate-50/80 transition-colors ${
+                    onRowClick ? 'cursor-pointer' : ''
+                  } ${rowClassName ? rowClassName(row) : ''}`}
+                >
+                  {columns.map((column) => (
+                    <td
+                      key={`${String(row[keyField] ?? index)}-${column.key}`}
+                      className={`py-3.5 px-4 text-xs text-ink-900 ${resolveColumnAlignment(column.align)} ${
+                        column.cellClassName || ''
+                      }`}
+                    >
+                      {column.render
+                        ? column.render(row[column.key], row, index)
+                        : row[column.key]}
+                    </td>
+                  ))}
+                </tr>
+              ))}
           </tbody>
         </table>
       </div>
 
-      {pagination && pagination.totalPages > 1 && (
-        <div className="py-3 px-4 border-t flex justify-start items-center gap-4">
-          <div className="text-sm text-black">
-            {pagination.itemsPerPage && pagination.totalItems !== undefined ? (
-              `عرض ${Math.min((pagination.currentPage - 1) * pagination.itemsPerPage + 1, pagination.totalItems)} - ${Math.min(pagination.currentPage * pagination.itemsPerPage, pagination.totalItems)} من ${pagination.totalItems} نتيجة`
+      {pagination && (pagination.totalPages > 1 || (pagination.totalItems !== undefined && pagination.totalItems > 0)) && (
+        <div className="py-3 px-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-ink-500">
+          <div>
+            {pagination.totalItems !== undefined ? (
+              <>
+                إجمالي النتائج: <strong className="text-ink-900">{pagination.totalItems}</strong> • الصفحة{' '}
+                <strong className="text-ink-900">{pagination.currentPage}</strong> من{' '}
+                <strong className="text-ink-900">{pagination.totalPages || 1}</strong>
+              </>
             ) : (
-              `صفحة ${pagination.currentPage} من ${pagination.totalPages}`
+              <>
+                الصفحة <strong className="text-ink-900">{pagination.currentPage}</strong> من{' '}
+                <strong className="text-ink-900">{pagination.totalPages}</strong>
+              </>
             )}
           </div>
-          <div className="flex gap-2">
-            <button
-              className="btn btn-primary btn-sm"
-              disabled={pagination.currentPage === 1}
-              onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
-            >
-              <ChevronRight size={16} />
-            </button>
-            <button
-              className="btn btn-primary btn-sm"
-              disabled={pagination.currentPage === pagination.totalPages}
-              onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
-            >
-              <ChevronLeft size={16} />
-            </button>
-          </div>
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1"
+                disabled={pagination.currentPage <= 1}
+                onClick={() => pagination.onPageChange(pagination.currentPage - 1)}
+              >
+                <ChevronRight size={14} />
+                <span>السابق</span>
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1.5 rounded-xl bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 text-xs font-semibold disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer flex items-center gap-1"
+                disabled={pagination.currentPage >= pagination.totalPages}
+                onClick={() => pagination.onPageChange(pagination.currentPage + 1)}
+              >
+                <span>التالي</span>
+                <ChevronLeft size={14} />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
   );
-};
+}
+
+export default Table;

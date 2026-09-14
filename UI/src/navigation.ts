@@ -26,6 +26,22 @@ export const PAGES: Record<string, PageId> = {
   SETTINGS: 'Settings',
 };
 
+export const PAGE_ROUTES: Record<PageId, string> = {
+  Dashboard: '/',
+  Items: '/items',
+  PurchaseOrders: '/purchase-orders',
+  DisbursementTickets: '/disbursement-tickets',
+  POTickets: '/po-tickets',
+  LeaveOrders: '/leave-orders',
+  Logs: '/logs',
+  Units: '/units',
+  Destinations: '/destinations',
+  Providers: '/providers',
+  Settings: '/settings',
+};
+
+export const CANONICAL_PAGE_ROUTES = PAGE_ROUTES;
+
 export type Role = 'office' | 'warehouse' | 'admin';
 
 export const ROLE_PAGE_PERMISSIONS: Record<Role, PageId[]> = {
@@ -292,4 +308,166 @@ export const getNavigationGroupsForRole = (role?: Role | string | null): Resolve
     };
   }).filter((group) => group.items.length > 0);
 };
+
+export interface ParsedRoute {
+  pageId: PageId | null;
+  path: string;
+  categoryId?: number;
+  subCategoryId?: number;
+  queryParams: Record<string, string>;
+}
+
+export function resolveRoute(rawPath: string): ParsedRoute {
+  const [pathOnly, queryString] = rawPath.split('?');
+  const normalizedPath = pathOnly.replace(/\/+$/, '') || '/';
+  const queryParams: Record<string, string> = {};
+
+  if (queryString) {
+    const params = new URLSearchParams(queryString);
+    for (const [key, value] of params.entries()) {
+      queryParams[key] = value;
+    }
+  }
+
+  // Exact canonical match
+  for (const [pageId, routePath] of Object.entries(CANONICAL_PAGE_ROUTES) as [PageId, string][]) {
+    if (normalizedPath === routePath) {
+      return { pageId, path: normalizedPath, queryParams };
+    }
+  }
+
+  // Hierarchical Items matching: /items/category/:categoryId/subcategory/:subCategoryId
+  const subCategoryMatch = normalizedPath.match(/^\/items\/category\/(\d+)\/subcategory\/(\d+)$/);
+  if (subCategoryMatch) {
+    return {
+      pageId: 'Items',
+      path: normalizedPath,
+      categoryId: parseInt(subCategoryMatch[1], 10),
+      subCategoryId: parseInt(subCategoryMatch[2], 10),
+      queryParams,
+    };
+  }
+
+  // Hierarchical Items matching: /items/category/:categoryId
+  const categoryMatch = normalizedPath.match(/^\/items\/category\/(\d+)$/);
+  if (categoryMatch) {
+    return {
+      pageId: 'Items',
+      path: normalizedPath,
+      categoryId: parseInt(categoryMatch[1], 10),
+      queryParams,
+    };
+  }
+
+  // Fallback for non-numeric or invalid nested items paths
+  if (normalizedPath.startsWith('/items/')) {
+    return {
+      pageId: 'Items',
+      path: '/items',
+      queryParams,
+    };
+  }
+
+  return { pageId: null, path: normalizedPath, queryParams };
+}
+
+export function buildRoute(
+  pageId: PageId,
+  options?: { categoryId?: number; subCategoryId?: number; query?: Record<string, string> }
+): string {
+  let base = CANONICAL_PAGE_ROUTES[pageId];
+  if (pageId === 'Items' && options?.categoryId) {
+    base = `/items/category/${options.categoryId}`;
+    if (options.subCategoryId) {
+      base += `/subcategory/${options.subCategoryId}`;
+    }
+  }
+  if (options?.query && Object.keys(options.query).length > 0) {
+    const searchParams = new URLSearchParams(options.query);
+    return `${base}?${searchParams.toString()}`;
+  }
+  return base;
+}
+
+export interface ResolvedTopNavGroup {
+  id: string;
+  title: string;
+  items: Array<{
+    pageId: PageId;
+    title: string;
+    path: string;
+  }>;
+}
+
+export function resolveTopNavGroupsForRole(role?: Role | string | null): ResolvedTopNavGroup[] {
+  if (!role) return [];
+  const validRole = role.trim().toLowerCase() as Role;
+  if (!Object.prototype.hasOwnProperty.call(ROLE_PAGE_PERMISSIONS, validRole)) return [];
+
+  const groups = [
+    {
+      id: 'stockOperations',
+      title: 'عمليات المخزون',
+      items: [
+        { pageId: 'Dashboard' as PageId, title: 'الرئيسية' },
+        { pageId: 'Items' as PageId, title: validRole === 'office' ? 'دليل الأصناف' : 'إدارة الأصناف' },
+        { pageId: 'DisbursementTickets' as PageId, title: 'تذاكر الصرف' },
+        { pageId: 'POTickets' as PageId, title: 'تذاكر أوامر الشراء' },
+      ],
+    },
+    {
+      id: 'ordersDocuments',
+      title: 'الأوامر والمستندات',
+      items: [
+        { pageId: 'PurchaseOrders' as PageId, title: 'أوامر الشراء' },
+        { pageId: 'LeaveOrders' as PageId, title: 'أذونات الصرف' },
+      ],
+    },
+    {
+      id: 'masterData',
+      title: 'البيانات الأساسية',
+      items: [
+        { pageId: 'Units' as PageId, title: 'إدارة الوحدات' },
+        { pageId: 'Destinations' as PageId, title: 'إدارة الوجهات' },
+        { pageId: 'Providers' as PageId, title: 'إدارة الموردين' },
+      ],
+    },
+    {
+      id: 'systemReports',
+      title: 'النظام والتقارير',
+      items: [
+        { pageId: 'Logs' as PageId, title: validRole === 'office' ? 'تقارير الحركات' : 'سجل الحركات' },
+        { pageId: 'Settings' as PageId, title: 'إعدادات النظام' },
+      ],
+    },
+  ];
+
+  return groups
+    .map((group) => {
+      const allowedItems = group.items
+        .filter((item) => canAccessPage(validRole, item.pageId))
+        .map((item) => ({
+          pageId: item.pageId,
+          title: item.title,
+          path: CANONICAL_PAGE_ROUTES[item.pageId],
+        }));
+
+      return {
+        id: group.id,
+        title: group.title,
+        items: allowedItems,
+      };
+    })
+    .filter((group) => group.items.length > 0);
+}
+
+export function getSyncIndicator(isOnline: boolean) {
+  return {
+    isCompactIcon: true,
+    hasPersistentTextPill: false,
+    tooltip: isOnline ? 'متصل بالسحابة' : 'غير متصل',
+    status: isOnline ? 'connected' : 'disconnected',
+    colorClass: isOnline ? 'text-status-success' : 'text-status-danger',
+  };
+}
 

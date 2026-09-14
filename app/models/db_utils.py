@@ -5,7 +5,9 @@ and compatibility adapters for SQLite and LibSQL.
 """
 import logging
 import os
+import queue
 import sqlite3
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Any, Callable, Optional
@@ -250,6 +252,15 @@ class LibSQLCursorWrapper:
         if hasattr(self._cursor, "arraysize"):
             self._cursor.arraysize = val
 
+    def _flag_broken(self, exc: Exception) -> Exception:
+        translated = _translate_driver_exception(exc)
+        if isinstance(translated, DatabaseUnavailableError):
+            if hasattr(self._conn_wrapper, "_is_broken"):
+                self._conn_wrapper._is_broken = True
+            if hasattr(self._conn_wrapper, "_real_conn") and getattr(self._conn_wrapper, "_real_conn"):
+                self._conn_wrapper._real_conn._is_broken = True
+        return translated
+
     def execute(self, sql, parameters=()):
         try:
             if isinstance(self._cursor, sqlite3.Cursor):
@@ -261,7 +272,7 @@ class LibSQLCursorWrapper:
             self._last_rowcount = curr_rc - prev_rc if curr_rc >= prev_rc else curr_rc
             return self
         except Exception as e:
-            raise _translate_driver_exception(e) from e
+            raise self._flag_broken(e) from e
 
     def executemany(self, sql, seq_of_parameters):
         try:
@@ -274,20 +285,20 @@ class LibSQLCursorWrapper:
             self._last_rowcount = curr_rc - prev_rc if curr_rc >= prev_rc else curr_rc
             return self
         except Exception as e:
-            raise _translate_driver_exception(e) from e
+            raise self._flag_broken(e) from e
 
     def executescript(self, script):
         try:
             self._cursor.executescript(script)
             return self
         except Exception as e:
-            raise _translate_driver_exception(e) from e
+            raise self._flag_broken(e) from e
 
     def fetchone(self):
         try:
             row = self._cursor.fetchone()
         except Exception as e:
-            raise _translate_driver_exception(e) from e
+            raise self._flag_broken(e) from e
         if row is None:
             return None
         if self._conn_wrapper.row_factory:
@@ -301,7 +312,7 @@ class LibSQLCursorWrapper:
             else:
                 rows = self._cursor.fetchmany(size)
         except Exception as e:
-            raise _translate_driver_exception(e) from e
+            raise self._flag_broken(e) from e
         if self._conn_wrapper.row_factory:
             return [self._conn_wrapper.row_factory(self, r) for r in rows]
         return rows
@@ -310,7 +321,7 @@ class LibSQLCursorWrapper:
         try:
             rows = self._cursor.fetchall()
         except Exception as e:
-            raise _translate_driver_exception(e) from e
+            raise self._flag_broken(e) from e
         if self._conn_wrapper.row_factory:
             return [self._conn_wrapper.row_factory(self, r) for r in rows]
         return rows
@@ -323,7 +334,7 @@ class LibSQLCursorWrapper:
                 else:
                     yield row
         except Exception as e:
-            raise _translate_driver_exception(e) from e
+            raise self._flag_broken(e) from e
 
     def close(self):
         self._cursor.close()
@@ -336,6 +347,13 @@ class LibSQLConnectionWrapper:
         self.row_factory = LibSQLRow
         self.database_target = database_target
         self.is_authenticated = authenticated
+        self._is_broken = False
+
+    def _flag_broken(self, exc: Exception) -> Exception:
+        translated = _translate_driver_exception(exc)
+        if isinstance(translated, DatabaseUnavailableError):
+            self._is_broken = True
+        return translated
 
     def __enter__(self):
         return self
@@ -379,13 +397,13 @@ class LibSQLConnectionWrapper:
         try:
             self._conn.commit()
         except Exception as e:
-            raise _translate_driver_exception(e) from e
+            raise self._flag_broken(e) from e
 
     def rollback(self):
         try:
             self._conn.rollback()
         except Exception as e:
-            raise _translate_driver_exception(e) from e
+            raise self._flag_broken(e) from e
 
     def close(self):
         self._conn.close()
@@ -406,9 +424,371 @@ class LibSQLConnectionWrapper:
         return c
 
 
+class PooledConnection(LibSQLConnectionWrapper):
+    """
+    Proxy wrapping a persistent LibSQLConnectionWrapper.
+    Safely delegates operations to the underlying connection and returns it
+    to the pool upon close() without severing the remote transport socket.
+    """
+    def __init__(self, pool: 'LibSQLConnectionPool', real_conn: LibSQLConnectionWrapper):
+        self._pool = pool
+        self._real_conn = real_conn
+        self._closed = False
+        super().__init__(
+            real_conn._conn,
+            database_target=getattr(real_conn, "database_target", None),
+            authenticated=getattr(real_conn, "is_authenticated", False)
+        )
+        self.row_factory = getattr(real_conn, "row_factory", LibSQLRow)
+        self._is_broken = getattr(real_conn, "_is_broken", False)
+
+    def _check_closed(self):
+        if self._closed or self._real_conn is None:
+            raise sqlite3.ProgrammingError("Cannot operate on a closed connection.")
+
+    def close(self):
+        if not self._closed and self._pool is not None and self._real_conn is not None:
+            self._closed = True
+            pool = self._pool
+            conn = self._real_conn
+            self._pool = None
+            self._real_conn = None
+            if getattr(self, "_is_broken", False):
+                conn._is_broken = True
+            pool.release(conn)
+
+    def __del__(self):
+        try:
+            self.close()
+        except Exception:
+            pass
+
+    def __enter__(self):
+        self._check_closed()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self._closed:
+            return
+        if exc_type is not None:
+            try:
+                self.rollback()
+            except Exception:
+                pass
+        else:
+            try:
+                self.commit()
+            except Exception:
+                pass
+
+    @property
+    def in_transaction(self) -> bool:
+        self._check_closed()
+        return getattr(self._conn, "in_transaction", False)
+
+    @property
+    def isolation_level(self):
+        self._check_closed()
+        return getattr(self._conn, "isolation_level", None)
+
+    @isolation_level.setter
+    def isolation_level(self, val):
+        self._check_closed()
+        if hasattr(self._conn, "isolation_level"):
+            self._conn.isolation_level = val
+
+    @property
+    def autocommit(self):
+        self._check_closed()
+        return getattr(self._conn, "autocommit", False)
+
+    @autocommit.setter
+    def autocommit(self, val):
+        self._check_closed()
+        if hasattr(self._conn, "autocommit"):
+            self._conn.autocommit = val
+
+    def sync(self):
+        self._check_closed()
+        if hasattr(self._conn, "sync"):
+            return self._conn.sync()
+
+    def cursor(self):
+        self._check_closed()
+        return LibSQLCursorWrapper(self._conn.cursor(), self)
+
+    def commit(self):
+        self._check_closed()
+        try:
+            self._real_conn.commit()
+        except Exception as e:
+            translated = self._flag_broken(e)
+            if self._real_conn is not None and getattr(self, "_is_broken", False):
+                self._real_conn._is_broken = True
+            raise translated from e
+
+    def rollback(self):
+        self._check_closed()
+        try:
+            self._real_conn.rollback()
+        except Exception as e:
+            translated = self._flag_broken(e)
+            if self._real_conn is not None and getattr(self, "_is_broken", False):
+                self._real_conn._is_broken = True
+            raise translated from e
+
+    def execute(self, sql, parameters=()):
+        self._check_closed()
+        c = self.cursor()
+        c.execute(sql, parameters)
+        return c
+
+    def executemany(self, sql, seq_of_parameters):
+        self._check_closed()
+        c = self.cursor()
+        c.executemany(sql, seq_of_parameters)
+        return c
+
+    def executescript(self, script):
+        self._check_closed()
+        c = self.cursor()
+        c.executescript(script)
+        return c
+
+    def __getattr__(self, name):
+        self._check_closed()
+        return getattr(self._real_conn, name)
+
+
+class LibSQLConnectionPool:
+    """
+    Thread-safe LIFO connection pool for remote LibSQL/Turso connections.
+    Maintains a pool of warm LibSQLConnectionWrapper instances and provides
+    PooledConnection proxies for request-isolated lifecycle management.
+    """
+    def __init__(self, max_size: int = 5, max_idle_seconds: float = 30.0, timeout: float = 10.0):
+        self._max_size = max(1, max_size)
+        self._max_idle_seconds = max_idle_seconds
+        self._timeout = timeout
+        self._pool: queue.LifoQueue = queue.LifoQueue(maxsize=self._max_size)
+        self._lock = threading.Lock()
+        self._created_count = 0
+
+    @property
+    def max_size(self) -> int:
+        return self._max_size
+
+    @property
+    def created_count(self) -> int:
+        with self._lock:
+            return self._created_count
+
+    @property
+    def idle_count(self) -> int:
+        return self._pool.qsize()
+
+    def _close_conn_safely(self, conn: Any):
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    def acquire(self, target_url: str, token: str) -> PooledConnection:
+        """
+        Acquires a connection from the pool, creating a new one if permitted by capacity,
+        or waiting until an idle connection becomes available.
+        Performs health check on idle connections before returning.
+        """
+        deadline = time.time() + self._timeout
+        while True:
+            # 1. Check for an idle connection without blocking
+            try:
+                raw_conn, last_used = self._pool.get_nowait()
+
+                # Stale target URL verification
+                if getattr(raw_conn, "database_target", None) != target_url:
+                    self._close_conn_safely(raw_conn)
+                    with self._lock:
+                        self._created_count = max(0, self._created_count - 1)
+                    continue
+
+                # Broken connection check
+                if getattr(raw_conn, "_is_broken", False):
+                    self._close_conn_safely(raw_conn)
+                    with self._lock:
+                        self._created_count = max(0, self._created_count - 1)
+                    continue
+
+                # Stale idle check: if idle for more than max_idle_seconds, ping with SELECT 1
+                if time.time() - last_used > self._max_idle_seconds:
+                    try:
+                        raw_conn.execute("SELECT 1;")
+                    except Exception as e:
+                        logger.warning(f"Discarding stale or unhealthy pooled connection: {e}")
+                        self._close_conn_safely(raw_conn)
+                        with self._lock:
+                            self._created_count = max(0, self._created_count - 1)
+                        continue
+
+                return PooledConnection(self, raw_conn)
+            except queue.Empty:
+                pass
+
+            # 2. Can we create a new connection?
+            with self._lock:
+                if self._created_count < self._max_size:
+                    self._created_count += 1
+                    can_create = True
+                else:
+                    can_create = False
+
+            if can_create:
+                try:
+                    raw_conn = _create_raw_libsql_connection(target_url, token)
+                    return PooledConnection(self, raw_conn)
+                except Exception:
+                    with self._lock:
+                        self._created_count = max(0, self._created_count - 1)
+                    raise
+
+            # 3. Pool is at maximum capacity, wait for a returned connection
+            remaining = deadline - time.time()
+            if remaining <= 0:
+                raise DatabaseUnavailableError("Timed out waiting for an available database connection in pool.")
+            try:
+                raw_conn, last_used = self._pool.get(timeout=min(remaining, 0.5))
+
+                if getattr(raw_conn, "database_target", None) != target_url:
+                    self._close_conn_safely(raw_conn)
+                    with self._lock:
+                        self._created_count = max(0, self._created_count - 1)
+                    continue
+
+                if getattr(raw_conn, "_is_broken", False):
+                    self._close_conn_safely(raw_conn)
+                    with self._lock:
+                        self._created_count = max(0, self._created_count - 1)
+                    continue
+
+                if time.time() - last_used > self._max_idle_seconds:
+                    try:
+                        raw_conn.execute("SELECT 1;")
+                    except Exception as e:
+                        logger.warning(f"Discarding stale or unhealthy pooled connection: {e}")
+                        self._close_conn_safely(raw_conn)
+                        with self._lock:
+                            self._created_count = max(0, self._created_count - 1)
+                        continue
+
+                return PooledConnection(self, raw_conn)
+            except queue.Empty:
+                continue
+
+    def release(self, raw_conn: Any) -> None:
+        """
+        Releases a connection back to the pool after rolling back uncommitted changes.
+        Discards broken connections.
+        """
+        if raw_conn is None:
+            return
+
+        if isinstance(raw_conn, PooledConnection):
+            raw_conn = raw_conn._real_conn
+            if raw_conn is None:
+                return
+
+        if getattr(raw_conn, "_is_broken", False):
+            self._close_conn_safely(raw_conn)
+            with self._lock:
+                self._created_count = max(0, self._created_count - 1)
+            return
+
+        try:
+            raw_conn.rollback()
+        except Exception:
+            self._close_conn_safely(raw_conn)
+            with self._lock:
+                self._created_count = max(0, self._created_count - 1)
+            return
+
+        raw_conn.row_factory = LibSQLRow
+
+        try:
+            self._pool.put_nowait((raw_conn, time.time()))
+        except (queue.Full, Exception):
+            self._close_conn_safely(raw_conn)
+            with self._lock:
+                self._created_count = max(0, self._created_count - 1)
+
+    def close_all(self) -> None:
+        """Closes and discards all idle connections in the pool."""
+        with self._lock:
+            while not self._pool.empty():
+                try:
+                    conn_info = self._pool.get_nowait()
+                    self._close_conn_safely(conn_info[0])
+                except queue.Empty:
+                    break
+            self._created_count = 0
+
+
+_global_libsql_pool: Optional[LibSQLConnectionPool] = None
+_pool_lock = threading.Lock()
+
+
+def get_connection_pool() -> LibSQLConnectionPool:
+    """Returns the global LibSQLConnectionPool singleton."""
+    global _global_libsql_pool
+    if _global_libsql_pool is None:
+        with _pool_lock:
+            if _global_libsql_pool is None:
+                max_size = 5
+                max_idle = 30.0
+                timeout = 10.0
+                if has_app_context():
+                    max_size = current_app.config.get("DATABASE_POOL_SIZE", 5)
+                    max_idle = current_app.config.get("DATABASE_POOL_MAX_IDLE_SECONDS", 30.0)
+                    timeout = current_app.config.get("DATABASE_POOL_TIMEOUT", 10.0)
+                _global_libsql_pool = LibSQLConnectionPool(
+                    max_size=max_size,
+                    max_idle_seconds=max_idle,
+                    timeout=timeout
+                )
+    return _global_libsql_pool
+
+
+def reset_connection_pool() -> None:
+    """Resets and closes all connections in the global connection pool."""
+    global _global_libsql_pool
+    with _pool_lock:
+        if _global_libsql_pool is not None:
+            _global_libsql_pool.close_all()
+            _global_libsql_pool = None
+
+
+def _create_raw_libsql_connection(target_url: str, token: str) -> LibSQLConnectionWrapper:
+    """Establishes a new authenticated LibSQL connection wrapper."""
+    if not LIBSQL_AVAILABLE:
+        raise DatabaseUnavailableError("The LibSQL driver is unavailable; cloud database access is disabled.")
+
+    if not target_url or not token:
+        raise DatabaseUnavailableError("Remote database target URL or auth token is missing.")
+
+    try:
+        import libsql
+        raw_conn = libsql.connect(target_url, auth_token=token)
+        wrapper = LibSQLConnectionWrapper(raw_conn, database_target=target_url, authenticated=True)
+        wrapper.row_factory = LibSQLRow
+        wrapper.execute("PRAGMA foreign_keys = ON;")
+        return wrapper
+    except Exception as e:
+        logger.error(f"Failed to connect to database at {target_url}: {e}")
+        raise DatabaseUnavailableError(f"Failed to connect to database: {e}") from e
+
+
 def create_connection(database_target: Optional[str] = None, auth_token: Optional[str] = None):
     """
-    Creates a new database connection based on configuration.
+    Creates a new unpooled database connection based on configuration.
     Supports local SQLite only in explicit test mode and remote LibSQL in production.
     Always enforces PRAGMA foreign_keys = ON.
     """
@@ -436,46 +816,58 @@ def create_connection(database_target: Optional[str] = None, auth_token: Optiona
     # 3. Remote LibSQL mode
     target_url = database_target or TURSO_DATABASE_URL
     token = auth_token or TURSO_AUTH_TOKEN
+    return _create_raw_libsql_connection(target_url, token)
 
-    if not LIBSQL_AVAILABLE:
-        raise DatabaseUnavailableError("The LibSQL driver is unavailable; cloud database access is disabled.")
 
-    if not target_url or not token:
-        raise DatabaseUnavailableError("Remote database target URL or auth token is missing.")
+def _acquire_connection_for_context(database_target: Optional[str] = None, auth_token: Optional[str] = None):
+    """
+    Acquires a connection for the active context.
+    Borrows from the LibSQL connection pool for remote LibSQL targets.
+    Local SQLite targets (used in automated tests) remain direct and unpooled.
+    """
+    if database_target is None and has_app_context():
+        database_target = current_app.config.get("DATABASE") or current_app.config.get("DATABASE_PATH")
 
-    try:
-        import libsql
-        raw_conn = libsql.connect(target_url, auth_token=token)
-        wrapper = LibSQLConnectionWrapper(raw_conn, database_target=target_url, authenticated=True)
-        wrapper.row_factory = LibSQLRow
-        wrapper.execute("PRAGMA foreign_keys = ON;")
-        return wrapper
-    except Exception as e:
-        logger.error(f"Failed to connect to database at {target_url}: {e}")
-        raise DatabaseUnavailableError(f"Failed to connect to database: {e}") from e
+    is_remote_target = bool(database_target) and database_target.lower().startswith(("libsql://", "https://", "wss://", "ws://"))
+    is_local_target = bool(database_target) and (
+        database_target == ":memory:"
+        or database_target.startswith("file:")
+        or database_target.endswith((".db", ".sqlite"))
+        or (not is_remote_target and ("/" in database_target or "\\" in database_target))
+    )
+    if is_local_target:
+        return create_connection(database_target, auth_token)
+
+    target_url = database_target or TURSO_DATABASE_URL
+    token = auth_token or TURSO_AUTH_TOKEN
+    pool = get_connection_pool()
+    return pool.acquire(target_url, token)
 
 
 def get_db(type: str = "read"):
     """
     Returns the request-owned database connection when inside a Flask request.
-    If called outside a request context, returns an isolated new connection.
+    If called outside a request context, returns an isolated connection.
+    Borrows from the LibSQL connection pool for remote LibSQL databases.
+    Local SQLite targets (test databases) remain unpooled.
     The 'type' parameter is retained for backwards compatibility.
     """
     if has_request_context():
         if "db" not in g:
-            g.db = create_connection()
+            g.db = _acquire_connection_for_context()
         return g.db
 
     # Outside request context (CLI, scripts, tests)
-    return create_connection()
+    return _acquire_connection_for_context()
 
 
 def close_request_db(exception: Optional[BaseException] = None):
     """
     Teardown hook for Flask request contexts.
     Rolls back any unfinished transaction and closes the request-owned connection.
+    For PooledConnection, close() safely returns the connection to the pool without closing the socket.
     """
-    db = g.pop("db", None) if has_request_context() else None
+    db = g.pop("db", None) if (has_app_context() or has_request_context()) else None
     if db is not None:
         try:
             db.rollback()

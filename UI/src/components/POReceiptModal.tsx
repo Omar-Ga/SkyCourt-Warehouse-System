@@ -28,11 +28,17 @@ export const POReceiptModal: React.FC<{ order: PurchaseOrderDetail | null; isOpe
       size="lg"
       footer={
         <div className="flex justify-end gap-2">
-          <button className="btn btn-outline" onClick={onClose} disabled={mutation.isPending}>
+          <button
+            type="button"
+            className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+            onClick={onClose}
+            disabled={mutation.isPending}
+          >
             إلغاء
           </button>
           <button
-            className="btn btn-primary flex items-center gap-1.5"
+            type="button"
+            className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
             onClick={submit}
             disabled={mutation.isPending}
           >

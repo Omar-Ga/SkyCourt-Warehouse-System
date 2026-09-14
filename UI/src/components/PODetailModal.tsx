@@ -66,7 +66,7 @@ export const PODetailModal: React.FC<{
                   <>
                     <button
                       type="button"
-                      className="btn btn-outline flex items-center gap-1.5"
+                      className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
                       onClick={() => setIsEditOpen(true)}
                     >
                       <Edit size={15} />
@@ -74,7 +74,7 @@ export const PODetailModal: React.FC<{
                     </button>
                     <button
                       type="button"
-                      className="btn btn-primary flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
                       onClick={dispatch}
                       disabled={dispatchMutation.isPending}
                     >
@@ -84,7 +84,11 @@ export const PODetailModal: React.FC<{
                   </>
                 )}
                 {canVoid && order.allowed_actions?.includes('void') && (
-                  <button type="button" className="btn btn-outline text-red-600 hover:bg-red-50" onClick={() => setShowVoid(true)}>
+                  <button
+                    type="button"
+                    className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-white hover:bg-rose-50 text-rose-600 border border-rose-200 shadow-2xs"
+                    onClick={() => setShowVoid(true)}
+                  >
                     <Ban size={15} /> إلغاء
                   </button>
                 )}
@@ -98,10 +102,18 @@ export const PODetailModal: React.FC<{
                 >
                   <RefreshCw size={18} />
                 </button>
-                <button type="button" className="btn btn-primary flex items-center gap-1.5" onClick={() => print()}>
+                <button
+                  type="button"
+                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
+                  onClick={() => print()}
+                >
                   <Printer size={15} /> طباعة
                 </button>
-                <button type="button" className="btn btn-outline" onClick={onClose}>
+                <button
+                  type="button"
+                  className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
+                  onClick={onClose}
+                >
                   إغلاق
                 </button>
               </div>
@@ -116,7 +128,7 @@ export const PODetailModal: React.FC<{
             <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-xl p-3.5">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-slate-500">الحالة:</span>
-                <span className="badge badge-primary text-xs font-bold">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-100 text-primary-800 border border-primary-200">
                   {STATUS_LABELS[order.status] || order.status}
                 </span>
               </div>
@@ -200,7 +212,7 @@ export const PODetailModal: React.FC<{
             <div className="flex justify-end gap-2 w-full">
               <button
                 type="button"
-                className="btn btn-outline"
+                className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
                 onClick={() => {
                   setShowVoid(false);
                   setVoidReason('');
@@ -210,7 +222,7 @@ export const PODetailModal: React.FC<{
               </button>
               <button
                 type="button"
-                className="btn btn-danger bg-rose-600 hover:bg-rose-700 text-white border-rose-600"
+                className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-rose-600 hover:bg-rose-700 text-white shadow-xs"
                 onClick={submitVoid}
                 disabled={voidMutation.isPending || !voidReason.trim()}
               >
@@ -224,7 +236,7 @@ export const PODetailModal: React.FC<{
               يرجى كتابة سبب الإلغاء بشكل واضح لحفظه في سجل الحركات:
             </p>
             <textarea
-              className="input w-full text-sm p-3 border border-gray-200 rounded-xl"
+              className="w-full text-sm p-3 border border-gray-300 rounded-xl text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
               rows={3}
               value={voidReason}
               onChange={(e) => setVoidReason(e.target.value)}

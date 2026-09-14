@@ -423,7 +423,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
           <button
             type="button"
             onClick={handleClose}
-            className="btn btn-outline"
+            className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
             disabled={isPending}
           >
             إلغاء
@@ -431,7 +431,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
           {hasUncertainSubmission ? (
             <button
               type="button"
-              className="btn btn-primary bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center gap-1.5"
+              className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
               onClick={handleCheckPreviousSubmission}
               disabled={isPending}
             >
@@ -440,7 +440,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
           ) : (
             <button
               type="button"
-              className="btn btn-primary"
+              className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
               onClick={handleSubmit}
               disabled={isPending || loadingProviders}
             >
@@ -467,7 +467,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
-                  className="btn btn-sm bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center gap-1.5"
+                  className="h-8 px-3 rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
                   onClick={handleCheckPreviousSubmission}
                   disabled={isPending}
                 >
@@ -491,7 +491,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                 المورد <span className="text-red-500">*</span>
               </label>
               <select
-                className="input w-full text-sm"
+                className="w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 value={providerId}
                 onChange={(e) => setProviderId(e.target.value ? Number(e.target.value) : '')}
                 disabled={loadingProviders}
@@ -512,7 +512,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
               </label>
               <input
                 type="text"
-                className="input w-full text-sm"
+                className="w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                 placeholder="مثال: توريد عاجل، موقع العمل..."
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -528,7 +528,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
               <button
                 type="button"
                 onClick={handleAddLine}
-                className="btn btn-outline text-xs flex items-center gap-1 py-1 px-3"
+                className="h-8 px-3 rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-1 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
               >
                 <Plus size={14} />
                 إضافة بند آخر
@@ -595,7 +595,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                             type="number"
                             min="1"
                             step="1"
-                            className="input w-full text-xs py-1 px-2 text-center"
+                            className="w-full h-8 px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs text-center text-ink-950 focus:outline-none focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                             placeholder="1"
                             value={line.quantity}
                             onChange={(e) =>
@@ -613,7 +613,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                             type="number"
                             min="0"
                             step="0.01"
-                            className="input w-full text-xs py-1 px-2 text-left font-mono"
+                            className="w-full h-8 px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs text-left font-mono text-ink-950 focus:outline-none focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                             placeholder="0.00"
                             value={line.unit_price}
                             onChange={(e) => handleLineFieldChange(index, 'unit_price', e.target.value)}
@@ -623,7 +623,7 @@ export const CreatePOModal: React.FC<CreatePOModalProps> = ({ isOpen, onClose, o
                         <td className="py-2 px-3">
                           <input
                             type="text"
-                            className="input w-full text-xs py-1 px-2"
+                            className="w-full h-8 px-2 py-1 bg-white border border-gray-300 rounded-lg text-xs text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-1 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                             placeholder="ملاحظة للبند..."
                             value={line.line_description}
                             onChange={(e) =>

@@ -35,9 +35,9 @@ export const PrintableReport = React.forwardRef<HTMLDivElement, PrintableReportP
   return (
     <div ref={ref} style={{ padding: '20mm 18mm', direction: 'rtl', fontFamily: 'Almarai, "Noto Sans Arabic", sans-serif', color: '#111827', backgroundColor: '#ffffff' }}>
       {/* 1. Official Letterhead Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #4B1E78', paddingBottom: '16px', marginBottom: '20px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #1E7D46', paddingBottom: '16px', marginBottom: '20px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#4B1E78', margin: '0 0 4px 0', letterSpacing: '-0.5px' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#1E7D46', margin: '0 0 4px 0', letterSpacing: '-0.5px' }}>
             سـكاي كـورت مـول — إدارة الرقابة والتدقيق المخزني
           </h1>
           <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#6B7280', margin: 0 }}>
@@ -60,7 +60,7 @@ export const PrintableReport = React.forwardRef<HTMLDivElement, PrintableReportP
             تقرير سجل الحركات التفصيلي
           </h2>
           <div style={{ fontSize: '12px', color: '#4B5563' }}>
-            إجمالي الحركات المستخرجة: <strong style={{ color: '#4B1E78' }}>{data.length} حركة</strong>
+            إجمالي الحركات المستخرجة: <strong style={{ color: '#1E7D46' }}>{data.length} حركة</strong>
           </div>
         </div>
 
@@ -83,15 +83,15 @@ export const PrintableReport = React.forwardRef<HTMLDivElement, PrintableReportP
       {/* 3. Detailed Audit Movement Table */}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px', marginBottom: '24px' }}>
         <thead>
-          <tr style={{ backgroundColor: '#4B1E78', color: '#ffffff' }}>
-            <th style={{ padding: '10px 8px', textAlign: 'right', border: '1px solid #4B1E78' }}>#</th>
-            <th style={{ padding: '10px 8px', textAlign: 'right', border: '1px solid #4B1E78' }}>الصنف والرمز</th>
-            <th style={{ padding: '10px 8px', textAlign: 'center', border: '1px solid #4B1E78' }}>نوع الحركة</th>
-            <th style={{ padding: '10px 8px', textAlign: 'center', border: '1px solid #4B1E78' }}>الكمية</th>
-            <th style={{ padding: '10px 8px', textAlign: 'center', border: '1px solid #4B1E78' }}>الرصيد بعدها</th>
-            <th style={{ padding: '10px 8px', textAlign: 'right', border: '1px solid #4B1E78' }}>الجهة / المورد</th>
-            <th style={{ padding: '10px 8px', textAlign: 'right', border: '1px solid #4B1E78' }}>المسؤول</th>
-            <th style={{ padding: '10px 8px', textAlign: 'center', border: '1px solid #4B1E78' }}>التاريخ والوقت</th>
+          <tr style={{ backgroundColor: '#1E7D46', color: '#ffffff' }}>
+            <th style={{ padding: '10px 8px', textAlign: 'right', border: '1px solid #1E7D46' }}>#</th>
+            <th style={{ padding: '10px 8px', textAlign: 'right', border: '1px solid #1E7D46' }}>الصنف والرمز</th>
+            <th style={{ padding: '10px 8px', textAlign: 'center', border: '1px solid #1E7D46' }}>نوع الحركة</th>
+            <th style={{ padding: '10px 8px', textAlign: 'center', border: '1px solid #1E7D46' }}>الكمية</th>
+            <th style={{ padding: '10px 8px', textAlign: 'center', border: '1px solid #1E7D46' }}>الرصيد بعدها</th>
+            <th style={{ padding: '10px 8px', textAlign: 'right', border: '1px solid #1E7D46' }}>الجهة / المورد</th>
+            <th style={{ padding: '10px 8px', textAlign: 'right', border: '1px solid #1E7D46' }}>المسؤول</th>
+            <th style={{ padding: '10px 8px', textAlign: 'center', border: '1px solid #1E7D46' }}>التاريخ والوقت</th>
           </tr>
         </thead>
         <tbody>

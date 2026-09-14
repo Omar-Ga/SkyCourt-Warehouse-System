@@ -13,7 +13,7 @@ interface ManagementItemCardProps<T extends Item> {
 
 export const ManagementItemCard = <T extends Item>({ item, onEdit, onDelete }: ManagementItemCardProps<T>) => {
   return (
-    <div key={item.id} className="card flex justify-between items-center hover:shadow-lg transition-shadow duration-150 ease-in-out">
+    <div key={item.id} className="bg-white rounded-2xl border border-gray-200 shadow-xs p-4 flex justify-between items-center hover:shadow-md transition-all duration-150 ease-in-out">
       <span className="text-lg px-3 py-2">{item.name}</span>
       <div className="flex space-x-1 space-x-reverse mr-2">
         <button 

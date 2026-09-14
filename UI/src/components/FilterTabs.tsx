@@ -37,7 +37,7 @@ export function FilterTabs<T extends string = string>({
             onClick={() => onTabChange(tab.id)}
             className={`min-h-[38px] px-3.5 py-1.5 rounded-lg text-xs font-bold inline-flex items-center gap-2 transition-all duration-150 cursor-pointer ${
               isActive
-                ? 'bg-white text-brand-violet shadow-xs font-black'
+                ? 'bg-white text-primary-600 shadow-xs font-black'
                 : 'text-slate-600 hover:text-ink-950 hover:bg-white/60'
             }`}
           >
@@ -46,7 +46,7 @@ export function FilterTabs<T extends string = string>({
               <span
                 className={`text-[11px] px-1.5 py-0.5 rounded-full font-bold leading-none ${
                   isActive
-                    ? 'bg-purple-100 text-brand-violet'
+                    ? 'bg-primary-100 text-primary-800'
                     : 'bg-slate-200/80 text-slate-600'
                 }`}
               >

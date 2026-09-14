@@ -17,9 +17,9 @@ export const PrintablePurchaseOrder = React.forwardRef<HTMLDivElement, { order: 
   return (
     <div ref={ref} style={{ padding: '20mm 18mm', direction: 'rtl', fontFamily: 'Almarai, "Noto Sans Arabic", sans-serif', color: '#111827', backgroundColor: '#ffffff' }}>
       {/* 1. Official Letterhead Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #4B1E78', paddingBottom: '16px', marginBottom: '24px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #1E7D46', paddingBottom: '16px', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#4B1E78', margin: '0 0 4px 0', letterSpacing: '-0.5px' }}>
+          <h1 style={{ fontSize: '22px', fontWeight: '900', color: '#1E7D46', margin: '0 0 4px 0', letterSpacing: '-0.5px' }}>
             سـكاي كـورت مـول — إدارة المشتريات والمخازن
           </h1>
           <p style={{ fontSize: '12px', fontWeight: 'bold', color: '#6B7280', margin: 0 }}>
@@ -50,7 +50,7 @@ export const PrintablePurchaseOrder = React.forwardRef<HTMLDivElement, { order: 
         <div style={{ textAlign: 'left', minWidth: '220px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
             <span style={{ color: '#6B7280', fontWeight: 'bold' }}>رقم أمر الشراء:</span>
-            <span style={{ fontWeight: '800', fontFamily: 'monospace', color: '#4B1E78' }}>{order.po_number}</span>
+            <span style={{ fontWeight: '800', fontFamily: 'monospace', color: '#1E7D46' }}>{order.po_number}</span>
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', fontSize: '12px' }}>
             <span style={{ color: '#6B7280', fontWeight: 'bold' }}>تاريخ الإرسال:</span>
@@ -62,7 +62,7 @@ export const PrintablePurchaseOrder = React.forwardRef<HTMLDivElement, { order: 
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
             <span style={{ color: '#6B7280', fontWeight: 'bold' }}>حالة الأمر:</span>
-            <span style={{ fontWeight: '700', color: '#4B1E78' }}>{getStatusLabel(order.status)}</span>
+            <span style={{ fontWeight: '700', color: '#1E7D46' }}>{getStatusLabel(order.status)}</span>
           </div>
         </div>
       </div>
@@ -70,13 +70,13 @@ export const PrintablePurchaseOrder = React.forwardRef<HTMLDivElement, { order: 
       {/* 3. Items Detail Table */}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', marginBottom: '24px' }}>
         <thead>
-          <tr style={{ backgroundColor: '#4B1E78', color: '#ffffff' }}>
-            <th style={{ padding: '10px 12px', textAlign: 'right', border: '1px solid #4B1E78', borderRadius: '0' }}>#</th>
-            <th style={{ padding: '10px 12px', textAlign: 'right', border: '1px solid #4B1E78' }}>الصنف والتوصيف الفني</th>
-            <th style={{ padding: '10px 12px', textAlign: 'center', border: '1px solid #4B1E78' }}>الكمية المطلوبة</th>
-            <th style={{ padding: '10px 12px', textAlign: 'center', border: '1px solid #4B1E78' }}>الكمية المعتمدة</th>
-            <th style={{ padding: '10px 12px', textAlign: 'left', border: '1px solid #4B1E78' }}>سعر الوحدة</th>
-            <th style={{ padding: '10px 12px', textAlign: 'left', border: '1px solid #4B1E78' }}>الإجمالي</th>
+          <tr style={{ backgroundColor: '#1E7D46', color: '#ffffff' }}>
+            <th style={{ padding: '10px 12px', textAlign: 'right', border: '1px solid #1E7D46', borderRadius: '0' }}>#</th>
+            <th style={{ padding: '10px 12px', textAlign: 'right', border: '1px solid #1E7D46' }}>الصنف والتوصيف الفني</th>
+            <th style={{ padding: '10px 12px', textAlign: 'center', border: '1px solid #1E7D46' }}>الكمية المطلوبة</th>
+            <th style={{ padding: '10px 12px', textAlign: 'center', border: '1px solid #1E7D46' }}>الكمية المعتمدة</th>
+            <th style={{ padding: '10px 12px', textAlign: 'left', border: '1px solid #1E7D46' }}>سعر الوحدة</th>
+            <th style={{ padding: '10px 12px', textAlign: 'left', border: '1px solid #1E7D46' }}>الإجمالي</th>
           </tr>
         </thead>
         <tbody>
@@ -97,7 +97,7 @@ export const PrintablePurchaseOrder = React.forwardRef<HTMLDivElement, { order: 
                 <td style={{ border: '1px solid #E5E7EB', padding: '10px 12px', textAlign: 'center', color: '#4B5563', fontFamily: 'monospace' }}>
                   {requested}
                 </td>
-                <td style={{ border: '1px solid #E5E7EB', padding: '10px 12px', textAlign: 'center', fontWeight: 'bold', color: '#4B1E78', fontFamily: 'monospace' }}>
+                <td style={{ border: '1px solid #E5E7EB', padding: '10px 12px', textAlign: 'center', fontWeight: 'bold', color: '#1E7D46', fontFamily: 'monospace' }}>
                   {requested !== ordered ? (
                     <span>
                       <span style={{ textDecoration: 'line-through', color: '#9CA3AF', marginRight: '4px' }}>{requested}</span>
@@ -125,11 +125,11 @@ export const PrintablePurchaseOrder = React.forwardRef<HTMLDivElement, { order: 
             <td style={{ border: '1px solid #E5E7EB', padding: '12px', textAlign: 'center', fontFamily: 'monospace', color: '#6B7280' }}>
               {order.items.reduce((s, i) => s + (Number(i.requested_quantity) || 0), 0)}
             </td>
-            <td style={{ border: '1px solid #E5E7EB', padding: '12px', textAlign: 'center', fontFamily: 'monospace', color: '#4B1E78', fontSize: '13px' }}>
+            <td style={{ border: '1px solid #E5E7EB', padding: '12px', textAlign: 'center', fontFamily: 'monospace', color: '#1E7D46', fontSize: '13px' }}>
               {order.total_ordered_quantity}
             </td>
             <td style={{ border: '1px solid #E5E7EB', padding: '12px' }}></td>
-            <td style={{ border: '1px solid #E5E7EB', padding: '12px', textAlign: 'left', fontFamily: 'monospace', color: '#4B1E78', fontSize: '14px', fontWeight: '900' }}>
+            <td style={{ border: '1px solid #E5E7EB', padding: '12px', textAlign: 'left', fontFamily: 'monospace', color: '#1E7D46', fontSize: '14px', fontWeight: '900' }}>
               {order.total_amount} {order.currency}
             </td>
           </tr>

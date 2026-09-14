@@ -9,11 +9,12 @@ export default {
       colors: {
         // Official SkyCourt Brand Core
         brand: {
-          violet: '#4B1E78', // Royal Violet - Official Primary & Dominant CTAs
+          violet: '#4B1E78', // Deprecated (kept for migration safety & documentation)
+          green: '#1E7D46',   // Primary Brand Color - SkyCourt Emerald
           magenta: '#E40078', // Vibrant Magenta - Top Petal Accent
           lime: '#44B935',    // Summer Lime - Bottom Petal Accent
           teal: '#244B74',    // Official Gradient Bridge
-          marine: '#2D8F55',  // Marine Green
+          marine: '#2D8F55',  // Marine Green - Middle Petal
         },
         // Operational Foundations (High-Contrast, Glare-Resistant)
         ink: {
@@ -58,18 +59,18 @@ export default {
           info: '#075E8C',
           'info-bg': '#E8F3F7',
         },
-        // Solid Legacy Class Mappings (Fixes transparent alpha bug)
         primary: {
-          50: '#F4F0F9',
-          100: '#E8DEF3',
-          200: '#D3BFE8',
-          300: '#B491D6',
-          400: '#8E5FC0',
-          500: '#6B35A3',
-          600: '#4B1E78', // Royal Violet brand primary
-          700: '#3E1864',
-          800: '#311350',
-          900: '#102A3A', // Deep coastal navy
+          50: '#F0FDF4',
+          100: '#DCFCE7',
+          200: '#BBF7D0',
+          300: '#86EFAC',
+          400: '#44B935',
+          500: '#2D8F55',
+          600: '#1E7D46', // SkyCourt Deep Emerald brand primary
+          700: '#166534',
+          800: '#14532D',
+          900: '#0F3D21',
+          950: '#052210',
         },
         secondary: {
           50: '#F0FAF9',

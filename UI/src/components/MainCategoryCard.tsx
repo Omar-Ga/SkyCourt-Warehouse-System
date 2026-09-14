@@ -40,13 +40,13 @@ export const MainCategoryCard = ({
   if (!category) {
     return (
       <div
-        className={`bg-white hover:bg-purple-50/50 rounded-2xl border-2 border-dashed border-brand-violet/40 hover:border-brand-violet cursor-pointer transition-all flex flex-col items-center justify-center p-6 shadow-xs group ${className}`}
+        className={`bg-white hover:bg-primary-50/50 rounded-2xl border-2 border-dashed border-primary-500/40 hover:border-primary-600 cursor-pointer transition-all flex flex-col items-center justify-center p-6 shadow-xs group ${className}`}
         onClick={handleSelect}
       >
-        <div className="w-12 h-12 rounded-xl bg-purple-50 text-brand-violet group-hover:scale-110 flex items-center justify-center transition-transform mb-2">
+        <div className="w-12 h-12 rounded-xl bg-primary-50 text-primary-600 group-hover:scale-110 flex items-center justify-center transition-transform mb-2">
           <Plus size={24} />
         </div>
-        <span className="text-sm font-bold text-brand-violet">إضافة فئة رئيسية</span>
+        <span className="text-sm font-bold text-primary-600">إضافة فئة رئيسية</span>
       </div>
     );
   }
@@ -54,11 +54,11 @@ export const MainCategoryCard = ({
   // Standard Category Card UI
   return (
     <div
-      className={`bg-white rounded-2xl border border-gray-200 hover:border-brand-violet/50 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between p-5 relative shadow-xs ${className}`}
+      className={`bg-white rounded-2xl border border-gray-200 hover:border-primary-500/50 hover:shadow-md transition-all cursor-pointer group flex flex-col justify-between p-5 relative shadow-xs ${className}`}
       onClick={handleSelect}
     >
       <div className="flex items-start justify-between gap-2">
-        <h3 className="text-base font-bold text-ink-950 block truncate leading-tight group-hover:text-brand-violet transition-colors">
+        <h3 className="text-base font-bold text-ink-950 block truncate leading-tight group-hover:text-primary-600 transition-colors">
           {category.name}
         </h3>
         {(onEdit || onDelete) && (
@@ -66,7 +66,7 @@ export const MainCategoryCard = ({
             {onEdit && (
               <button
                 type="button"
-                className="w-7 h-7 rounded-lg text-ink-500 hover:text-brand-violet hover:bg-purple-50 flex items-center justify-center transition-colors cursor-pointer"
+                className="w-7 h-7 rounded-lg text-ink-500 hover:text-primary-600 hover:bg-primary-50 flex items-center justify-center transition-colors cursor-pointer"
                 onClick={handleEdit}
                 title="تعديل الفئة"
               >
@@ -88,7 +88,7 @@ export const MainCategoryCard = ({
       </div>
       <div className="mt-4 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-ink-400">
         <span className="font-semibold">تصفح الأقسام الفرعية</span>
-        <span className="text-brand-violet font-bold text-sm">←</span>
+        <span className="text-primary-600 font-bold text-sm">←</span>
       </div>
     </div>
   );

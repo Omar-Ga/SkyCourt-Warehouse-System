@@ -1,9 +1,9 @@
-/* eslint-disable */
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Package, ArrowDown, RotateCcw, Settings,
   PlusSquare, FileText, BarChart3, Bell, Clock,
-  CheckCircle2
+  CheckCircle2, LayoutDashboard
 } from 'lucide-react';
 import { AsyncPaginate, LoadOptions } from 'react-select-async-paginate';
 import type { GroupBase, OptionsOrGroups } from 'react-select';
@@ -17,6 +17,7 @@ import { CreateLeaveOrderModal } from '../../components/CreateLeaveOrderModal';
 import { LeaveOrderDetailModal } from '../../components/LeaveOrderDetailModal';
 import { apiClient } from '../../services/apiClient';
 import { Item, MovementLogEntry } from '../../types';
+import { PageLayout } from '../../components/PageLayout';
 
 interface ItemOption {
   value: number;
@@ -32,6 +33,7 @@ const ITEMS_PER_PAGE = 20;
 const AsyncPaginateComponent = AsyncPaginate as any;
 
 export const OfficeDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { setActivePage, openPODetail } = useAppContext();
   const queryClient = useQueryClient();
 
@@ -53,11 +55,10 @@ export const OfficeDashboard: React.FC = () => {
   const { data: poData } = usePurchaseOrders({ status: 'draft', page_size: 5 });
   const { data: leaveOrderData } = useLeaveOrders({ status: 'rejected', page_size: 5 });
 
-  // Convert numbers to Arabic-Indic digits to match mockup styling
+  // Standardize numerals on Western Arabic digits (0-9)
   const toArabicDigits = (num: number | string | undefined | null) => {
-    if (num === undefined || num === null) return '٠';
-    const arabicDigits = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-    return String(num).replace(/[0-9]/g, (w) => arabicDigits[+w]);
+    if (num === undefined || num === null) return '0';
+    return String(num);
   };
 
   // Async Item Search
@@ -96,13 +97,7 @@ export const OfficeDashboard: React.FC = () => {
   const handleSearchSelect = (selected: ItemOption | null) => {
     if (!selected) return;
     const item = selected.data;
-    sessionStorage.setItem('dashboardSearchNavigation', JSON.stringify({
-      mainCategoryId: item.main_category_id,
-      subCategoryId: item.sub_category_id,
-      itemId: item.id,
-      timestamp: Date.now()
-    }));
-    setActivePage('Items');
+    navigate(`/items/category/${item.main_category_id}/subcategory/${item.sub_category_id}?highlight=${item.id}`);
   };
 
   // Format relative time in Arabic
@@ -167,16 +162,12 @@ export const OfficeDashboard: React.FC = () => {
   const hasFollowUps = draftPOs.length > 0 || rejectedLeaveOrders.length > 0;
 
   return (
-    <div className="w-full max-w-[1520px] mx-auto pb-12 font-sans" dir="rtl">
-      {/* 1. Header & Dedicated Search Bar */}
-      <div className="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-xs mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 tracking-tight m-0">لوحة تحكم المكتب</h1>
-          <p className="text-xs font-semibold text-slate-400 m-0 mt-1">
-            متابعة حركة المخزون، أوامر الشراء، وأذونات الصرف اليومية
-          </p>
-        </div>
-        <div className="w-full md:w-96 lg:w-[420px]">
+    <PageLayout
+      title="لوحة تحكم المكتب"
+      subtitle="متابعة حركة المخزون، أوامر الشراء، وأذونات الصرف اليومية"
+      icon={<LayoutDashboard size={22} className="text-primary-600" />}
+      action={
+        <div className="w-full md:w-80 lg:w-96">
           <AsyncPaginateComponent
             loadOptions={loadItems}
             onChange={handleSearchSelect}
@@ -208,7 +199,9 @@ export const OfficeDashboard: React.FC = () => {
             }}
           />
         </div>
-      </div>
+      }
+    >
+      <div className="w-full max-w-[1520px] mx-auto pb-12 font-sans" dir="rtl">
 
       {/* 2. Top Metric KPI Cards (3 Clean Cards in a Row) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6">
@@ -290,7 +283,7 @@ export const OfficeDashboard: React.FC = () => {
           <button
             type="button"
             onClick={() => setIsCreateLeaveOrderOpen(true)}
-            className="w-full bg-white hover:bg-purple-50/50 border-2 border-[#5e2b8c] text-[#5e2b8c] font-bold py-3.5 px-6 rounded-xl flex items-center justify-center gap-3 text-base shadow-xs hover:shadow-sm transition-all cursor-pointer"
+            className="w-full bg-white hover:bg-primary-50/50 border-2 border-primary-600 text-primary-700 font-bold py-3.5 px-6 rounded-xl flex items-center justify-center gap-3 text-base shadow-xs hover:shadow-sm transition-all cursor-pointer"
           >
             <FileText size={22} className="stroke-[2.2]" />
             <span>إنشاء إذن صرف</span>
@@ -522,6 +515,7 @@ export const OfficeDashboard: React.FC = () => {
           }}
         />
       )}
-    </div>
+      </div>
+    </PageLayout>
   );
 };

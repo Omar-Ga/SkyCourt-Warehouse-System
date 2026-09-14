@@ -1,5 +1,5 @@
-/* eslint-disable */
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Archive, ArrowUpCircle, ArrowDownCircle, Activity, Edit3, Info, AlertTriangle,
   PlusCircle, BarChart3, Search, RotateCcw
@@ -16,6 +16,7 @@ import { apiClient } from '../services/apiClient';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { useAuth } from '../hooks/useAuth';
 import { OfficeDashboard } from './office/OfficeDashboard';
+import { PageLayout } from '../components/PageLayout';
 
 // Define ItemOption for react-select-async-paginate
 interface ItemOption {
@@ -33,14 +34,8 @@ const ITEMS_PER_PAGE = 20;
 
 const AsyncPaginateComponent = AsyncPaginate as any; // Workaround for TS2786
 
-export const Dashboard = () => {
-  const { role } = useAuth();
-
-  // For office operator, render the replicated office dashboard design
-  if (role === 'office') {
-    return <OfficeDashboard />;
-  }
-
+const WarehouseDashboard = () => {
+  const navigate = useNavigate();
   const { setActivePage } = useAppContext();
   const { canMutateItems, canManagePOs } = useCapabilities();
   const queryClient = useQueryClient();
@@ -113,19 +108,7 @@ export const Dashboard = () => {
     if (!selectedOption) return;
 
     const item = selectedOption.data;
-
-    // Store navigation data in sessionStorage
-    const navigationData = {
-      mainCategoryId: item.main_category_id,
-      subCategoryId: item.sub_category_id,
-      itemId: item.id,
-      timestamp: Date.now()
-    };
-
-    sessionStorage.setItem('dashboardSearchNavigation', JSON.stringify(navigationData));
-
-    // Navigate to Items Management
-    setActivePage('Items');
+    navigate(`/items/category/${item.main_category_id}/subcategory/${item.sub_category_id}?highlight=${item.id}`);
   };
 
   const statsToDisplay = [
@@ -238,14 +221,19 @@ export const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-6">
+    <PageLayout
+      title="لوحة التحكم"
+      subtitle="نظرة عامة على حركة المخزون والعمليات اليومية والتذاكر العاجلة."
+      icon={<BarChart3 size={22} className="text-primary-600" />}
+    >
+      <div className="space-y-6">
 
 
 
       {/* Stats Cards & Search */}
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-10">
         {/* Search Bar - Takes up 2 columns on desktop */}
-        <div className="md:col-span-2 card p-5 flex flex-col justify-center shadow-sm">
+        <div className="md:col-span-2 bg-white rounded-2xl border border-gray-200 p-5 flex flex-col justify-center shadow-xs">
           <label className="text-sm font-medium text-gray-600 mb-2 flex items-center gap-2">
             <Search size={16} />
             بحث سريع عن صنف
@@ -263,7 +251,7 @@ export const Dashboard = () => {
         </div>
 
         {statsToDisplay.map((stat, index) => (
-          <div key={index} className="card flex items-center p-5 shadow-sm hover:shadow-md transition-shadow">
+          <div key={index} className="bg-white rounded-2xl border border-gray-200 flex items-center p-5 shadow-xs hover:shadow-md transition-shadow">
             <div className={`p-3 rounded-full ml-4 rtl:mr-4 rtl:ml-0 ${stat.bgColor || 'bg-primary-100'}`}>
               {stat.icon}
             </div>
@@ -281,7 +269,7 @@ export const Dashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {canManagePOs && (
             <button
-              className="btn btn-primary btn-lg flex items-center justify-center py-4 px-6 text-base"
+              className="h-12 px-6 rounded-xl font-semibold text-base inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
               onClick={() => setActivePage('PurchaseOrders')}
             >
               <BarChart3 size={20} className="ml-2 rtl:mr-2 rtl:ml-0" />
@@ -289,7 +277,7 @@ export const Dashboard = () => {
             </button>
           )}
           <button
-            className="btn btn-primary btn-lg flex items-center justify-center py-4 px-6 text-base"
+            className="h-12 px-6 rounded-xl font-semibold text-base inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
             onClick={() => setActivePage('Logs')}
           >
             <BarChart3 size={20} className="ml-2 rtl:mr-2 rtl:ml-0" />
@@ -301,7 +289,7 @@ export const Dashboard = () => {
       {/* Main Content Area */}
       <div className="grid grid-cols-1 gap-8">
         {/* Recent Activity Section */}
-        <div className="card p-6 shadow-sm">
+        <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xs">
           <h2 className="text-xl font-semibold mb-6 text-gray-700 text-center">آخر النشاطات</h2>
           {isLoadingRecentLogs && (
             <div className="flex justify-center items-center py-4">
@@ -359,6 +347,16 @@ export const Dashboard = () => {
           onItemAdded={handleItemAdded}
         />
       )}
-    </div >
+      </div>
+    </PageLayout>
   );
 };
+
+export const Dashboard = () => {
+  const { role } = useAuth();
+  if (role === 'office') {
+    return <OfficeDashboard />;
+  }
+  return <WarehouseDashboard />;
+};
+

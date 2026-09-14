@@ -3,6 +3,7 @@ import { Eye, PackageCheck, Truck, Calendar, Clock, CheckCircle2 } from 'lucide-
 import { usePurchaseOrders, usePurchaseOrderDetail } from '../hooks/usePurchaseOrders';
 import { POReceiptModal } from '../components/POReceiptModal';
 import { PODetailModal } from '../components/PODetailModal';
+import { PageLayout } from '../components/PageLayout';
 
 export const POTickets: React.FC = () => {
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -15,7 +16,12 @@ export const POTickets: React.FC = () => {
   const totalUnitsExpected = orders.reduce((sum, order) => sum + (Number(order.total_ordered_quantity) || 0), 0);
 
   return (
-    <div className="space-y-6 max-w-[1520px] mx-auto">
+    <PageLayout
+      title="تذاكر أوامر الشراء"
+      subtitle="أوامر الشراء المفتوحة الواردة من الموردين وبانتظار الاستلام بالمخزن."
+      icon={<PackageCheck size={22} className="text-primary-600" />}
+    >
+      <div className="space-y-6 max-w-[1520px] mx-auto">
       {/* Quick Summary Strip */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-xs flex items-center justify-between">
@@ -23,7 +29,7 @@ export const POTickets: React.FC = () => {
             <p className="text-xs font-semibold text-ink-500 mb-1">أوامر بانتظار الاستلام الفعلي</p>
             <h3 className="text-3xl font-extrabold text-ink-950 leading-none">{orders.length}</h3>
           </div>
-          <div className="w-12 h-12 rounded-xl bg-purple-50 text-brand-violet border border-purple-100 flex items-center justify-center shrink-0">
+          <div className="w-12 h-12 rounded-xl bg-primary-50 text-primary-600 border border-primary-100 flex items-center justify-center shrink-0">
             <PackageCheck size={24} />
           </div>
         </div>
@@ -31,7 +37,7 @@ export const POTickets: React.FC = () => {
         <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-xs flex items-center justify-between">
           <div>
             <p className="text-xs font-semibold text-ink-500 mb-1">إجمالي الوحدات المتوقع فحصها</p>
-            <h3 className="text-3xl font-extrabold text-brand-violet leading-none">{totalUnitsExpected.toLocaleString('ar-EG')}</h3>
+            <h3 className="text-3xl font-extrabold text-primary-600 leading-none">{totalUnitsExpected.toLocaleString('en-US')}</h3>
           </div>
           <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center justify-center shrink-0">
             <Truck size={24} />
@@ -53,9 +59,9 @@ export const POTickets: React.FC = () => {
       <div className="bg-white rounded-2xl border border-gray-200 shadow-xs overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
           <h2 className="text-lg font-bold text-ink-950 flex items-center gap-2">
-            <PackageCheck size={20} className="text-brand-violet" />
+            <PackageCheck size={20} className="text-primary-600" />
             <span>قائمة تذاكر الشراء المفتوحة</span>
-            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-purple-100 text-brand-violet">
+            <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-primary-100 text-primary-800">
               {orders.length} تذكرة
             </span>
           </h2>
@@ -63,7 +69,7 @@ export const POTickets: React.FC = () => {
 
         {isLoading ? (
           <div className="py-16 text-center text-ink-500">
-            <div className="inline-block w-8 h-8 border-3 border-brand-violet border-t-transparent rounded-full animate-spin mb-3" />
+            <div className="inline-block w-8 h-8 border-3 border-primary-600 border-t-transparent rounded-full animate-spin mb-3" />
             <p className="font-semibold text-sm">جاري تحميل أوامر الشراء المفتوحة...</p>
           </div>
         ) : orders.length === 0 ? (
@@ -92,7 +98,7 @@ export const POTickets: React.FC = () => {
               <tbody className="divide-y divide-gray-100">
                 {orders.map((order) => (
                   <tr key={order.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-6 py-4 font-bold text-brand-violet">
+                    <td className="px-6 py-4 font-bold text-primary-600">
                       <span className="font-mono text-sm">{order.po_number}</span>
                     </td>
                     <td className="px-6 py-4 font-semibold text-ink-900">
@@ -122,7 +128,7 @@ export const POTickets: React.FC = () => {
                       <div className="flex items-center justify-center gap-2">
                         <button
                           type="button"
-                          className="px-4 py-2 rounded-xl bg-brand-violet hover:bg-brand-violet-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                          className="px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
                           onClick={() => setReceiptId(order.id)}
                         >
                           <PackageCheck size={16} />
@@ -160,6 +166,7 @@ export const POTickets: React.FC = () => {
         canVoid={false}
         isLoading={detailLoading}
       />
-    </div>
+      </div>
+    </PageLayout>
   );
 };

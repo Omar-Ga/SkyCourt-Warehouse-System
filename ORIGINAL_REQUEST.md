@@ -134,3 +134,82 @@ Integrity mode: development
 - [ ] When tables or lists have zero items, a clear Arabic message with an appropriate icon and next-step action button is displayed instead of a blank container.
 - [ ] Primary action buttons have distinct visual weight, clear labels, and prevent double-clicks during operations.
 
+## 2026-09-14T13:35:04Z
+
+Deep structural UX overhaul of the SkyCourt Warehouse System — a React 18 SPA (TypeScript, Tailwind CSS) served via PyWebView with a Flask/LibSQL backend. The operations manager has rejected the current UI as chaotic ("مهيصة"), confusing, and laggy. This overhaul replaces the sidebar with a top navigation bar, adds URL routing with browser history, standardizes action placement and page layouts across all 11 screens, fixes critical performance bottlenecks (cold TLS connections, no optimistic UI), and pivots the brand palette from purple to green.
+
+Use a full team of agents. Use Gemini Flash model for all worker subagents — reserve the larger model for orchestration only.
+
+Working directory: /home/omar/Code Projects/SkyCourt-Warehouse-System
+Integrity mode: development
+
+## Codebase Architecture (Essential Context)
+
+- **Frontend:** React 18.3.1 + TypeScript 5.5.3 + Tailwind CSS 3.4, built with Vite 5.4.2. Source in `UI/src/`.
+- **Desktop shell:** PyWebView with EdgeChromium renderer. Flask serves compiled SPA from `UI/dist/`. Entry: `run.py` and `app/main.py`.
+- **Backend DB:** Remote LibSQL/Turso at `libsql://skycourt-warehouse-v2-omargamal.aws-eu-west-1.turso.io`. Connection logic in `app/models/db_utils.py`.
+- **Current navigation:** Pure in-memory React Context (`AppContext.tsx` → `setActivePage(pageId)`). No URL router. No browser history support. URL is always `http://127.0.0.1:5070/`.
+- **Current layout:** Right-side sidebar (RTL layout, 270px expanded / 80px collapsed) + persistent TopHeader with page title, sync status, and refresh button.
+- **Pages (11 total):** Dashboard, Items, PurchaseOrders, DisbursementTickets, POTickets, LeaveOrders, Logs, Units, Destinations, Providers, Settings.
+- **Roles:** `warehouse`, `office`, `admin` — role-based page visibility defined in `UI/src/navigation.ts`.
+- **Language/Direction:** Arabic UI, RTL layout throughout.
+- **Existing shared components:** `UI/src/components/Table.tsx` (underused), `UI/src/components/Breadcrumb.tsx` (only wired to Items), `UI/src/components/TopHeader.tsx`, `UI/src/components/Sidebar.tsx`.
+
+## Requirements
+
+### R1. Replace Sidebar with Top Navigation Bar
+Remove the right-side sidebar (`Sidebar.tsx`) and replace it with a horizontal top navigation bar. The top bar should contain: the SkyCourt logo (compact), navigation links grouped by role (same groups as current sidebar), a simplified cloud sync indicator (a small icon that shows a hover tooltip with "متصل بالسحابة" or "غير متصل" — not a persistent text pill), the user profile/role indicator, and a logout action. The current `TopHeader.tsx` (page title, icon, subtitle, refresh button) should merge into this top bar or sit directly below it as a slim page header strip — not as a separate heavy component. The result should feel like a clean toolbar, not a dashboard.
+
+### R2. URL Routing with In-App Back Navigation
+Introduce a client-side router (e.g., React Router or TanStack Router) so each page has its own URL path (e.g., `/items`, `/purchase-orders`, `/items/category/5/subcategory/12`). **Important context: this app runs inside PyWebView (EdgeChromium), not a browser — there are no browser back/forward buttons.** The URL router is needed for three reasons: (1) page refresh preserves the current screen instead of dumping to Dashboard, (2) category drill-down state lives in the URL naturally (eliminating sessionStorage hacks), and (3) the router's history stack enables a custom **in-app back button** in the top navigation bar that calls `navigate(-1)`. Add this back button (e.g., a left arrow icon, since the UI is RTL this appears on the right) that appears when there is navigation history to go back to. Remove all `sessionStorage` navigation hacks (`dashboardSearchNavigation`, `itemsManagementState`) and replace with URL-based state.
+
+### R3. Standardized Page Layout with Fixed Action Slot
+Create a single `PageLayout` wrapper component that every page uses. It should provide: a consistent page title area (using the existing TopHeader title — remove all duplicate `<h1>` tags from page bodies), a fixed "primary action" slot in the top-right of the page header (this is where every "Add" / "Create" button goes — same position on every screen), and a content area below. All 11 pages must use this layout. The "Add Main Category" card that masquerades as content in the Items grid must become a button in the standard action slot.
+
+### R4. Connection Pooling for LibSQL/Turso
+Replace the per-request `libsql.connect()` / `close()` pattern in `app/models/db_utils.py` with a connection pool or long-lived connection that persists across requests. The current code creates a fresh TLS connection (DNS + handshake + auth) on every HTTP request and tears it down at the end — this adds 150-350ms of overhead per call. The pool should handle connection health checks and automatic reconnection on failure. Do not break the existing `g.db` request-scoping pattern for the Flask routes — the pool provides connections, request teardown returns them.
+
+### R5. Optimistic UI for Mutations
+Implement optimistic cache updates for the primary mutation flows: adding/editing items, adjusting quantities, creating Purchase Orders, creating Leave Orders, and fulfilling/rejecting tickets. When a user submits a form, the UI should immediately reflect the change in the displayed data (optimistic update via React Query's `onMutate`), show a subtle success indicator, and silently reconcile with the server response. On server error, roll back the optimistic update and show an error notification. The current pattern of disabling the entire modal with a spinner until the round-trip completes must be replaced.
+
+### R6. Unify CSS to Tailwind-Only
+Remove all legacy utility classes from `UI/src/index.css` (`.btn`, `.btn-primary`, `.card`, `.table`, `.input`, `.badge` — lines 42-140) and replace all usages across the codebase with Tailwind utility classes or Tailwind `@apply` component classes. The dual CSS system creates visual inconsistency — some screens look Tailwind-styled, others look legacy-styled. After this change, `index.css` should contain only Tailwind directives, CSS custom properties, font imports, and global resets.
+
+### R7. Standardize All Tables on Shared Table Component
+The shared `UI/src/components/Table.tsx` component exists but is ignored by PurchaseOrders, LeaveOrders, DisbursementTickets, and POTickets — all of which hand-roll their own `<table>` elements with copy-pasted classes, headers, empty states, and pagination. Refactor all table-based screens to use the shared `Table.tsx` component (or enhance it if needed). This includes consistent empty states, loading skeletons, pagination controls, and responsive behavior.
+
+### R8. Brand Color Pivot — Purple to Green
+The manager rejects the purple (`brand-violet: #4B1E78`) dominant palette. Pivot the primary brand color to a green derived from the SkyCourt logo's green petal. The existing brand tokens `brand-lime: #44B935` and `brand-marine: #2D8F55` are available — choose or blend an appropriate green as the new primary. Update the `tailwind.config.js` color tokens, all hardcoded purple/violet hex values in components, and the `primary` color scale. The magenta accent (`brand-magenta`) can remain as a secondary accent. Ensure all status colors (success, warning, danger, info) retain sufficient contrast against the new palette.
+
+### R9. Reduce Polling Aggressiveness
+The `useAdaptiveSyncHeartbeat.ts` hook refetches all active queries every 12 seconds, saturating the network and competing with user interactions. Increase the interval to a more reasonable cadence (e.g., 30-60 seconds) or switch to a smarter invalidation strategy where polling only runs when the tab is visible and the user is idle. With optimistic UI in place (R5), aggressive polling becomes unnecessary.
+
+## Acceptance Criteria
+
+### Navigation & Layout
+- [ ] The sidebar is completely removed. A horizontal top navigation bar is present on all screens.
+- [ ] The cloud sync indicator is a compact icon with a hover tooltip ("متصل بالسحابة" / "غير متصل"), not a persistent text pill.
+- [ ] Every page has a unique URL path. Refreshing the page stays on the current screen, not the Dashboard.
+- [ ] An in-app back button appears in the top navigation bar when there is history to go back to. Clicking it navigates to the previous screen.
+- [ ] The Items hierarchy (categories → subcategories → items) uses nested URL segments (e.g., `/items/category/5`). Breadcrumbs reflect the current position.
+- [ ] All 11 pages use the same `PageLayout` wrapper. The primary action button ("Add", "Create") appears in the same fixed position on every screen that has one.
+- [ ] No duplicate `<h1>` page titles exist — the page title appears exactly once, in the layout header.
+- [ ] All `sessionStorage` navigation hacks are removed.
+
+### Performance
+- [ ] `app/models/db_utils.py` uses connection pooling. A quick benchmark shows response times for simple queries drop by at least 100ms compared to the current cold-connect pattern.
+- [ ] Adding an item, adjusting quantity, and creating a PO each show an immediate UI update (optimistic) before the server response arrives. On simulated server error, the UI rolls back.
+- [ ] The polling heartbeat interval is ≥ 30 seconds (up from 12 seconds).
+
+### Visual Consistency
+- [ ] No legacy `.btn`, `.btn-primary`, `.card`, `.table`, `.input`, or `.badge` classes remain in `index.css` or are referenced in any component.
+- [ ] All table-based screens (PurchaseOrders, LeaveOrders, DisbursementTickets, POTickets, Items, Units, Destinations, Providers, MovementLog) use the shared Table component or a single standardized table pattern.
+- [ ] The primary brand color throughout the app is green (derived from logo), not purple. No hardcoded `#4B1E78` or `brand-violet` references remain in component code (the token definition in tailwind config may remain as documentation).
+- [ ] Eastern Arabic-Indic numerals vs Western numerals are consistent across all screens (pick one system).
+
+### Verification
+- [ ] `npm run build` completes with zero TypeScript errors and zero warnings.
+- [ ] The Flask backend starts without errors: `python run.py` launches successfully.
+- [ ] All existing API endpoints continue to function — no regressions in backend routes.
+
+

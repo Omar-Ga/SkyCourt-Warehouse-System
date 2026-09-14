@@ -22,12 +22,14 @@ export const CategoryActions: React.FC<CategoryActionsProps> = ({ category, onEd
     action();
   };
 
+  const actionBtnClass = "w-8 h-8 p-0 rounded-lg flex items-center justify-center bg-transparent hover:bg-slate-100 text-ink-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
+
   return (
     <div className="flex items-center justify-start gap-2" dir="ltr">
       {/* Edit Button */}
       <button 
         onClick={(e) => handleActionClick(e, () => onEdit(category))}
-        className="btn btn-ghost btn-sm btn-circle"
+        className={actionBtnClass}
         title="تعديل اسم الفئة"
       >
         <Pencil size={16} />
@@ -36,11 +38,11 @@ export const CategoryActions: React.FC<CategoryActionsProps> = ({ category, onEd
       {/* Delete Button */}
       <button 
         onClick={(e) => handleActionClick(e, () => onDelete(category))}
-        className="btn btn-ghost btn-sm btn-circle text-error"
+        className={`${actionBtnClass} text-rose-600 hover:text-rose-700 hover:bg-rose-50`}
         title="حذف الفئة"
       >
         <Trash2 size={16} />
       </button>
     </div>
   );
-}; 
+};

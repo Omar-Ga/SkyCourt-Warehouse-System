@@ -1,6 +1,6 @@
 /* eslint-disable */
 import React, { useState } from 'react';
-import { Filter, ArrowDown, ArrowUp, Package, User, Trash2, RotateCcw, PlusCircle } from 'lucide-react';
+import { Filter, ArrowDown, ArrowUp, Package, User, Trash2, RotateCcw, PlusCircle, History } from 'lucide-react';
 import { Table } from '../components/Table';
 import { AsyncPaginate, LoadOptions } from 'react-select-async-paginate';
 import type { GroupBase, OptionsOrGroups } from 'react-select';
@@ -10,6 +10,8 @@ import { useDestinations, useProviders } from '../hooks/useMetadata';
 import { useMovementLogs, FetchLogsParams, LogsResponse } from '../hooks/useMovementLogs';
 import { UseQueryResult } from '@tanstack/react-query';
 import { apiClient } from '../services/apiClient';
+import { useAuth } from '../context/AuthContext';
+import { PageLayout } from '../components/PageLayout';
 
 import { formatMovementTimestamp } from '../services/statsService';
 
@@ -217,7 +219,7 @@ export const MovementLog = () => {
           );
         } else if (value === 'Creation' || value === 'إنشاء' || value === 'إنشاء صنف') {
           return (
-            <div className="flex items-center text-brand-violet font-medium">
+            <div className="flex items-center text-primary-600 font-medium">
               <PlusCircle size={16} className="mr-1 rtl:ml-1 rtl:mr-0" />
               <span>إنشاء صنف</span>
             </div>
@@ -299,12 +301,24 @@ export const MovementLog = () => {
     }
   ];
 
+  const { role } = useAuth();
+  const pageTitle = role === 'office' ? 'تقارير الحركات' : 'سجل الحركات';
+  const pageSubtitle =
+    role === 'office'
+      ? 'تقارير تدقيق حركات المواد وتحليل التوريدات والمنصرفات.'
+      : 'سجل تدقيق شامل وغير قابل للتعديل لجميع حركات الإضافة والصرف والمرتجع.';
+
   return (
-    <div className="space-y-6 max-w-[1520px] mx-auto">
+    <PageLayout
+      title={pageTitle}
+      subtitle={pageSubtitle}
+      icon={<History size={22} className="text-primary-600" />}
+    >
+      <div className="space-y-6 max-w-[1520px] mx-auto">
       {/* Comprehensive Filter Bar */}
       <div className="bg-white rounded-2xl border border-gray-200 p-6 shadow-xs">
         <div className="flex items-center gap-2 mb-4 pb-3 border-b border-gray-100">
-          <Filter size={18} className="text-brand-violet" />
+          <Filter size={18} className="text-primary-600" />
           <h2 className="text-base font-bold text-ink-950 m-0">تصفية نتائج سجل الحركات والرقابة</h2>
         </div>
 
@@ -318,7 +332,7 @@ export const MovementLog = () => {
               name="fromDate"
               value={filters.date_from}
               onChange={handleInputChange}
-              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
             />
           </div>
 
@@ -331,7 +345,7 @@ export const MovementLog = () => {
               name="toDate"
               value={filters.date_to}
               onChange={handleInputChange}
-              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
             />
           </div>
 
@@ -343,7 +357,7 @@ export const MovementLog = () => {
               name="actionType"
               value={filters.action_type || ''}
               onChange={(e) => setFilters(prev => ({ ...prev, action_type: e.target.value }))}
-              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
             >
               <option value="">جميع الحركات</option>
               <option value="Addition">توريد وارد (إضافة)</option>
@@ -361,7 +375,7 @@ export const MovementLog = () => {
               name="destinationId"
               value={filters.destination_id}
               onChange={(e) => setFilters(prev => ({ ...prev, destination_id: e.target.value }))}
-              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
             >
               <option value="">جميع الأقسام</option>
               {destinations.map((dest: any) => (
@@ -378,7 +392,7 @@ export const MovementLog = () => {
               name="providerId"
               value={filters.provider_id}
               onChange={(e) => setFilters(prev => ({ ...prev, provider_id: e.target.value }))}
-              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-brand-violet/20 focus:border-brand-violet transition-all"
+              className="w-full bg-slate-50 border border-gray-200 rounded-xl px-3 py-2 text-xs text-ink-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
             >
               <option value="">جميع الموردين</option>
               {providers.map((prov: any) => (
@@ -410,7 +424,7 @@ export const MovementLog = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => applyFilters(1)}
-              className="px-5 py-2.5 rounded-xl bg-brand-violet hover:bg-brand-violet-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+              className="px-5 py-2.5 rounded-xl bg-primary-600 hover:bg-primary-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
             >
               <Filter size={15} />
               <span>تطبيق الفلترة</span>
@@ -441,7 +455,7 @@ export const MovementLog = () => {
       {/* Log Display Area */}
       {logsLoading && (
         <div className="py-16 text-center text-ink-500 bg-white rounded-2xl border border-gray-200 shadow-xs">
-          <div className="inline-block w-8 h-8 border-3 border-brand-violet border-t-transparent rounded-full animate-spin mb-3" />
+          <div className="inline-block w-8 h-8 border-3 border-primary-600 border-t-transparent rounded-full animate-spin mb-3" />
           <p className="font-semibold text-sm">جاري تحميل سجل الحركات...</p>
         </div>
       )}
@@ -460,7 +474,7 @@ export const MovementLog = () => {
 
       {!logsLoading && !logsError && !filtersApplied && (
         <div className="py-16 text-center bg-white rounded-2xl border border-gray-200 shadow-xs">
-          <div className="w-14 h-14 rounded-2xl bg-purple-50 text-brand-violet border border-purple-100 flex items-center justify-center mx-auto mb-3">
+          <div className="w-14 h-14 rounded-2xl bg-primary-50 text-primary-600 border border-primary-100 flex items-center justify-center mx-auto mb-3">
             <Filter size={28} />
           </div>
           <h3 className="text-base font-bold text-ink-900 mb-1">
@@ -508,6 +522,7 @@ export const MovementLog = () => {
           />
         </>
       )}
-    </div>
+      </div>
+    </PageLayout>
   );
 };

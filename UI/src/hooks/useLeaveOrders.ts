@@ -16,6 +16,7 @@ import {
   CreateLeaveOrderInput,
   PaginatedLeaveOrders,
   LeaveOrderDetail,
+  LeaveOrderSummary,
   PaginatedTickets,
   TicketReturnInput
 } from '../services/leaveOrderService';
@@ -67,7 +68,71 @@ export const useCreateLeaveOrder = () => {
       }
       return createLeaveOrder(variables);
     },
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      await queryClient.cancelQueries({ queryKey: ['leave-orders'] });
+      await queryClient.cancelQueries({ queryKey: ['tickets'] });
+      await queryClient.cancelQueries({ queryKey: ['tickets-count'] });
+
+      const previousLeaveOrders = queryClient.getQueriesData<PaginatedLeaveOrders>({ queryKey: ['leave-orders'] });
+      const previousTickets = queryClient.getQueriesData<PaginatedTickets>({ queryKey: ['tickets'] });
+      const previousTicketsCount = queryClient.getQueryData<{ count: number }>(['tickets-count']);
+
+      const input: CreateLeaveOrderInput = 'input' in variables ? variables.input : variables;
+      const totalQty = (input.items || []).reduce((acc, item) => acc + (item.requested_quantity || 0), 0);
+
+      const optimisticLO: LeaveOrderSummary = {
+        id: -Date.now(),
+        order_number: 'LO-DRAFT-TEMP',
+        employee_name: input.employee_name,
+        destination_id: input.destination_id,
+        destination_name: 'جاري الحفظ...',
+        status: 'open',
+        notes: input.notes || null,
+        created_by: 0,
+        creator_name: 'المستخدم الحالي',
+        created_at: new Date().toISOString(),
+        revision: 1,
+        items_count: input.items.length,
+        total_quantity: totalQty,
+        total_requested_quantity: totalQty,
+        total_returned: 0,
+        remaining_quantity: totalQty
+      };
+
+      queryClient.setQueriesData<PaginatedLeaveOrders>(
+        { queryKey: ['leave-orders'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            total_count: (old.total_count || 0) + 1,
+            leave_orders: [optimisticLO, ...(old.leave_orders || [])]
+          };
+        }
+      );
+
+      queryClient.setQueryData<{ count: number }>(['tickets-count'], (old) => ({
+        count: (old?.count || 0) + 1
+      }));
+
+      return { previousLeaveOrders, previousTickets, previousTicketsCount };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousLeaveOrders) {
+        for (const [key, data] of context.previousLeaveOrders) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+      if (context?.previousTickets) {
+        for (const [key, data] of context.previousTickets) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+      if (context?.previousTicketsCount !== undefined) {
+        queryClient.setQueryData(['tickets-count'], context.previousTicketsCount);
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-orders'] });
       queryClient.invalidateQueries({ queryKey: ['tickets'] });
       queryClient.invalidateQueries({ queryKey: ['items'] });
@@ -118,7 +183,70 @@ export const useFulfillLeaveOrder = () => {
   return useMutation({
     mutationFn: ({ id, expected_revision, idempotencyKey }: { id: number; expected_revision: number; idempotencyKey?: string }) =>
       fulfillLeaveOrder(id, expected_revision, idempotencyKey),
-    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id, true)
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ['leave-orders'] });
+      await queryClient.cancelQueries({ queryKey: ['tickets'] });
+      await queryClient.cancelQueries({ queryKey: ['tickets-count'] });
+      await queryClient.cancelQueries({ queryKey: ['leave-order', id] });
+
+      const previousLeaveOrders = queryClient.getQueriesData<PaginatedLeaveOrders>({ queryKey: ['leave-orders'] });
+      const previousTickets = queryClient.getQueriesData<PaginatedTickets>({ queryKey: ['tickets'] });
+      const previousTicketsCount = queryClient.getQueryData<{ count: number }>(['tickets-count']);
+      const previousOrderDetail = queryClient.getQueryData<LeaveOrderDetail>(['leave-order', id]);
+
+      queryClient.setQueriesData<PaginatedTickets>(
+        { queryKey: ['tickets'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            total_count: Math.max(0, old.total_count - 1),
+            tickets: old.tickets.filter((t) => t.id !== id)
+          };
+        }
+      );
+
+      queryClient.setQueriesData<PaginatedLeaveOrders>(
+        { queryKey: ['leave-orders'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            leave_orders: old.leave_orders.map((lo) => (lo.id === id ? { ...lo, status: 'closed' } : lo))
+          };
+        }
+      );
+
+      queryClient.setQueryData<{ count: number }>(['tickets-count'], (old) => ({
+        count: Math.max(0, (old?.count || 1) - 1)
+      }));
+
+      queryClient.setQueryData<LeaveOrderDetail>(['leave-order', id], (old) => {
+        if (!old) return old;
+        return { ...old, status: 'closed' };
+      });
+
+      return { previousLeaveOrders, previousTickets, previousTicketsCount, previousOrderDetail };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousLeaveOrders) {
+        for (const [key, data] of context.previousLeaveOrders) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+      if (context?.previousTickets) {
+        for (const [key, data] of context.previousTickets) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+      if (context?.previousTicketsCount !== undefined) {
+        queryClient.setQueryData(['tickets-count'], context.previousTicketsCount);
+      }
+      if (context?.previousOrderDetail) {
+        queryClient.setQueryData(['leave-order', variables.id], context.previousOrderDetail);
+      }
+    },
+    onSettled: (_data, _error, variables) => invalidateLeaveOrders(queryClient, variables.id, true)
   });
 };
 
@@ -127,7 +255,72 @@ export const useRejectLeaveOrder = () => {
   return useMutation({
     mutationFn: ({ id, input, idempotencyKey }: { id: number; input: { expected_revision: number; reason: string }; idempotencyKey?: string }) =>
       rejectLeaveOrder(id, input, idempotencyKey),
-    onSuccess: (_data, variables) => invalidateLeaveOrders(queryClient, variables.id, false)
+    onMutate: async ({ id, input }) => {
+      await queryClient.cancelQueries({ queryKey: ['leave-orders'] });
+      await queryClient.cancelQueries({ queryKey: ['tickets'] });
+      await queryClient.cancelQueries({ queryKey: ['tickets-count'] });
+      await queryClient.cancelQueries({ queryKey: ['leave-order', id] });
+
+      const previousLeaveOrders = queryClient.getQueriesData<PaginatedLeaveOrders>({ queryKey: ['leave-orders'] });
+      const previousTickets = queryClient.getQueriesData<PaginatedTickets>({ queryKey: ['tickets'] });
+      const previousTicketsCount = queryClient.getQueryData<{ count: number }>(['tickets-count']);
+      const previousOrderDetail = queryClient.getQueryData<LeaveOrderDetail>(['leave-order', id]);
+
+      queryClient.setQueriesData<PaginatedTickets>(
+        { queryKey: ['tickets'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            total_count: Math.max(0, old.total_count - 1),
+            tickets: old.tickets.filter((t) => t.id !== id)
+          };
+        }
+      );
+
+      queryClient.setQueriesData<PaginatedLeaveOrders>(
+        { queryKey: ['leave-orders'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            leave_orders: old.leave_orders.map((lo) =>
+              lo.id === id ? { ...lo, status: 'rejected', rejection_reason: input.reason } : lo
+            )
+          };
+        }
+      );
+
+      queryClient.setQueryData<{ count: number }>(['tickets-count'], (old) => ({
+        count: Math.max(0, (old?.count || 1) - 1)
+      }));
+
+      queryClient.setQueryData<LeaveOrderDetail>(['leave-order', id], (old) => {
+        if (!old) return old;
+        return { ...old, status: 'rejected', rejection_reason: input.reason };
+      });
+
+      return { previousLeaveOrders, previousTickets, previousTicketsCount, previousOrderDetail };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousLeaveOrders) {
+        for (const [key, data] of context.previousLeaveOrders) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+      if (context?.previousTickets) {
+        for (const [key, data] of context.previousTickets) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+      if (context?.previousTicketsCount !== undefined) {
+        queryClient.setQueryData(['tickets-count'], context.previousTicketsCount);
+      }
+      if (context?.previousOrderDetail) {
+        queryClient.setQueryData(['leave-order', variables.id], context.previousOrderDetail);
+      }
+    },
+    onSettled: (_data, _error, variables) => invalidateLeaveOrders(queryClient, variables.id, false)
   });
 };
 

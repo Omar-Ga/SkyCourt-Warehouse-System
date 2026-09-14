@@ -332,7 +332,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
         <div className="flex justify-end gap-3 w-full">
           <button
             type="button"
-            className="btn btn-outline"
+            className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
             onClick={handleClose}
             disabled={isPending}
           >
@@ -341,7 +341,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
           {hasUncertainSubmission ? (
             <button
               type="button"
-              className="btn btn-primary bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center gap-1.5"
+              className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
               onClick={handleCheckPreviousSubmission}
               disabled={isPending}
             >
@@ -350,7 +350,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
           ) : (
             <button
               type="button"
-              className="btn btn-primary"
+              className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
               onClick={handleSubmit}
               disabled={isPending}
             >
@@ -377,7 +377,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
             <div className="flex items-center gap-2 pt-1">
               <button
                 type="button"
-                className="btn btn-sm bg-amber-600 hover:bg-amber-700 text-white font-semibold flex items-center gap-1.5"
+                className="h-8 px-3 rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none cursor-pointer bg-amber-600 hover:bg-amber-700 text-white shadow-xs"
                 onClick={handleCheckPreviousSubmission}
                 disabled={isPending}
               >
@@ -401,7 +401,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
             </label>
             <input
               type="text"
-              className="input w-full"
+              className="w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
               placeholder="مثال: أحمد محمد"
               value={employeeName}
               onChange={(e) => setEmployeeName(e.target.value)}
@@ -414,7 +414,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
               جهة الصرف <span className="text-red-500">*</span>
             </label>
             <select
-              className="select w-full"
+              className="w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
               value={destinationId}
               onChange={(e) => setDestinationId(e.target.value ? Number(e.target.value) : '')}
               required
@@ -435,7 +435,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
           </label>
           <input
             type="text"
-            className="input w-full"
+            className="w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
             placeholder="ملاحظات إضافية حول سبب الصرف..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -448,7 +448,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
             <h3 className="text-md font-semibold text-gray-800">أصناف إذن الصرف</h3>
             <button
               type="button"
-              className="btn btn-sm btn-outline flex items-center gap-1 text-xs"
+              className="h-8 px-3 rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-1 transition-colors select-none cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
               onClick={handleAddLine}
             >
               <Plus size={14} /> إضافة صنف
@@ -508,7 +508,7 @@ export const CreateLeaveOrderModal: React.FC<CreateLeaveOrderModalProps> = ({
                     <input
                       type="number"
                       min="1"
-                      className="input w-full text-sm"
+                      className="w-full h-10 px-3 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
                       placeholder="الكمية"
                       value={line.quantity}
                       onChange={(e) => handleQuantityChange(idx, e.target.value)}

@@ -13,7 +13,8 @@ import {
   VoidPOInput,
   ReceivePOInput,
   PaginatedPurchaseOrders,
-  PurchaseOrderDetail
+  PurchaseOrderDetail,
+  PurchaseOrderSummary
 } from '../services/poService';
 
 export const usePurchaseOrders = (
@@ -48,7 +49,55 @@ export const useCreatePurchaseOrder = () => {
   return useMutation({
     mutationFn: ({ input, idempotencyKey }: { input: CreatePOInput; idempotencyKey?: string }) =>
       createPurchaseOrder(input, idempotencyKey),
-    onSuccess: () => {
+    onMutate: async ({ input }) => {
+      await queryClient.cancelQueries({ queryKey: ['purchase-orders'] });
+      const previousQueries = queryClient.getQueriesData<PaginatedPurchaseOrders>({ queryKey: ['purchase-orders'] });
+
+      const optimisticPO: PurchaseOrderSummary = {
+        id: -Date.now(),
+        po_number: 'PO-DRAFT-TEMP',
+        provider_id: input.provider_id,
+        provider_name: 'جاري الحفظ...',
+        status: 'draft',
+        db_status: 'draft',
+        is_expired: false,
+        notes: input.notes || null,
+        created_by: 0,
+        creator_name: 'المستخدم الحالي',
+        created_at: new Date().toISOString(),
+        revision: 1,
+        currency: 'EGP',
+        currency_scale: 2,
+        total_amount: '0.00',
+        total_amount_minor: 0,
+        line_count: input.items.length,
+        total_ordered_quantity: input.items.reduce((acc, item) => acc + (item.ordered_quantity || 0), 0),
+        company: { name: '', address: '', phone: '', email: '' },
+        allowed_actions: ['edit', 'dispatch']
+      };
+
+      queryClient.setQueriesData<PaginatedPurchaseOrders>(
+        { queryKey: ['purchase-orders'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            total_count: (old.total_count || 0) + 1,
+            purchase_orders: [optimisticPO, ...(old.purchase_orders || [])]
+          };
+        }
+      );
+
+      return { previousQueries };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previousQueries) {
+        for (const [key, data] of context.previousQueries) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+    },
+    onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
     }
@@ -68,7 +117,43 @@ export const useVoidPurchaseOrder = () => {
       input: VoidPOInput;
       idempotencyKey?: string;
     }) => voidPurchaseOrder(id, input, idempotencyKey),
-    onSuccess: (_data, variables) => {
+    onMutate: async ({ id, input }) => {
+      await queryClient.cancelQueries({ queryKey: ['purchase-orders'] });
+      await queryClient.cancelQueries({ queryKey: ['purchase-order', id] });
+      const previousPOList = queryClient.getQueriesData<PaginatedPurchaseOrders>({ queryKey: ['purchase-orders'] });
+      const previousPODetail = queryClient.getQueryData<PurchaseOrderDetail>(['purchase-order', id]);
+
+      queryClient.setQueriesData<PaginatedPurchaseOrders>(
+        { queryKey: ['purchase-orders'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            purchase_orders: old.purchase_orders.map((po) =>
+              po.id === id ? { ...po, status: 'void', void_reason: input.reason } : po
+            )
+          };
+        }
+      );
+
+      queryClient.setQueryData<PurchaseOrderDetail>(['purchase-order', id], (old) => {
+        if (!old) return old;
+        return { ...old, status: 'void', void_reason: input.reason };
+      });
+
+      return { previousPOList, previousPODetail };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousPOList) {
+        for (const [key, data] of context.previousPOList) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+      if (context?.previousPODetail) {
+        queryClient.setQueryData(['purchase-order', variables.id], context.previousPODetail);
+      }
+    },
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-order', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['dashboard-stats'] });
@@ -89,7 +174,43 @@ export const useReceivePurchaseOrder = () => {
       input: ReceivePOInput;
       idempotencyKey?: string;
     }) => receivePurchaseOrder(id, input, idempotencyKey),
-    onSuccess: (_data, variables) => {
+    onMutate: async ({ id }) => {
+      await queryClient.cancelQueries({ queryKey: ['purchase-orders'] });
+      await queryClient.cancelQueries({ queryKey: ['purchase-order', id] });
+      const previousPOList = queryClient.getQueriesData<PaginatedPurchaseOrders>({ queryKey: ['purchase-orders'] });
+      const previousPODetail = queryClient.getQueryData<PurchaseOrderDetail>(['purchase-order', id]);
+
+      queryClient.setQueriesData<PaginatedPurchaseOrders>(
+        { queryKey: ['purchase-orders'] },
+        (old) => {
+          if (!old) return old;
+          return {
+            ...old,
+            purchase_orders: old.purchase_orders.map((po) =>
+              po.id === id ? { ...po, status: 'closed' } : po
+            )
+          };
+        }
+      );
+
+      queryClient.setQueryData<PurchaseOrderDetail>(['purchase-order', id], (old) => {
+        if (!old) return old;
+        return { ...old, status: 'closed' };
+      });
+
+      return { previousPOList, previousPODetail };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previousPOList) {
+        for (const [key, data] of context.previousPOList) {
+          queryClient.setQueryData(key, data);
+        }
+      }
+      if (context?.previousPODetail) {
+        queryClient.setQueryData(['purchase-order', variables.id], context.previousPODetail);
+      }
+    },
+    onSettled: (_data, _error, variables) => {
       queryClient.invalidateQueries({ queryKey: ['purchase-orders'] });
       queryClient.invalidateQueries({ queryKey: ['purchase-order', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['items'] });

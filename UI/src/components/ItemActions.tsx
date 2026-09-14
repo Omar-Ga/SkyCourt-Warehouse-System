@@ -23,12 +23,14 @@ export const ItemActions: React.FC<ItemActionsProps> = ({ item, onAdjust, onEdit
     action();
   };
 
+  const actionBtnClass = "w-8 h-8 p-0 rounded-lg flex items-center justify-center bg-transparent hover:bg-slate-100 text-ink-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed";
+
   return (
-    <div className="flex items-center justify-end gap-2 " dir="ltr">
+    <div className="flex items-center justify-end gap-2" dir="ltr">
       {/* Edit Button */}
       <button 
         onClick={(e) => handleActionClick(e, () => onEdit(item))}
-        className="btn btn-ghost btn-sm btn-circle"
+        className={actionBtnClass}
         title="تعديل بيانات الصنف"
       >
         <Pencil size={16} />
@@ -37,7 +39,7 @@ export const ItemActions: React.FC<ItemActionsProps> = ({ item, onAdjust, onEdit
       {/* Adjust Quantity Button */}
       <button 
         onClick={(e) => handleActionClick(e, () => onAdjust(item))}
-        className="btn btn-ghost btn-sm btn-circle"
+        className={actionBtnClass}
         disabled={item.status !== 'active'}
         title="تعديل الكمية"
       >
@@ -45,15 +47,15 @@ export const ItemActions: React.FC<ItemActionsProps> = ({ item, onAdjust, onEdit
       </button>
 
       {/* Toggle Status Button */}
-      { <button 
+      <button 
         onClick={(e) => handleActionClick(e, () => onToggleStatus(item))}
-        className="btn btn-ghost btn-sm btn-circle"
+        className={actionBtnClass}
         title={item.status === 'active' ? 'تعيين كـ "غير نشط"' : 'تعيين كـ "نشط"'}
       >
         {item.status === 'active' 
-          ? <ToggleRight size={16} className="text-success" /> 
-          : <ToggleLeft size={16} className="text-error" />}
-      </button> }
+          ? <ToggleRight size={16} className="text-emerald-600" /> 
+          : <ToggleLeft size={16} className="text-rose-600" />}
+      </button>
     </div>
   );
-}; 
+};

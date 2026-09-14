@@ -1,19 +1,21 @@
-
-import { Monitor, FileText, AlertTriangle } from 'lucide-react';
+import { Monitor, FileText, AlertTriangle, Settings as SettingsIcon } from 'lucide-react';
 import { useSyncStatus } from '../hooks/useSyncStatus';
+import { PageLayout } from '../components/PageLayout';
 
 export const Settings = () => {
   const { data: syncStatus = { connected: false, mode: 'cloud' } } = useSyncStatus();
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-8">الإعدادات</h1>
-
+    <PageLayout
+      title="إعدادات النظام"
+      subtitle="معلومات الخادم، حالة قاعدة البيانات، وفحص الاتصال وإصدار التطبيق."
+      icon={<SettingsIcon size={22} className="text-primary-600" />}
+    >
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Backup Section */}
 
         {/* Application Info Section */}
-        <div className="card">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-xs p-5 transition-all">
           <div className="flex items-start mb-4">
             <div className="p-2 rounded-full bg-accent-100 text-accent-600 ml-3">
               <Monitor size={20} />
@@ -48,7 +50,7 @@ export const Settings = () => {
             <li className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
               <span className="text-gray-500">آخر تحديث / مزامنة:</span>
               <span className="font-medium text-gray-700">
-                {syncStatus.last_synced_at ? new Date(syncStatus.last_synced_at).toLocaleString('ar-EG', { timeZone: 'Africa/Cairo' }) : 'حسب الطلب'}
+                {syncStatus.last_synced_at ? new Date(syncStatus.last_synced_at).toLocaleString('en-GB', { timeZone: 'Africa/Cairo' }) : 'حسب الطلب'}
               </span>
             </li>
             {syncStatus.revision && (
@@ -71,7 +73,7 @@ export const Settings = () => {
         </div>
 
         {/* Help Section */}
-        <div className="card">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-xs p-5 transition-all">
           <div className="flex items-start mb-4">
             <div className="p-2 rounded-full bg-secondary-100 text-secondary-600 ml-3">
               <FileText size={20} />
@@ -86,14 +88,14 @@ export const Settings = () => {
             يمكنك الاطلاع على دليل الاستخدام الكامل لمعرفة كيفية استخدام جميع ميزات النظام.
           </p>
 
-          <button className="btn btn-outline w-full flex items-center justify-center">
+          <button className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs w-full">
             <FileText size={18} className="ml-2" />
             عرض دليل الاستخدام
           </button>
         </div>
 
         {/* Support Section */}
-        <div className="card">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-xs p-5 transition-all">
           <div className="flex items-start mb-4">
             <div className="p-2 rounded-full bg-warning-100 text-warning-600 ml-3">
               <AlertTriangle size={20} />
@@ -114,11 +116,11 @@ export const Settings = () => {
             <p className="text-sm">الهاتف: <span dir="ltr">+20 1068194494</span></p>
           </div>
 
-          <button className="btn btn-secondary w-full">
+          <button className="h-10 px-4 rounded-xl font-semibold text-xs inline-flex items-center justify-center gap-2 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-secondary-600 text-white hover:bg-secondary-700 shadow-xs w-full">
             طلب المساعدة
           </button>
         </div>
       </div>
-    </div>
+    </PageLayout>
   );
 };

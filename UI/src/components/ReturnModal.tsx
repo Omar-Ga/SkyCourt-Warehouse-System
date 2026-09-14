@@ -136,7 +136,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
         <div className="flex justify-between items-center w-full">
           <button
             type="button"
-            className="btn btn-sm btn-outline"
+            className="h-8 px-3 rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
             onClick={handleReturnAll}
             disabled={returnMutation.isPending || !order}
           >
@@ -145,7 +145,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
           <div className="flex gap-2">
             <button
               type="button"
-              className="btn btn-sm btn-outline"
+              className="h-8 px-3 rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-white hover:bg-slate-100 text-ink-700 border border-gray-200 shadow-2xs"
               onClick={handleClose}
               disabled={returnMutation.isPending}
             >
@@ -153,7 +153,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
             </button>
             <button
               type="button"
-              className="btn btn-sm btn-primary flex items-center gap-1"
+              className="h-8 px-3 rounded-lg font-semibold text-xs inline-flex items-center justify-center gap-1.5 transition-colors select-none disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer bg-primary-600 text-white hover:bg-primary-700 active:bg-primary-800 shadow-xs"
               onClick={handleSubmit}
               disabled={returnMutation.isPending || !order || hasLineErrors || validLineCount === 0}
             >
@@ -185,7 +185,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
           </div>
         ) : (
           <div className="overflow-x-auto border border-gray-200 rounded-lg">
-            <table className="table w-full text-right text-sm">
+            <table className="min-w-full divide-y divide-gray-200 text-right text-xs">
               <thead className="bg-gray-50 text-gray-600 font-semibold border-b">
                 <tr>
                   <th className="p-3">الصنف</th>
@@ -214,7 +214,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
                             type="number"
                             step="1"
                             min="0"
-                            className={`input w-28 text-center py-1 text-sm font-semibold ${
+                            className={`h-9 w-28 text-center px-2 py-1 bg-white border border-gray-300 rounded-lg text-sm font-semibold text-ink-950 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all ${
                               hasError ? 'border-red-500 text-red-700 focus:border-red-500 focus:ring-red-500' : ''
                             }`}
                             placeholder="0"
@@ -242,7 +242,7 @@ export const ReturnModal: React.FC<ReturnModalProps> = ({
           </label>
           <input
             type="text"
-            className="input w-full text-sm"
+            className="w-full h-10 px-3.5 py-2 bg-white border border-gray-300 rounded-xl text-sm text-ink-950 placeholder:text-ink-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
             placeholder="مثال: فحص المواد وتبين سلامتها، إعادة للمستودع..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
